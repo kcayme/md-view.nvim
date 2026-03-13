@@ -1,5 +1,52 @@
 local M = {}
 
+local PALETTES = {
+  dark = {
+    ["--md-bg"]              = "#0d1117",
+    ["--md-fg"]              = "#e6edf3",
+    ["--md-heading"]         = "#f0f6fc",
+    ["--md-bold"]            = "inherit",
+    ["--md-muted"]           = "#848d97",
+    ["--md-link"]            = "#4493f8",
+    ["--md-code-fg"]         = "#e6edf3",
+    ["--md-code-bg"]         = "#161b22",
+    ["--md-pre-fg"]          = "#e6edf3",
+    ["--md-border"]          = "#30363d",
+    ["--md-checkbox"]        = "#1f6feb",
+    ["--md-table-header-bg"] = "#161b22",
+    ["--md-row-alt"]         = "#161b2205",
+  },
+  light = {
+    ["--md-bg"]              = "#ffffff",
+    ["--md-fg"]              = "#1f2328",
+    ["--md-heading"]         = "#1f2328",
+    ["--md-bold"]            = "inherit",
+    ["--md-muted"]           = "#656d76",
+    ["--md-link"]            = "#0969da",
+    ["--md-code-fg"]         = "#1f2328",
+    ["--md-code-bg"]         = "#eff1f3",
+    ["--md-pre-fg"]          = "#1f2328",
+    ["--md-border"]          = "#d1d9e0",
+    ["--md-checkbox"]        = "#0969da",
+    ["--md-table-header-bg"] = "#f6f8fa",
+    ["--md-row-alt"]         = "#f6f8fa80",
+  },
+}
+
+local function palette_to_css(palette)
+  local keys = {}
+  for name in pairs(palette) do
+    keys[#keys + 1] = name
+  end
+  table.sort(keys)
+  local parts = { ":root {" }
+  for _, name in ipairs(keys) do
+    parts[#parts + 1] = "  " .. name .. ": " .. palette[name] .. ";"
+  end
+  parts[#parts + 1] = "}"
+  return table.concat(parts, "\n")
+end
+
 -- NOTE: innerHTML usage here is safe — this is a local-only preview server
 -- (127.0.0.1) rendering the user's own markdown buffer content. No untrusted
 -- external content is involved. morphdom requires innerHTML for DOM diffing.
@@ -10,25 +57,28 @@ local TEMPLATE = [[
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>md-view</title>
+<title>%%TITLE%%</title>
 <script src="https://cdn.jsdelivr.net/npm/markdown-it@14/dist/markdown-it.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/markdown-it-task-lists@2/dist/markdown-it-task-lists.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/morphdom@2/dist/morphdom-umd.min.js"></script>
+%%HIGHLIGHT_LINK%%
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", system-ui, Ubuntu, "Droid Sans", sans-serif;
     font-size: 14px;
     line-height: 1.6;
-    color: #cccccc;
-    background: #1e1e1e;
+    color: var(--md-fg, #cccccc);
+    background: var(--md-bg, #1e1e1e);
     padding: 0 26px;
     max-width: 882px;
     margin: 0 auto;
     word-wrap: break-word;
   }
   h1, h2, h3, h4, h5, h6 {
-    color: #cccccc;
+    color: var(--md-heading, #cccccc);
     margin-top: 24px;
     margin-bottom: 16px;
     line-height: 1.25;
@@ -38,27 +88,28 @@ local TEMPLATE = [[
   h3 { font-size: 1.25em; font-weight: 600; }
   h4 { font-size: 1em; font-weight: 550; }
   h5 { font-size: 0.875em; font-weight: 500; }
-  h6 { font-size: 0.85em; font-weight: 450; color: #8b949e; }
+  h6 { font-size: 0.85em; font-weight: 450; color: var(--md-muted, #8b949e); }
   p { margin-bottom: 16px; }
-  a { color: #4080d0; text-decoration: none; }
+  a { color: var(--md-link, #4080d0); text-decoration: none; }
   a:hover { text-decoration: underline; }
-  strong { font-weight: 600; }
+  strong { font-weight: 600; color: var(--md-bold, inherit); }
   code {
     font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
     font-size: 1em;
-    padding: 1px 3px;
-    color: #d19a66;
-    border-radius: 3px;
+    padding: 2px 6px;
+    color: var(--md-code-fg, #f0d96a);
+    background: rgba(110, 118, 129, 0.4);
+    border-radius: 4px;
   }
   pre {
-    background: #282828;
+    background: var(--md-code-bg, #282828);
     padding: 16px;
     border-radius: 3px;
     overflow-x: auto;
     margin-bottom: 16px;
   }
   pre code {
-    color: #d4d4d4;
+    color: var(--md-pre-fg, #d4d4d4);
     padding: 0;
     font-size: 14px;
     line-height: 19px;
@@ -67,15 +118,15 @@ local TEMPLATE = [[
     white-space: pre;
   }
   blockquote {
-    border-left: 4px solid #444;
+    border-left: 4px solid var(--md-border, #444);
     padding: 0 16px;
-    color: #8b949e;
+    color: var(--md-fg, #cccccc);
     margin: 0 0 16px 0;
   }
   blockquote p:last-child { margin-bottom: 0; }
   table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
-  th, td { border: 1px solid #444; padding: 6px 13px; }
-  th { background: #282828; font-weight: 600; }
+  th, td { border: 1px solid var(--md-border, #444); padding: 6px 13px; }
+  th { background: var(--md-table-header-bg, #282828); font-weight: 600; }
   tr:nth-child(even) { background: #ffffff06; }
   img { max-width: 100%; }
   ul, ol { padding-left: 2em; margin-bottom: 16px; }
@@ -83,10 +134,49 @@ local TEMPLATE = [[
   li + li { margin-top: 4px; }
   li > p { margin-bottom: 0; }
   li > ul, li > ol { margin-bottom: 0; margin-top: 4px; }
-  hr { border: none; border-top: 1px solid #444; margin: 24px 0; }
-  input[type="checkbox"] { margin-right: 4px; vertical-align: middle; }
+  hr { border: none; height: 2px; background: var(--md-border, #444); margin: 24px 0; }
+  .task-list-item { list-style: none; }
+  .task-list-item input[type="checkbox"] {
+    margin: 0 0.35em 0 -1.6em;
+    vertical-align: middle;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--md-border, #555);
+    border-radius: 3px;
+    background: transparent;
+    cursor: default;
+    position: relative;
+  }
+  .task-list-item input[type="checkbox"]:checked {
+    background: var(--md-checkbox, #1f6feb);
+    border-color: var(--md-checkbox, #1f6feb);
+  }
+  .task-list-item input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 5px;
+    height: 9px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+  .front-matter { margin-top: 24px; margin-bottom: 24px; }
+  .front-matter table { border-collapse: collapse; width: 100%; }
+  .front-matter th, .front-matter td {
+    border: 1px solid var(--md-border, #444);
+    padding: 4px 10px;
+    text-align: left;
+    font-size: 13px;
+    font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace;
+  }
+  .front-matter th { background: var(--md-code-bg, #282828); color: var(--md-fg, #cccccc); font-weight: 600; width: 120px; }
+  .front-matter td { color: var(--md-fg, #cccccc); }
   .mermaid-wrapper { margin-bottom: 16px; }
   .mermaid-wrapper svg { max-width: 100%; }
+  %%THEME_CSS%%
   %%CSS%%
 </style>
 </head>
@@ -96,11 +186,61 @@ local TEMPLATE = [[
 (function() {
   mermaid.initialize({ startOnLoad: false, theme: "%%MERMAID_THEME%%" });
 
-  var md = window.markdownit({ html: true, linkify: true, typographer: true });
+  var md = window.markdownit({
+    html: true, linkify: true, typographer: true,
+    highlight: function(str, lang) {
+      if (lang && hljs.getLanguage(lang)) {
+        try { return hljs.highlight(str, { language: lang }).value; } catch (_) {}
+      }
+      return "";
+    }
+  }).use(window.markdownitTaskLists);
 
-  function stripFrontMatter(text) {
-    var match = text.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/);
-    return match ? text.slice(match[0].length) : text;
+  function parseFrontMatter(text) {
+    var match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+    if (!match) return { body: text, html: "" };
+    var body = text.slice(match[0].length);
+    var lines = match[1].split(/\r?\n/);
+    var rows = [];
+    var currentKey = null;
+    var currentValues = [];
+
+    function flushKey() {
+      if (currentKey !== null) {
+        rows.push({ key: currentKey, value: currentValues.join(", ") });
+        currentValues = [];
+      }
+    }
+
+    lines.forEach(function(line) {
+      var kvMatch = line.match(/^(\w[\w\s-]*):\s*(.*)/);
+      var listMatch = line.match(/^\s+-\s+(.*)/);
+      if (kvMatch) {
+        flushKey();
+        currentKey = kvMatch[1].trim();
+        if (kvMatch[2].trim()) {
+          currentValues.push(kvMatch[2].trim());
+        }
+      } else if (listMatch && currentKey) {
+        currentValues.push(listMatch[1].trim());
+      }
+    });
+    flushKey();
+
+    if (rows.length === 0) return { body: body, html: "" };
+
+    function esc(s) {
+      var el = document.createElement("span");
+      el.textContent = s;
+      return el.innerHTML;
+    }
+
+    var html = '<div class="front-matter" data-source-line="0"><table>';
+    rows.forEach(function(r) {
+      html += "<tr><th>" + esc(r.key) + "</th><td>" + esc(r.value) + "</td></tr>";
+    });
+    html += "</table></div>";
+    return { body: body, html: html };
   }
 
   var defaultFence = md.renderer.rules.fence || function(tokens, idx, options, env, self) {
@@ -142,7 +282,8 @@ local TEMPLATE = [[
   var container = document.getElementById("content");
 
   function renderMarkdown(text) {
-    var html = md.render(stripFrontMatter(text));
+    var fm = parseFrontMatter(text);
+    var html = fm.html + md.render(fm.body);
     var tmp = document.createElement("div");
     // Safe: content is the user's own local markdown buffer, served only on 127.0.0.1
     tmp.innerHTML = html;
@@ -166,21 +307,42 @@ local TEMPLATE = [[
     renderMarkdown(d.content);
   });
 
+  source.addEventListener("theme", function(e) {
+    var d = JSON.parse(e.data);
+    var style = document.getElementById("md-view-theme");
+    if (!style) {
+      style = document.createElement("style");
+      style.id = "md-view-theme";
+      document.head.appendChild(style);
+    }
+    style.textContent = d.css;
+  });
+
+  source.addEventListener("close", function(e) {
+    window.close();
+    // Fallback if window.close() is blocked by browser
+    document.body.innerHTML = '<p style="text-align:center;margin-top:40vh;color:#888;">Preview closed</p>';
+  });
+
   source.addEventListener("scroll", function(e) {
     var d = JSON.parse(e.data);
-    var line = d.line;
-    var best = null;
-    var bestDist = Infinity;
-    container.querySelectorAll("[data-source-line]").forEach(function(el) {
-      var sl = parseInt(el.getAttribute("data-source-line"), 10);
-      var dist = Math.abs(sl - line);
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = el;
+    if (d.percent != null) {
+      var maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      window.scrollTo({ top: d.percent * maxScroll, behavior: "smooth" });
+    } else if (d.line != null) {
+      var best = null;
+      var bestDist = Infinity;
+      container.querySelectorAll("[data-source-line]").forEach(function(el) {
+        var sl = parseInt(el.getAttribute("data-source-line"), 10);
+        var dist = Math.abs(sl - d.line);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = el;
+        }
+      });
+      if (best) {
+        best.scrollIntoView({ behavior: "smooth", block: "center" });
       }
-    });
-    if (best) {
-      best.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   });
 })();
@@ -189,10 +351,23 @@ local TEMPLATE = [[
 </html>
 ]]
 
-function M.render(opts)
+function M.render(opts, filename)
   local css = opts.css or ""
   local mermaid_theme = opts.mermaid and opts.mermaid.theme or "default"
-  local html = TEMPLATE:gsub("%%%%CSS%%%%", css:gsub("%%", "%%%%")):gsub("%%%%MERMAID_THEME%%%%", mermaid_theme)
+  local highlight_theme = opts.highlight_theme or "vs2015"
+  local title = filename and filename ~= "" and filename or "md-view"
+  local theme_css = opts.theme_css or ""
+  local highlight_link = ""
+  if not opts.theme_sync then
+    highlight_link = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/'
+      .. highlight_theme .. '.min.css">'
+  end
+  local html = TEMPLATE
+    :gsub("%%%%THEME_CSS%%%%", function() return theme_css end)
+    :gsub("%%%%CSS%%%%", function() return css end)
+    :gsub("%%%%MERMAID_THEME%%%%", mermaid_theme)
+    :gsub("%%%%HIGHLIGHT_LINK%%%%", highlight_link)
+    :gsub("%%%%TITLE%%%%", title)
   return html
 end
 
