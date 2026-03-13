@@ -1,52 +1,5 @@
 local M = {}
 
-local PALETTES = {
-  dark = {
-    ["--md-bg"]              = "#0d1117",
-    ["--md-fg"]              = "#e6edf3",
-    ["--md-heading"]         = "#f0f6fc",
-    ["--md-bold"]            = "inherit",
-    ["--md-muted"]           = "#848d97",
-    ["--md-link"]            = "#4493f8",
-    ["--md-code-fg"]         = "#e6edf3",
-    ["--md-code-bg"]         = "#161b22",
-    ["--md-pre-fg"]          = "#e6edf3",
-    ["--md-border"]          = "#30363d",
-    ["--md-checkbox"]        = "#1f6feb",
-    ["--md-table-header-bg"] = "#161b22",
-    ["--md-row-alt"]         = "#161b2205",
-  },
-  light = {
-    ["--md-bg"]              = "#ffffff",
-    ["--md-fg"]              = "#1f2328",
-    ["--md-heading"]         = "#1f2328",
-    ["--md-bold"]            = "inherit",
-    ["--md-muted"]           = "#656d76",
-    ["--md-link"]            = "#0969da",
-    ["--md-code-fg"]         = "#1f2328",
-    ["--md-code-bg"]         = "#eff1f3",
-    ["--md-pre-fg"]          = "#1f2328",
-    ["--md-border"]          = "#d1d9e0",
-    ["--md-checkbox"]        = "#0969da",
-    ["--md-table-header-bg"] = "#f6f8fa",
-    ["--md-row-alt"]         = "#f6f8fa80",
-  },
-}
-
-local function palette_to_css(palette)
-  local keys = {}
-  for name in pairs(palette) do
-    keys[#keys + 1] = name
-  end
-  table.sort(keys)
-  local parts = { ":root {" }
-  for _, name in ipairs(keys) do
-    parts[#parts + 1] = "  " .. name .. ": " .. palette[name] .. ";"
-  end
-  parts[#parts + 1] = "}"
-  return table.concat(parts, "\n")
-end
-
 -- NOTE: innerHTML usage here is safe — this is a local-only preview server
 -- (127.0.0.1) rendering the user's own markdown buffer content. No untrusted
 -- external content is involved. morphdom requires innerHTML for DOM diffing.
@@ -58,10 +11,10 @@ local TEMPLATE = [[
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>%%TITLE%%</title>
-<script src="https://cdn.jsdelivr.net/npm/markdown-it@14/dist/markdown-it.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/markdown-it-task-lists@2/dist/markdown-it-task-lists.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/morphdom@2/dist/morphdom-umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/markdown-it-task-lists@2.1.1/dist/markdown-it-task-lists.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/morphdom@2.7.4/dist/morphdom-umd.min.js"></script>
 %%HIGHLIGHT_LINK%%
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
 <style>
@@ -303,6 +256,17 @@ local TEMPLATE = [[
 
   var source = new EventSource("/events");
 
+  var channel = new BroadcastChannel("mdview_" + location.port);
+  channel.onmessage = function(e) {
+    if (e.data === "takeover") {
+      source.close();
+      channel.close();
+      window.close();
+      document.body.innerHTML = '<p style="text-align:center;margin-top:40vh;color:#888;">Preview moved to new tab</p>';
+    }
+  };
+  channel.postMessage("takeover");
+
   source.addEventListener("content", function(e) {
     var d = JSON.parse(e.data);
     renderMarkdown(d.content);
@@ -352,14 +316,32 @@ local TEMPLATE = [[
 </html>
 ]]
 
+local VALID_MERMAID_THEMES = {
+  default = true, dark = true, forest = true, neutral = true, base = true,
+}
+
+local function html_escape(str)
+  return str:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"):gsub("'", "&#39;")
+end
+
+local function sanitize_theme_name(name)
+  return name:gsub("[^%w_%-]", "")
+end
+
 function M.render(opts, filename)
   local css = opts.css or ""
   local mermaid_theme = opts.mermaid and opts.mermaid.theme or "default"
   local highlight_theme = opts.highlight_theme or "vs2015"
   local title = filename and filename ~= "" and filename or "md-view"
   local theme_css = opts.theme_css or ""
-  local theme = opts.theme or "dark"
-  local palette_css = palette_to_css(PALETTES[theme] or PALETTES.dark)
+  local palette_css = opts.palette_css or ""
+
+  if not VALID_MERMAID_THEMES[mermaid_theme] then
+    mermaid_theme = "default"
+  end
+  highlight_theme = sanitize_theme_name(highlight_theme)
+  title = html_escape(title)
+
   local highlight_link = ""
   if not opts.theme_sync then
     highlight_link = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/'
@@ -369,9 +351,9 @@ function M.render(opts, filename)
     :gsub("%%%%PALETTE_CSS%%%%", function() return palette_css end)
     :gsub("%%%%THEME_CSS%%%%", function() return theme_css end)
     :gsub("%%%%CSS%%%%", function() return css end)
-    :gsub("%%%%MERMAID_THEME%%%%", mermaid_theme)
-    :gsub("%%%%HIGHLIGHT_LINK%%%%", highlight_link)
-    :gsub("%%%%TITLE%%%%", title)
+    :gsub("%%%%MERMAID_THEME%%%%", function() return mermaid_theme end)
+    :gsub("%%%%HIGHLIGHT_LINK%%%%", function() return highlight_link end)
+    :gsub("%%%%TITLE%%%%", function() return title end)
   return html
 end
 
