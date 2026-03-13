@@ -7,6 +7,11 @@ local sse = require("md-view.sse")
 local buffer = require("md-view.buffer")
 local util = require("md-view.util")
 
+local THEME_DEFAULTS = {
+  dark = { highlight_theme = "vs2015", mermaid_theme = "dark" },
+  light = { highlight_theme = "github", mermaid_theme = "default" },
+}
+
 local active_previews = {}
 
 function M.setup(opts)
@@ -22,15 +27,38 @@ function M.open()
   local bufnr = vim.api.nvim_get_current_buf()
 
   if active_previews[bufnr] then
-    vim.notify("[md-view] Preview already active for this buffer", vim.log.levels.WARN)
+    local preview = active_previews[bufnr]
+    local url = "http://" .. opts.host .. ":" .. preview.port
+    vim.notify("[md-view] Reopening preview at " .. url)
+    util.open_browser(url, opts.browser)
     return
   end
 
   local sse_instance = sse.new()
 
+  local theme_css = ""
+  if opts.theme_sync then
+    local theme = require("md-view.theme")
+    theme_css = theme.css()
+  end
+
+  local resolved_theme = opts.theme
+  if resolved_theme ~= "light" and resolved_theme ~= "dark" then
+    resolved_theme = vim.o.background
+  end
+
+  local theme_defs = THEME_DEFAULTS[resolved_theme] or THEME_DEFAULTS.dark
+  local resolved_highlight = opts.highlight_theme or theme_defs.highlight_theme
+  local resolved_mermaid = (opts.mermaid and opts.mermaid.theme) or theme_defs.mermaid_theme
+
   local ctx = {
     bufnr = bufnr,
-    config = opts,
+    config = vim.tbl_extend("force", opts, {
+      theme_css = theme_css,
+      theme = resolved_theme,
+      highlight_theme = resolved_highlight,
+      mermaid = { theme = resolved_mermaid },
+    }),
     sse = sse_instance,
   }
 
@@ -47,10 +75,10 @@ function M.open()
       local content = table.concat(lines, "\n")
       sse_instance:push("content", { content = content })
     end,
-    on_scroll = function(line)
-      sse_instance:push("scroll", { line = line })
+    on_scroll = function(data)
+      sse_instance:push("scroll", data)
     end,
-  }, opts.debounce_ms)
+  }, opts.debounce_ms, opts.scroll_sync)
 
   active_previews[bufnr] = {
     server = srv,
@@ -64,6 +92,16 @@ function M.open()
   util.open_browser(url, opts.browser)
 
   local cleanup_group = vim.api.nvim_create_augroup("md_view_cleanup_" .. bufnr, { clear = true })
+
+  if opts.theme_sync then
+    vim.api.nvim_create_autocmd("ColorScheme", {
+      group = cleanup_group,
+      callback = function()
+        local theme = require("md-view.theme")
+        sse_instance:push("theme", { css = theme.css() })
+      end,
+    })
+  end
 
   vim.api.nvim_create_autocmd({ "BufDelete", "BufWipeout" }, {
     group = cleanup_group,
@@ -93,6 +131,9 @@ function M.stop(bufnr)
     return
   end
 
+  if config.options.auto_close then
+    preview.sse:push("close", {})
+  end
   preview.sse:close_all()
   preview.watcher.stop()
   server.stop(preview.server)
