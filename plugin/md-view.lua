@@ -9,3 +9,7 @@ end, { desc = "Stop markdown preview" })
 vim.api.nvim_create_user_command("MdViewToggle", function()
   require("md-view").toggle()
 end, { desc = "Toggle markdown preview" })
+
+vim.api.nvim_create_user_command("MdViewList", function()
+  require("md-view").list()
+end, { desc = "List active markdown previews" })
