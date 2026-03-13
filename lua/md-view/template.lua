@@ -70,46 +70,46 @@ local TEMPLATE = [[
     font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", system-ui, Ubuntu, "Droid Sans", sans-serif;
     font-size: 14px;
     line-height: 1.6;
-    color: var(--md-fg, #cccccc);
-    background: var(--md-bg, #1e1e1e);
+    color: var(--md-fg);
+    background: var(--md-bg);
     padding: 0 26px;
     max-width: 882px;
     margin: 0 auto;
     word-wrap: break-word;
   }
   h1, h2, h3, h4, h5, h6 {
-    color: var(--md-heading, #cccccc);
+    color: var(--md-heading);
     margin-top: 24px;
     margin-bottom: 16px;
     line-height: 1.25;
   }
-  h1 { font-size: 2em; font-weight: 700; padding-bottom: 0.3em; border-bottom: 1px solid #65634f33; }
-  h2 { font-size: 1.5em; font-weight: 650; padding-bottom: 0.3em; border-bottom: 1px solid #65634f33; }
+  h1 { font-size: 2em; font-weight: 700; padding-bottom: 0.3em; border-bottom: 1px solid var(--md-border); }
+  h2 { font-size: 1.5em; font-weight: 650; padding-bottom: 0.3em; border-bottom: 1px solid var(--md-border); }
   h3 { font-size: 1.25em; font-weight: 600; }
   h4 { font-size: 1em; font-weight: 550; }
   h5 { font-size: 0.875em; font-weight: 500; }
-  h6 { font-size: 0.85em; font-weight: 450; color: var(--md-muted, #8b949e); }
+  h6 { font-size: 0.85em; font-weight: 450; color: var(--md-muted); }
   p { margin-bottom: 16px; }
-  a { color: var(--md-link, #4080d0); text-decoration: none; }
+  a { color: var(--md-link); text-decoration: none; }
   a:hover { text-decoration: underline; }
-  strong { font-weight: 600; color: var(--md-bold, inherit); }
+  strong { font-weight: 600; color: var(--md-bold); }
   code {
     font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
     font-size: 1em;
     padding: 2px 6px;
-    color: var(--md-code-fg, #f0d96a);
-    background: rgba(110, 118, 129, 0.4);
+    color: var(--md-code-fg);
+    background: var(--md-code-bg);
     border-radius: 4px;
   }
   pre {
-    background: var(--md-code-bg, #282828);
+    background: var(--md-code-bg);
     padding: 16px;
     border-radius: 3px;
     overflow-x: auto;
     margin-bottom: 16px;
   }
   pre code {
-    color: var(--md-pre-fg, #d4d4d4);
+    color: var(--md-pre-fg);
     padding: 0;
     font-size: 14px;
     line-height: 19px;
@@ -118,23 +118,23 @@ local TEMPLATE = [[
     white-space: pre;
   }
   blockquote {
-    border-left: 4px solid var(--md-border, #444);
+    border-left: 4px solid var(--md-border);
     padding: 0 16px;
-    color: var(--md-fg, #cccccc);
+    color: var(--md-fg);
     margin: 0 0 16px 0;
   }
   blockquote p:last-child { margin-bottom: 0; }
   table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
-  th, td { border: 1px solid var(--md-border, #444); padding: 6px 13px; }
-  th { background: var(--md-table-header-bg, #282828); font-weight: 600; }
-  tr:nth-child(even) { background: #ffffff06; }
+  th, td { border: 1px solid var(--md-border); padding: 6px 13px; }
+  th { background: var(--md-table-header-bg); font-weight: 600; }
+  tr:nth-child(even) { background: var(--md-row-alt); }
   img { max-width: 100%; }
   ul, ol { padding-left: 2em; margin-bottom: 16px; }
   li { margin-bottom: 0; }
   li + li { margin-top: 4px; }
   li > p { margin-bottom: 0; }
   li > ul, li > ol { margin-bottom: 0; margin-top: 4px; }
-  hr { border: none; height: 2px; background: var(--md-border, #444); margin: 24px 0; }
+  hr { border: none; height: 2px; background: var(--md-border); margin: 24px 0; }
   .task-list-item { list-style: none; }
   .task-list-item input[type="checkbox"] {
     margin: 0 0.35em 0 -1.6em;
@@ -142,15 +142,15 @@ local TEMPLATE = [[
     appearance: none;
     width: 16px;
     height: 16px;
-    border: 1px solid var(--md-border, #555);
+    border: 1px solid var(--md-border);
     border-radius: 3px;
     background: transparent;
     cursor: default;
     position: relative;
   }
   .task-list-item input[type="checkbox"]:checked {
-    background: var(--md-checkbox, #1f6feb);
-    border-color: var(--md-checkbox, #1f6feb);
+    background: var(--md-checkbox);
+    border-color: var(--md-checkbox);
   }
   .task-list-item input[type="checkbox"]:checked::after {
     content: "";
@@ -166,16 +166,17 @@ local TEMPLATE = [[
   .front-matter { margin-top: 24px; margin-bottom: 24px; }
   .front-matter table { border-collapse: collapse; width: 100%; }
   .front-matter th, .front-matter td {
-    border: 1px solid var(--md-border, #444);
+    border: 1px solid var(--md-border);
     padding: 4px 10px;
     text-align: left;
     font-size: 13px;
     font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace;
   }
-  .front-matter th { background: var(--md-code-bg, #282828); color: var(--md-fg, #cccccc); font-weight: 600; width: 120px; }
-  .front-matter td { color: var(--md-fg, #cccccc); }
+  .front-matter th { background: var(--md-code-bg); color: var(--md-fg); font-weight: 600; width: 120px; }
+  .front-matter td { color: var(--md-fg); }
   .mermaid-wrapper { margin-bottom: 16px; }
   .mermaid-wrapper svg { max-width: 100%; }
+  %%PALETTE_CSS%%
   %%THEME_CSS%%
   %%CSS%%
 </style>
@@ -357,12 +358,15 @@ function M.render(opts, filename)
   local highlight_theme = opts.highlight_theme or "vs2015"
   local title = filename and filename ~= "" and filename or "md-view"
   local theme_css = opts.theme_css or ""
+  local theme = opts.theme or "dark"
+  local palette_css = palette_to_css(PALETTES[theme] or PALETTES.dark)
   local highlight_link = ""
   if not opts.theme_sync then
     highlight_link = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/'
       .. highlight_theme .. '.min.css">'
   end
   local html = TEMPLATE
+    :gsub("%%%%PALETTE_CSS%%%%", function() return palette_css end)
     :gsub("%%%%THEME_CSS%%%%", function() return theme_css end)
     :gsub("%%%%CSS%%%%", function() return css end)
     :gsub("%%%%MERMAID_THEME%%%%", mermaid_theme)
