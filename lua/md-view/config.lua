@@ -6,8 +6,13 @@ M.defaults = {
   browser = nil,
   debounce_ms = 300,
   css = nil,
+  highlight_theme = nil,
+  auto_close = true,
+  scroll_sync = "percentage",
+  theme = "auto",
+  theme_sync = false,
   mermaid = {
-    theme = "dark",
+    theme = nil,
   },
 }
 
