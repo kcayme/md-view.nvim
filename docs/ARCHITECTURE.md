@@ -13,96 +13,172 @@ md-view.nvim/
 ├── plugin/
 │   └── md-view.lua              # User command registration
 └── lua/md-view/
-    ├── init.lua                  # Public API: setup(), open(), stop(), toggle()
+    ├── init.lua                  # Public API facade: setup(), open(), stop(), toggle(), list()
     ├── config.lua                # Defaults + merge via tbl_deep_extend
+    ├── preview.lua               # Preview lifecycle orchestration (create, destroy, state)
     ├── server.lua                # TCP server (bind, listen, accept)
     ├── router.lua                # HTTP request parsing + route dispatch
     ├── sse.lua                   # SSE connection manager + event fan-out
     ├── buffer.lua                # Buffer autocmds + debounced content/scroll push
     ├── template.lua              # HTML page (markdown-it + mermaid.js + morphdom)
+    ├── theme.lua                 # All theme concerns: palettes, defaults, resolve, CSS
+    ├── picker.lua                # UI selector for active previews
     └── util.lua                  # Browser opening, debounce, platform detection
 ```
 
 ## Module Dependency Graph
 
-```
-plugin/md-view.lua
-  └── lua/md-view/init.lua
-        ├── config.lua
-        ├── server.lua
-        │     └── (calls on_request callback)
-        ├── router.lua
-        │     ├── template.lua
-        │     └── (reads sse instance from context)
-        ├── sse.lua
-        ├── buffer.lua
-        │     └── util.lua (debounce)
-        └── util.lua (open_browser)
+```mermaid
+graph TD
+    plugin["plugin/md-view.lua"]
+    init["init.lua<br/><i>API facade</i>"]
+    config["config.lua"]
+    preview["preview.lua<br/><i>orchestration</i>"]
+    theme["theme.lua<br/><i>palettes, resolve, CSS</i>"]
+    server["server.lua"]
+    router["router.lua"]
+    template["template.lua"]
+    sse["sse.lua"]
+    buffer["buffer.lua"]
+    util["util.lua"]
+    picker["picker.lua"]
+
+    plugin --> init
+    init --> config
+    init --> preview
+    init -.->|lazy| picker
+    picker --> init
+
+    preview --> theme
+    preview --> server
+    preview --> router
+    preview --> sse
+    preview --> buffer
+    preview --> util
+
+    server -.->|on_request callback| router
+    router --> template
+    router -.->|reads from ctx| sse
+
+    buffer --> util
 ```
 
 ## Data Flow
 
 ### 1. Initialization (`:MdView`)
 
-```
-User command
-  → init.open()
-  → config.setup() if not already called
-  → sse.new() creates connection manager
-  → server.start(host, port=0) binds TCP, resolves actual port via getsockname()
-  → buffer.watch(bufnr) attaches autocmds with debounced callbacks
-  → util.open_browser("http://127.0.0.1:{port}")
-  → store everything in active_previews[bufnr]
+```mermaid
+sequenceDiagram
+    actor User
+    participant init as init.lua
+    participant config as config.lua
+    participant preview as preview.lua
+    participant theme as theme.lua
+    participant sse as sse.lua
+    participant server as server.lua
+    participant buffer as buffer.lua
+    participant util as util.lua
+    participant Browser
+
+    User->>init: :MdView
+    init->>config: setup({}) if needed
+    init->>preview: create(opts)
+    preview->>theme: resolve(opts)
+    theme-->>preview: theme, highlight_theme, mermaid_theme
+    preview->>theme: palette_css(resolved_theme)
+    theme-->>preview: CSS string
+    preview->>sse: new()
+    sse-->>preview: sse_instance
+    preview->>server: start(host, port)
+    server-->>preview: srv, port
+    preview->>buffer: watch(bufnr, callbacks)
+    buffer-->>preview: watcher
+    preview->>preview: store in active_previews[bufnr]
+    preview->>util: open_browser(url)
+    util->>Browser: launch
 ```
 
 ### 2. Browser Initial Load
 
-```
-Browser
-  → GET /         router serves HTML from template.lua
-  → GET /content  router reads nvim_buf_get_lines(), responds with JSON
-  → GET /events   router sends SSE headers, registers client socket via sse:add_client()
-  → JS: markdown-it parses content → morphdom patches DOM → mermaid.run() renders diagrams
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant router as router.lua
+    participant template as template.lua
+    participant sse as sse.lua
+
+    Browser->>router: GET /
+    router->>template: render(opts, filename)
+    template-->>router: HTML
+    router-->>Browser: HTML response
+
+    Browser->>router: GET /content
+    router-->>Browser: JSON {content}
+
+    Browser->>router: GET /events
+    router->>sse: add_client(socket)
+    router-->>Browser: SSE headers (keep-alive)
+
+    Note over Browser: markdown-it parse<br/>→ morphdom patch DOM<br/>→ mermaid.run()
 ```
 
 ### 3. Live Update — Content
 
-```
-Buffer edit
-  → TextChanged/TextChangedI/BufWritePost autocmd fires
-  → content debounce timer resets (300ms default)
-  → timer expires → nvim_buf_get_lines() reads buffer
-  → sse:push("content", { content = "..." })
-  → SSE writes "event: content\ndata: {json}\n\n" to all connected browsers
-  → Browser EventSource "content" handler fires
-  → JS: markdown-it parse → morphdom DOM diff/patch → mermaid.run()
+```mermaid
+sequenceDiagram
+    participant Neovim as Neovim Buffer
+    participant buffer as buffer.lua
+    participant sse as sse.lua
+    participant Browser
+
+    Neovim->>buffer: TextChanged / TextChangedI / BufWritePost
+    Note over buffer: debounce timer resets (300ms)
+    buffer->>buffer: timer expires → read buffer lines
+    buffer->>sse: push("content", {content})
+    sse->>Browser: event: content\ndata: {json}
+
+    Note over Browser: markdown-it parse<br/>→ morphdom diff/patch<br/>→ mermaid.run()
 ```
 
 ### 4. Live Update — Scroll Sync
 
-```
-Cursor moves
-  → CursorMoved/CursorMovedI autocmd fires
-  → scroll debounce timer resets (50ms)
-  → timer expires → nvim_win_get_cursor() reads line (0-indexed)
-  → sse:push("scroll", { line = N })
-  → SSE writes "event: scroll\ndata: {json}\n\n"
-  → Browser EventSource "scroll" handler fires
-  → JS: find element with closest data-source-line attribute → scrollIntoView()
+```mermaid
+sequenceDiagram
+    participant Neovim as Neovim Cursor
+    participant buffer as buffer.lua
+    participant sse as sse.lua
+    participant Browser
+
+    Neovim->>buffer: CursorMoved / CursorMovedI
+    Note over buffer: debounce timer resets (50ms)
+    buffer->>buffer: timer expires → read cursor position
+    buffer->>sse: push("scroll", {line})
+    sse->>Browser: event: scroll\ndata: {json}
+
+    Note over Browser: find closest<br/>data-source-line element<br/>→ scrollIntoView()
 ```
 
 The scroll sync works because markdown-it exposes source map information (line numbers) per token. The template JS hooks into markdown-it's block-level renderer rules (`paragraph_open`, `heading_open`, `blockquote_open`, etc.) to attach `data-source-line` attributes to rendered HTML elements. When a scroll event arrives, the browser finds the element whose `data-source-line` is closest to the cursor line and smoothly scrolls to it.
 
 ### 5. Shutdown
 
-```
-:MdViewStop / BufDelete / BufWipeout / VimLeavePre
-  → init.stop(bufnr)
-  → sse:close_all() closes all client sockets
-  → watcher.stop() removes autocmds + closes debounce timers
-  → server.stop() closes TCP handle
-  → delete cleanup augroup
-  → remove from active_previews table
+```mermaid
+sequenceDiagram
+    actor User
+    participant init as init.lua
+    participant preview as preview.lua
+    participant sse as sse.lua
+    participant buffer as buffer.lua
+    participant server as server.lua
+
+    User->>init: :MdViewStop / BufDelete / VimLeavePre
+    init->>preview: destroy(bufnr)
+    preview->>sse: push("close", {})
+    preview->>sse: close_all()
+    preview->>buffer: watcher.stop()
+    preview->>server: stop(srv)
+    preview->>preview: delete augroup
+    preview->>preview: active_previews[bufnr] = nil
 ```
 
 ## Module Details
@@ -121,12 +197,19 @@ On each incoming connection, it accepts the client socket, accumulates data unti
 
 Parses raw HTTP requests (extracts method and path from the first line) and dispatches to route handlers:
 
-| Route          | Handler                                                      |
-|----------------|--------------------------------------------------------------|
-| `GET /`        | Renders HTML template, sends response, closes connection     |
-| `GET /content` | Reads buffer lines, encodes as JSON, sends response, closes  |
-| `GET /events`  | Sends SSE headers, registers client with SSE manager (keeps open) |
-| Other          | 404 response                                                 |
+```mermaid
+flowchart LR
+    req["HTTP Request"] --> parse["Parse method + path"]
+    parse --> get_root{"GET /"}
+    parse --> get_content{"GET /content"}
+    parse --> get_events{"GET /events"}
+    parse --> other{"Other"}
+
+    get_root -->|yes| html["Render template<br/>→ send HTML<br/>→ close"]
+    get_content -->|yes| json["Read buffer lines<br/>→ send JSON<br/>→ close"]
+    get_events -->|yes| sse["Send SSE headers<br/>→ register client<br/>→ keep alive"]
+    other -->|yes| notfound["404 response"]
+```
 
 Regular responses include `Content-Length` and `Connection: close`. The SSE endpoint sends `Content-Type: text/event-stream` with `Connection: keep-alive` and leaves the socket open for streaming.
 
@@ -179,21 +262,34 @@ Returns a table with a `stop()` function that closes both timers and deletes the
 
 ### `init.lua`
 
-The public API module. Manages the `active_previews` table (keyed by buffer number) which tracks all running preview instances:
-
-```
-active_previews[bufnr] = {
-  server   -- uv_tcp_t handle
-  port     -- resolved port number
-  sse      -- SSE connection manager instance
-  watcher  -- buffer watcher (has .stop())
-}
-```
+A thin API facade that delegates to `config` and `preview`:
 
 - **`setup(opts)`** — delegates to `config.setup()`
-- **`open()`** — creates SSE instance, starts server, attaches buffer watcher, opens browser, registers cleanup autocmds for `BufDelete`/`BufWipeout`/`VimLeavePre`
-- **`stop(bufnr)`** — tears down everything for a buffer: closes SSE clients, stops watcher, stops server, removes from table
-- **`toggle()`** — opens if no active preview for the buffer, stops if there is one
+- **`open()`** — delegates to `preview.create(config.options)`
+- **`stop(bufnr)`** — delegates to `preview.destroy(bufnr)`
+- **`toggle()`** — checks `preview.get(bufnr)` then opens or stops
+- **`list()`** — opens the picker UI
+- **`get_active_previews()`** — returns `preview.get_active()`
+
+### `preview.lua`
+
+The orchestration module. Manages the `active_previews` table (keyed by buffer number) which tracks all running preview instances:
+
+```mermaid
+classDiagram
+    class active_previews {
+        +bufnr : key
+        +server : uv_tcp_t
+        +port : number
+        +sse : SSE instance
+        +watcher : buffer watcher
+    }
+```
+
+- **`create(opts)`** — resolves theme via `theme.resolve()`, creates SSE instance, starts server, attaches buffer watcher, opens browser, registers cleanup autocmds for `BufDelete`/`BufWipeout`/`VimLeavePre`
+- **`destroy(bufnr)`** — tears down everything for a buffer: closes SSE clients, stops watcher, stops server, removes from table
+- **`get(bufnr)`** — returns the preview entry for a buffer
+- **`get_active()`** — returns the full active_previews table
 
 ### `plugin/md-view.lua`
 
@@ -226,17 +322,35 @@ The server implements a minimal subset of HTTP/1.1 — enough for browser commun
 
 ## State Lifecycle
 
-```
-         setup()              open()                    stop()
-           │                    │                         │
-           ▼                    ▼                         ▼
-  config.options set    active_previews[bufnr]    active_previews[bufnr]
-                        populated with:           cleaned up:
-                        - server handle           - SSE clients closed
-                        - port number             - timers stopped
-                        - SSE instance            - autocmds removed
-                        - buffer watcher          - server closed
-                        - cleanup autocmds        - entry deleted
+```mermaid
+stateDiagram-v2
+    [*] --> Unconfigured
+
+    Unconfigured --> Configured: setup(opts)
+    note right of Configured: config.options set
+
+    Configured --> Active: open() → preview.create()
+    note right of Active
+        active_previews[bufnr] populated:
+        - server handle
+        - port number
+        - SSE instance
+        - buffer watcher
+        - cleanup autocmds
+    end note
+
+    Active --> Active: open() another buffer
+    Active --> Configured: stop() → preview.destroy()
+    note left of Configured
+        Cleanup:
+        - SSE clients closed
+        - timers stopped
+        - autocmds removed
+        - server closed
+        - entry deleted
+    end note
+
+    Active --> [*]: VimLeavePre (destroy all)
 ```
 
 ## Browser Dependencies (CDN)
@@ -249,8 +363,6 @@ The server implements a minimal subset of HTTP/1.1 — enough for browser commun
 
 ## Future Roadmap (Out of Scope for v1)
 
-- Inline terminal rendering via Kitty/iTerm2/Sixel image protocols
 - LaTeX/KaTeX math equation support
-- Code syntax highlighting via highlight.js
 - Custom themes (dark/light toggle, theme CSS files)
 - Offline mode (bundled JS dependencies instead of CDN)
