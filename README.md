@@ -8,6 +8,7 @@ Opens a browser tab that renders your markdown buffer — including mermaid diag
 
 - **Live preview** — browser updates within ~300ms of each edit
 - **Mermaid diagrams** — fenced `mermaid` code blocks render as SVG
+- **Syntax highlighting** — fenced code blocks highlighted via [highlight.js](https://highlightjs.org) with configurable themes
 - **Scroll sync** — browser follows your cursor as you navigate the buffer
 - **Zero dependencies** — pure Lua, no Node.js/Deno/external processes
 - **Multi-buffer** — each buffer gets its own server on an auto-assigned port
@@ -36,18 +37,69 @@ use("karlcayme/md-view.nvim")
 
 ```lua
 require("md-view").setup({
-  port = 0,              -- 0 = OS auto-assigns a free port
-  host = "127.0.0.1",   -- bind address
-  browser = nil,         -- nil = auto-detect; or path to browser executable
-  debounce_ms = 300,     -- ms to wait after last edit before pushing update
-  css = nil,             -- custom CSS string to inject into the preview page
+  port = 0,
+  host = "127.0.0.1",
+  browser = nil,
+  debounce_ms = 300,
+  css = nil,
+  highlight_theme = "vs2015",
   mermaid = {
-    theme = "default",   -- "default", "dark", "forest", "neutral"
+    theme = "dark",
   },
 })
 ```
 
 Calling `setup()` is optional. All options have sensible defaults.
+
+### Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `port` | `number` | `0` | Port for the local preview server. `0` lets the OS auto-assign a free port. |
+| `host` | `string` | `"127.0.0.1"` | Bind address for the preview server. |
+| `browser` | `string\|nil` | `nil` | Path to a browser executable. `nil` auto-detects (`open` on macOS, `xdg-open` on Linux, `cmd /c start` on Windows). |
+| `debounce_ms` | `number` | `300` | Milliseconds to wait after the last edit before pushing an update to the browser. |
+| `css` | `string\|nil` | `nil` | Custom CSS string injected into the preview page. Use this to override any default styles. |
+| `highlight_theme` | `string` | `"vs2015"` | [highlight.js theme](https://highlightjs.org/demo) for syntax highlighting in fenced code blocks. See [Syntax Highlighting Themes](#syntax-highlighting-themes) for available options. |
+| `mermaid.theme` | `string` | `"dark"` | Mermaid diagram theme. One of `"default"`, `"dark"`, `"forest"`, or `"neutral"`. |
+
+### Syntax Highlighting Themes
+
+Fenced code blocks with a language tag (e.g. ` ```lua `, ` ```python `) are syntax highlighted using [highlight.js](https://highlightjs.org). Set `highlight_theme` to any theme from the [highlight.js demo](https://highlightjs.org/demo).
+
+Some popular dark themes:
+
+| Theme | Description |
+|-------|-------------|
+| `"vs2015"` | Visual Studio 2015 dark (default) |
+| `"github-dark"` | GitHub dark theme |
+| `"github-dark-dimmed"` | GitHub dark dimmed |
+| `"atom-one-dark"` | Atom One Dark |
+| `"monokai"` | Monokai |
+| `"dracula"` | Dracula |
+| `"nord"` | Nord |
+| `"tokyo-night-dark"` | Tokyo Night dark |
+| `"catppuccin-mocha"` | Catppuccin Mocha |
+
+Some popular light themes (pair with custom `css` to change the background):
+
+| Theme | Description |
+|-------|-------------|
+| `"github"` | GitHub light |
+| `"vs"` | Visual Studio light |
+| `"atom-one-light"` | Atom One Light |
+| `"catppuccin-latte"` | Catppuccin Latte |
+
+Example:
+
+```lua
+require("md-view").setup({
+  highlight_theme = "github-dark",
+  mermaid = {
+    theme = "dark",
+  },
+})
+```
 
 ## Usage
 
