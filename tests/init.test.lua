@@ -93,7 +93,7 @@ describe("md-view init", function()
     end
 
     local notify_calls = {}
-    local orig_notify_inner = vim.notify
+    local orig_notify_inner = orig_notify
     vim.notify = function(msg, level)
       table.insert(notify_calls, { msg = msg, level = level })
     end
@@ -103,6 +103,8 @@ describe("md-view init", function()
 
     vim.fn.executable = orig_executable
     vim.notify = orig_notify_inner
+    package.loaded["md-view"] = nil
+    package.loaded["md-view.preview"] = nil
     package.loaded["md-view.vendor"] = nil
 
     assert.are.equal(0, #notify_calls, "expected no notifications when curl is absent")
