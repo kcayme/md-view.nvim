@@ -4,6 +4,9 @@ Browser-based markdown preview for Neovim with live mermaid diagram rendering.
 
 Opens a browser tab that renders your markdown buffer — including mermaid diagrams as SVG — and updates live as you type. Scroll sync keeps the browser viewport aligned with your cursor position.
 
+<video src="docs/demo/demo.mp4" controls width="100%"></video>
+![Colorscheme Sync](docs/demo/colorscheme-sync.png)
+
 ## Why another markdown preview plugin?
 
 I heavily use mermaid diagrams in my markdown files. The in-editor previewers I tried don't render them,
@@ -22,8 +25,12 @@ installed. I wanted something that's lightweight and just works out of the box �
   `:MdViewList` lets me see and jump between all active previews without digging through
   buffers.
 
+  ![Picker](docs/demo/picker.png)
+
 - **Error feedback** — when I mess up a diagram's syntax, mermaid.js shows an inline
   error in the browser right away. Fast feedback loop for iterating on diagrams.
+
+  ![Error feedback](docs/demo/error-feedback.png)
 
 ## Features
 
@@ -318,6 +325,8 @@ Set `theme.mode = "sync"` to mirror your current Neovim colorscheme in the previ
 ```lua
 require("md-view").setup({ theme = { mode = "sync" } })
 ```
+
+![Colorscheme sync](docs/demo/colorscheme-sync.png)
 
 Use `theme.highlights` to customize which highlight groups are sampled per CSS variable:
 

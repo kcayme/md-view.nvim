@@ -304,7 +304,7 @@ Registers three user commands (`:MdView`, `:MdViewStop`, `:MdViewToggle`) that l
 | Rendering | Client-side via CDN | Zero bundling, no build step, browser handles all heavy lifting |
 | Port allocation | OS auto-assign (port 0) | No conflicts when multiple buffers run previews simultaneously |
 | Update strategy | Full content replace | Simple and correct for v1; incremental diffing is a future optimization |
-| One server per buffer | Yes | Clean isolation, no multiplexing complexity |
+| One server per buffer | Yes | Each preview gets its own TCP socket and port. The resource cost is negligible at loopback scale (one OS file descriptor, a few KB of kernel memory, no extra threads — all I/O runs on Neovim's existing libuv event loop). Typical usage is 1–3 simultaneous previews. The alternative — a single shared server with path-based routing per bufnr — would save nothing measurable while adding multiplexing complexity and shared failure surface. Isolation also means each preview's URL is stable and closing one cannot affect others. |
 | DOM patching | morphdom | Preserves mermaid SVG state between updates, avoids full re-render flicker |
 | libuv compatibility | `vim.uv or vim.loop` | Works across Neovim 0.8+ (vim.loop) and 0.10+ (vim.uv) |
 | Scroll sync | `data-source-line` attributes | markdown-it exposes source map (line numbers) per token; cheap to attach as data attributes during rendering |
