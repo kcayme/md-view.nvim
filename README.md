@@ -15,7 +15,8 @@ installed. I wanted something that's lightweight and just works out of the box �
   CDN and gets out of the way.
 
 - **Zero dependencies** — no Node.js, no Deno, no external binaries. Pure Lua, all
-  rendering delegated to the browser via CDN.
+  rendering delegated to the browser via CDN. (`curl` is optionally required for
+  one-time offline asset fetching via `:MdViewFetchAssets`.)
 
 - **Preview picker** — I often have multiple markdown files open at the same time.
   `:MdViewList` lets me see and jump between all active previews without digging through
@@ -30,7 +31,7 @@ installed. I wanted something that's lightweight and just works out of the box �
 - **Mermaid diagrams** — fenced `mermaid` code blocks render as SVG
 - **Syntax highlighting** — fenced code blocks highlighted via [highlight.js](https://highlightjs.org) with configurable themes
 - **Scroll sync** — browser follows your cursor as you navigate the buffer
-- **Zero dependencies** — pure Lua, no Node.js/Deno/external processes
+- **Zero dependencies** — pure Lua, no Node.js/Deno/external processes (`curl` optional for offline asset fetch)
 - **Multi-buffer** — each buffer gets its own server on an auto-assigned port
 - **Auto-cleanup** — servers shut down when buffers close or Neovim exits
 
@@ -334,18 +335,6 @@ require("md-view").setup({
 
 `theme.highlights` has no effect when `theme.mode` is not `"sync"`.
 
-> **Deprecated forms (still work with a warning):**
-> ```lua
-> -- theme_sync (very old):
-> theme_sync = true,           -- use: theme = { mode = "sync" }
-> -- flat string theme:
-> theme = "sync",              -- use: theme = { mode = "sync" }
-> -- flat highlight_theme:
-> highlight_theme = "github",  -- use: theme = { syntax = "github" }
-> -- flat highlights:
-> highlights = { ... },        -- use: theme = { highlights = { ... } }
-> ```
-
 ### Notation Support
 
 md-view.nvim renders notation languages embedded in markdown code fences. All notations are enabled by default and loaded via CDN — disable any to skip loading its library.
@@ -448,7 +437,7 @@ Running `:MdView` opens a browser tab with the rendered markdown and a live SVG 
 
 | | md-view.nvim | [markdown-preview.nvim](https://github.com/iamcco/markdown-preview.nvim) | [peek.nvim](https://github.com/toppair/peek.nvim) | [glow.nvim](https://github.com/ellisonleao/glow.nvim) | [render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim) | [markview.nvim](https://github.com/OXY2DEV/markview.nvim) |
 |---|---|---|---|---|---|---|
-| **Runtime dependency** | None | Node.js + yarn | Deno | glow CLI (Go) | None | None |
+| **Runtime dependency** | None (curl optional) | Node.js + yarn | Deno | glow CLI (Go) | None | None |
 | **Renders where** | Browser | Browser | Webview / Browser | Terminal float | Inline (extmarks) | Inline (extmarks) |
 | **Mermaid diagrams** | Yes | Yes | Yes | No | No | No |
 | **Live reload** | Yes | Yes | Yes | No | Yes | Yes |
