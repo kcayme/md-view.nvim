@@ -4,7 +4,7 @@ Browser-based markdown preview for Neovim with live mermaid diagram rendering.
 
 Opens a browser tab that renders your markdown buffer — including mermaid diagrams as SVG — and updates live as you type. Scroll sync keeps the browser viewport aligned with your cursor position.
 
-<video src="docs/demo/demo.mp4" controls width="100%"></video>
+![Demo](docs/demo/demo.gif)
 ![Colorscheme Sync](docs/demo/colorscheme-sync.png)
 
 ## Why another markdown preview plugin?
