@@ -1,0 +1,40 @@
+name: Generate Vimdoc
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  vimdoc:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Concatenate documentation sources
+        run: |
+          set -euo pipefail
+          test -f README.md
+          test -f docs/ARCHITECTURE.md
+          test -f docs/recipes/picker-integration.md
+
+          cat README.md > .doc-source.md
+          printf "\n\n" >> .doc-source.md
+          sed 's/^#\([^#]\)/##\1/' docs/ARCHITECTURE.md >> .doc-source.md
+          printf "\n\n" >> .doc-source.md
+          sed 's/^#\([^#]\)/##\1/' docs/recipes/picker-integration.md >> .doc-source.md
+
+      - uses: kdheepak/panvimdoc@v4
+        with:
+          vimdoc: md-view.nvim
+          pandoc: .doc-source.md
+
+      - uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "docs: generate vimdoc [skip ci]"
+          file_pattern: doc/md-view.nvim.txt
+          branch: main
