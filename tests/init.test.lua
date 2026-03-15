@@ -26,6 +26,7 @@ describe("md-view init", function()
     }
     M = require("md-view")
     M.setup({ filetypes = { "markdown" } })
+    notify_msg = nil
   end)
 
   after_each(function()
@@ -33,6 +34,7 @@ describe("md-view init", function()
     package.loaded["md-view"] = nil
     package.loaded["md-view.preview"] = nil
     package.loaded["md-view.config"] = nil
+    package.loaded["md-view.vendor"] = nil
   end)
 
   it("blocks preview when filetype is not in filetypes list", function()

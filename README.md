@@ -384,35 +384,40 @@ require("md-view").setup({
 
 md-view.nvim can work offline by caching vendor assets locally. This is useful when developing without internet access or for reproducible deployments.
 
-### Downloading assets for offline use
+### Auto-fetch on setup
 
-Run `:MdViewFetchAssets` to download 18 vendor libraries (markdown-it, mermaid, highlight.js, KaTeX, graphviz, wavedrom, nomnoml, abcjs, vega-lite, and their dependencies) to `~/.local/share/nvim/md-view.nvim/vendor/`.
+`setup()` automatically fetches vendor assets the first time it runs (i.e. when the vendor directory doesn't exist yet). You'll see a notification immediately:
 
-The plugin automatically detects this directory and uses the cached assets instead of loading from CDN. If the vendor directory is missing or incomplete, it falls back to CDN.
+```
+[md-view] Fetching vendor assets for offline use...
+```
 
-**Re-run `:MdViewFetchAssets`** anytime to update the cached assets to the latest versions.
+followed by a completion notification once all downloads finish. The fetch is non-blocking — setup completes immediately and the downloads happen in the background.
 
-### Auto-fetch on lazy.nvim install
+The 18 vendor libraries (markdown-it, mermaid, highlight.js, KaTeX, graphviz, wavedrom, nomnoml, abcjs, vega-lite, and their dependencies) are saved to `~/.local/share/nvim/md-view.nvim/vendor/`. The plugin automatically detects this directory and uses the cached assets instead of loading from CDN. If the vendor directory is missing or incomplete, it falls back to CDN.
 
-To automatically fetch assets when the plugin is installed or updated, use the `build` hook:
+### Re-fetching assets
 
-```lua
-{
-  "karlcayme/md-view.nvim",
-  build = ":MdViewFetchAssets",
-}
+Run `:MdViewFetchAssets` anytime to re-download the cached assets — for example after a partial failure, or to update to the latest versions.
+
+To specify a custom highlight.js theme for the cached CSS:
+
+```vim
+:MdViewFetchAssets highlight_theme=github-dark
 ```
 
 ## Usage
 
 ### Commands
 
-| Command           | Description                                      |
-|-------------------|--------------------------------------------------|
-| `:MdView`         | Open preview for the current buffer              |
-| `:MdViewStop`     | Stop the preview                                 |
-| `:MdViewToggle`   | Toggle the preview on/off                        |
-| `:MdViewAutoOpen` | Toggle automatic preview on buffer enter on/off  |
+| Command                  | Description                                      |
+|--------------------------|--------------------------------------------------|
+| `:MdView`                | Open preview for the current buffer              |
+| `:MdViewStop`            | Stop the preview                                 |
+| `:MdViewToggle`          | Toggle the preview on/off                        |
+| `:MdViewList`            | Pick from all active previews                    |
+| `:MdViewAutoOpen`        | Toggle automatic preview on buffer enter on/off  |
+| `:MdViewFetchAssets`     | Re-fetch vendor assets for offline use           |
 
 ### Keymaps
 

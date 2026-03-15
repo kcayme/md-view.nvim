@@ -20,6 +20,11 @@ function M.setup(opts)
   if config.options.auto_open.enable then
     register_auto_open_augroup()
   end
+  local vendor = require("md-view.vendor")
+  if not vendor.is_available() then
+    vim.notify("[md-view] Fetching vendor assets for offline use...", vim.log.levels.INFO)
+    vendor.fetch()
+  end
 end
 
 function M.open(opts)

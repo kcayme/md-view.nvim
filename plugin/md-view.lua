@@ -25,4 +25,4 @@ vim.api.nvim_create_user_command("MdViewFetchAssets", function(cmd_opts)
     opts.highlight_theme = theme
   end
   require("md-view.vendor").fetch(opts)
-end, { desc = "Download vendor assets for offline use", nargs = "?" })
+end, { desc = "Re-fetch vendor assets for offline use", nargs = "?" })
