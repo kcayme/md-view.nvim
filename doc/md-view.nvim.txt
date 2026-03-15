@@ -1,0 +1,1378 @@
+*md-view.nvim.txt*          For NVIM v0.8.0         Last change: 2026 March 15
+
+==============================================================================
+Table of Contents                             *md-view.nvim-table-of-contents*
+
+1. md-view.nvim                                    |md-view.nvim-md-view.nvim|
+  - Why another markdown preview plugin?|md-view.nvim-md-view.nvim-why-another-markdown-preview-plugin?|
+  - Features                              |md-view.nvim-md-view.nvim-features|
+  - Requirements                      |md-view.nvim-md-view.nvim-requirements|
+  - Installation                      |md-view.nvim-md-view.nvim-installation|
+  - Configuration                    |md-view.nvim-md-view.nvim-configuration|
+  - Offline Support                |md-view.nvim-md-view.nvim-offline-support|
+  - Usage                                    |md-view.nvim-md-view.nvim-usage|
+  - Comparison                          |md-view.nvim-md-view.nvim-comparison|
+  - How It Works                      |md-view.nvim-md-view.nvim-how-it-works|
+  - License                                |md-view.nvim-md-view.nvim-license|
+  - Architecture                      |md-view.nvim-md-view.nvim-architecture|
+  - Overview                              |md-view.nvim-md-view.nvim-overview|
+  - Project Structure            |md-view.nvim-md-view.nvim-project-structure|
+  - Module Dependency Graph|md-view.nvim-md-view.nvim-module-dependency-graph|
+  - Data Flow                            |md-view.nvim-md-view.nvim-data-flow|
+  - Module Details                  |md-view.nvim-md-view.nvim-module-details|
+  - Design Decisions              |md-view.nvim-md-view.nvim-design-decisions|
+  - HTTP Protocol                    |md-view.nvim-md-view.nvim-http-protocol|
+  - State Lifecycle                |md-view.nvim-md-view.nvim-state-lifecycle|
+  - Browser Dependencies (CDN)|md-view.nvim-md-view.nvim-browser-dependencies-(cdn)|
+  - Picker Integration          |md-view.nvim-md-view.nvim-picker-integration|
+  - How it works                      |md-view.nvim-md-view.nvim-how-it-works|
+  - Per-picker setup              |md-view.nvim-md-view.nvim-per-picker-setup|
+  - Using picker.kind as a hint|md-view.nvim-md-view.nvim-using-picker.kind-as-a-hint|
+  - Custom format_item tips|md-view.nvim-md-view.nvim-custom-format_item-tips|
+2. Links                                                  |md-view.nvim-links|
+
+==============================================================================
+1. md-view.nvim                                    *md-view.nvim-md-view.nvim*
+
+Browser-based markdown preview for Neovim with live mermaid diagram rendering.
+
+Opens a browser tab that renders your markdown buffer — including mermaid
+diagrams as SVG — and updates live as you type. Scroll sync keeps the browser
+viewport aligned with your cursor position.
+
+
+
+
+WHY ANOTHER MARKDOWN PREVIEW PLUGIN?*md-view.nvim-md-view.nvim-why-another-markdown-preview-plugin?*
+
+I heavily use mermaid diagrams in my markdown files. The in-editor previewers I
+tried don’t render them, and the browser-based ones that do (like
+markdown-preview.nvim) need Node.js or Deno installed. I wanted something
+that’s lightweight and just works out of the box — no runtime, no setup.
+
+- **Mermaid out of the box** — most previewers can’t render mermaid diagrams
+    at all. The ones that can need a Node.js or Deno runtime. This one just loads
+    mermaid.js from CDN and gets out of the way.
+- **Zero dependencies** — no Node.js, no Deno, no external binaries. Pure Lua,
+    all rendering delegated to the browser via CDN. (`curl` is optionally required
+    for one-time offline asset fetching via `:MdViewFetchAssets`.)
+- **Preview picker** — I often have multiple markdown files open at the same
+    time. `:MdViewList` lets me see and jump between all active previews without
+    digging through buffers.
+- **Error feedback** — when I mess up a diagram’s syntax, mermaid.js shows an
+    inline error in the browser right away. Fast feedback loop for iterating on
+    diagrams.
+
+
+FEATURES                                  *md-view.nvim-md-view.nvim-features*
+
+- **Live preview** — browser updates within ~300ms of each edit
+- **Mermaid diagrams** — fenced `mermaid` code blocks render as SVG
+- **Syntax highlighting** — fenced code blocks highlighted via highlight.js <https://highlightjs.org> with configurable themes
+- **Scroll sync** — browser follows your cursor as you navigate the buffer
+- **Zero dependencies** — pure Lua, no Node.js/Deno/external processes (`curl` optional for offline asset fetch)
+- **Multi-buffer** — each buffer gets its own server on an auto-assigned port
+- **Auto-cleanup** — servers shut down when buffers close or Neovim exits
+
+
+REQUIREMENTS                          *md-view.nvim-md-view.nvim-requirements*
+
+- Neovim >= 0.8
+- A web browser
+
+
+INSTALLATION                          *md-view.nvim-md-view.nvim-installation*
+
+
+LAZY.NVIM ~
+
+>lua
+    { "kcayme/md-view.nvim" }
+<
+
+
+PACKER.NVIM ~
+
+>lua
+    use("kcayme/md-view.nvim")
+<
+
+
+CONFIGURATION                        *md-view.nvim-md-view.nvim-configuration*
+
+>lua
+    require("md-view").setup({
+      -- Port for the local preview server. 0 = auto-assign a free port.
+      port = 0,
+      -- Bind address. Must be a loopback address (127.0.0.1, ::1, localhost).
+      host = "127.0.0.1",
+      -- Browser executable. nil = auto-detect (open/xdg-open/cmd /c start).
+      browser = nil,
+      -- Milliseconds to debounce buffer updates before pushing to the browser.
+      debounce_ms = 300,
+      -- Custom CSS string injected into the preview page.
+      css = nil,
+      -- Auto-close the browser tab when the preview is stopped.
+      auto_close = true,
+      -- Scroll sync method. "percentage" syncs by proportional scroll offset.
+      -- "cursor" anchors to the nearest source line in the preview DOM.
+      scroll = {
+        method = "percentage",  -- "percentage" | "cursor"
+      },
+      -- Color theme for the preview page.
+      theme = {
+        -- One of: "auto", "dark", "light", "sync"
+        -- "auto" follows Neovim's background setting; "sync" mirrors your colorscheme live.
+        mode = "auto",
+        -- highlight.js theme for fenced code blocks. See Syntax Highlighting Themes below.
+        -- nil auto-selects: "vs2015" for dark themes, "github" for light themes.
+        syntax = nil,
+        -- Highlight group overrides for CSS variable extraction (only used when mode = "sync").
+        highlights = {},
+      },
+      notations = {
+        -- Each notation has an `enable` field (default true) and optional config.
+        -- Set enable = false to skip loading the library (saves bandwidth).
+        mermaid  = { enable = true, theme = nil },  -- nil = auto-chosen per theme
+        katex    = { enable = true },   -- math fences and $...$ / $$...$$ inline math
+        graphviz = { enable = true },   -- dot / graphviz fences
+        wavedrom = { enable = true },   -- wavedrom fences
+        nomnoml  = { enable = true },   -- nomnoml fences
+        abc      = { enable = true },   -- abc music notation fences
+        vegalite = { enable = true },   -- vega-lite fences
+      },
+      -- Filetypes this plugin will preview. Running :MdView on a buffer whose
+      -- filetype is not in this list emits a warning and does nothing.
+      -- Set to {} to allow any filetype.
+      filetypes = { "markdown" },
+      -- Automatically open (or re-focus) a preview whenever you enter a qualifying
+      -- buffer. Opt-in; disabled by default.
+      auto_open = {
+        enable = false,
+        -- Neovim events that trigger the auto-open check.
+        events = { "BufWinEnter" },
+      },
+      -- Customise the :MdViewList picker (vim.ui.select).
+      -- Works with any vim.ui.select replacement (Telescope, fzf-lua, snacks, dressing.nvim, etc.).
+      picker = {
+        -- Title/prompt shown at the top of the picker.
+        prompt = "Markdown Previews",
+        -- Custom item formatter. function(item) → string.
+        -- item has: .bufnr, .port, .name (basename of the file).
+        -- nil uses the built-in "name  http://host:port" format.
+        format_item = nil,
+        -- Hint passed as opts.kind to vim.ui.select. Some pickers use this
+        -- to provide a specialised UI (e.g. a file-preview pane).
+        kind = nil,
+      },
+    })
+<
+
+Calling `setup()` is optional. All options have sensible defaults.
+
+
+OPTIONS ~
+
+  ------------------------------------------------------------------------------------------------
+  Option                    Type            Default               Description
+  ------------------------- --------------- --------------------- --------------------------------
+  port                      number          0                     Port for the local preview
+                                                                  server. 0 lets the OS
+                                                                  auto-assign a free port.
+
+  host                      string          "127.0.0.1"           Bind address for the preview
+                                                                  server.
+
+  browser                   string\|nil     nil                   Path to a browser executable.
+                                                                  nil auto-detects (open on macOS,
+                                                                  xdg-open on Linux, cmd /c start
+                                                                  on Windows).
+
+  debounce_ms               number          300                   Milliseconds to wait after the
+                                                                  last edit before pushing an
+                                                                  update to the browser.
+
+  scroll.method             string          "percentage"          Scroll sync algorithm.
+                                                                  "percentage" keeps the browser
+                                                                  at the same proportional offset
+                                                                  as the cursor. "cursor" anchors
+                                                                  the browser to the nearest
+                                                                  source line in the rendered DOM.
+
+  css                       string\|nil     nil                   Custom CSS string injected into
+                                                                  the preview page. Use this to
+                                                                  override any default styles.
+
+  theme.mode                string          "auto"                Color theme for the preview
+                                                                  page. "auto" follows Neovim’s
+                                                                  background setting; "dark" /
+                                                                  "light" force a palette; "sync"
+                                                                  mirrors your current colorscheme
+                                                                  live (see Neovim Colorscheme
+                                                                  Sync).
+
+  theme.syntax              string\|nil     nil                   highlight.js theme for syntax
+                                                                  highlighting in fenced code
+                                                                  blocks. nil auto-selects based
+                                                                  on theme.mode: dark themes use
+                                                                  "vs2015", light themes use
+                                                                  "github". See Syntax
+                                                                  Highlighting Themes for
+                                                                  available options.
+
+  theme.highlights          table           {}                    Highlight group overrides for
+                                                                  CSS variable extraction. Only
+                                                                  used when theme.mode = "sync".
+                                                                  See Neovim Colorscheme Sync.
+
+  notations                 table           see above             Per-notation configuration. Each
+                                                                  notation is
+                                                                  { enable = true, ...options }.
+                                                                  Set enable = false to skip
+                                                                  loading the CDN library.
+
+  notations.mermaid.theme   string\|nil     nil                   Mermaid diagram theme. One of
+                                                                  "default", "dark", "forest",
+                                                                  "neutral", or "base". nil
+                                                                  auto-chooses based on
+                                                                  theme.mode.
+
+  filetypes                 string[]        { "markdown" }        List of buffer filetypes the
+                                                                  plugin will preview. Running
+                                                                  :MdView on a buffer whose
+                                                                  filetype is not in the list
+                                                                  emits a warning and does
+                                                                  nothing. Set to {} to allow any
+                                                                  filetype.
+
+  auto_open.enable          boolean         false                 When true, automatically opens
+                                                                  (or re-focuses) a preview
+                                                                  whenever you enter a qualifying
+                                                                  buffer. The filetype must still
+                                                                  be in filetypes. Toggle at
+                                                                  runtime with :MdViewAutoOpen.
+
+  auto_open.events          string[]        { "BufWinEnter" }     Neovim autocmd events that
+                                                                  trigger the auto-open check.
+                                                                  Replace with e.g. { "BufEnter" }
+                                                                  if you prefer a different event.
+
+  picker.prompt             string          "Markdown Previews"   Title/prompt shown at the top of
+                                                                  the :MdViewList picker.
+
+  picker.format_item        function\|nil   nil                   function(item) → string. item
+                                                                  has .bufnr, .port, .name
+                                                                  (basename). nil uses the
+                                                                  built-in
+                                                                  "name  http://host:port" format.
+
+  picker.kind               string\|nil     nil                   Hint passed as opts.kind to
+                                                                  vim.ui.select. Some picker
+                                                                  replacements use this to provide
+                                                                  a specialised UI (e.g. a
+                                                                  file-preview pane).
+  ------------------------------------------------------------------------------------------------
+Examples:
+
+>lua
+    -- Allow markdown and MDX buffers (replaces the default list)
+    require("md-view").setup({
+      filetypes = { "markdown", "mdx" },
+    })
+    
+    -- Allow any filetype (no restriction)
+    require("md-view").setup({
+      filetypes = {},
+    })
+    
+    -- Auto-open a preview whenever you enter a markdown buffer
+    require("md-view").setup({
+      auto_open = { enable = true },
+    })
+    
+    -- Auto-open on BufEnter instead of BufWinEnter
+    require("md-view").setup({
+      auto_open = { enable = true, events = { "BufEnter" } },
+    })
+    
+    -- Customise the :MdViewList picker title
+    require("md-view").setup({
+      picker = { prompt = "My Previews" },
+    })
+    
+    -- Show only the buffer name (no URL) in the picker
+    require("md-view").setup({
+      picker = {
+        format_item = function(item)
+          return item.name
+        end,
+      },
+    })
+<
+
+
+  **Picker integrations:** See `docs/recipes/picker-integration.md`
+  <docs/recipes/picker-integration.md> for setup guides covering dressing.nvim,
+  Telescope, fzf-lua, snacks.nvim, and mini.pick.
+
+  **lazy.nvim users:** `auto_open` requires the plugin to load at startup so it
+  can register its autocmd. If your spec uses `cmd = {...}` the plugin won’t
+  load until a command is invoked and auto-open will never fire. Either set `lazy
+  = false`, or add the trigger event to your spec:
+  >lua
+      {
+        "kcayme/md-view.nvim",
+        lazy = false,
+        opts = { auto_open = { enable = true } },
+      }
+  <
+  Or, to keep command-based lazy-loading while still supporting auto-open:
+  >lua
+      {
+        "kcayme/md-view.nvim",
+        cmd   = { "MdView", "MdViewStop", "MdViewToggle", "MdViewAutoOpen" },
+        event = { "BufWinEnter" },
+        opts  = { auto_open = { enable = true } },
+      }
+  <
+>lua
+    
+<
+
+
+SYNTAX HIGHLIGHTING THEMES ~
+
+Fenced code blocks with a language tag (e.g. ````lua`, ````python`) are syntax
+highlighted using highlight.js <https://highlightjs.org>. Set `theme.syntax` to
+any theme from the highlight.js demo <https://highlightjs.org/demo>.
+
+Some popular dark themes:
+
+  Theme                  Description
+  ---------------------- ---------------------------------------------------------
+  "vs2015"               Visual Studio 2015 dark (auto-selected for dark themes)
+  "github-dark"          GitHub dark theme
+  "github-dark-dimmed"   GitHub dark dimmed
+  "atom-one-dark"        Atom One Dark
+  "monokai"              Monokai
+  "dracula"              Dracula
+  "nord"                 Nord
+  "tokyo-night-dark"     Tokyo Night dark
+  "catppuccin-mocha"     Catppuccin Mocha
+Some popular light themes (pair with custom `css` to change the background):
+
+  Theme                Description
+  -------------------- ---------------------
+  "github"             GitHub light
+  "vs"                 Visual Studio light
+  "atom-one-light"     Atom One Light
+  "catppuccin-latte"   Catppuccin Latte
+Example:
+
+>lua
+    require("md-view").setup({
+      theme = { syntax = "github-dark" },
+      notations = {
+        mermaid = { theme = "dark" },
+      },
+    })
+<
+
+
+CUSTOM CSS ~
+
+The `css` option injects a raw CSS string into the preview page’s `<style>`
+block, after all built-in styles. Use it to override layout, typography, or
+colors.
+
+The page uses CSS custom properties for theming. Override these to restyle any
+element without fighting specificity:
+
+  Variable       Controls
+  -------------- ---------------------------------------
+  --md-bg        Page background
+  --md-fg        Body text color
+  --md-heading   Heading color
+  --md-link      Link color
+  --md-code-fg   Inline code text
+  --md-code-bg   Inline code and code block background
+  --md-border    Borders, <hr>, table lines
+  --md-muted     Dimmed text (e.g. h6)
+**Wider content area** (default `max-width` is `882px`):
+
+>lua
+    require("md-view").setup({
+      css = "body { max-width: 1100px; }",
+    })
+<
+
+**Custom font and larger base size:**
+
+>lua
+    require("md-view").setup({
+      css = [[
+        body {
+          font-family: "Georgia", serif;
+          font-size: 16px;
+          line-height: 1.8;
+        }
+      ]],
+    })
+<
+
+**Light theme with a warm background** (pair with a light syntax theme):
+
+>lua
+    require("md-view").setup({
+      theme = { mode = "light", syntax = "github" },
+      css = [[
+        :root {
+          --md-bg: #faf8f5;
+          --md-code-bg: #f0ede8;
+        }
+      ]],
+    })
+<
+
+**Full-width, no side padding** (useful on wide monitors):
+
+>lua
+    require("md-view").setup({
+      css = "body { max-width: none; padding: 0 48px; }",
+    })
+<
+
+
+NEOVIM COLORSCHEME SYNC ~
+
+Set `theme.mode = "sync"` to mirror your current Neovim colorscheme in the
+preview. Colors are extracted from Neovim highlight groups and pushed to the
+browser via SSE on every `ColorScheme` event — no page reload needed.
+
+>lua
+    require("md-view").setup({ theme = { mode = "sync" } })
+<
+
+Use `theme.highlights` to customize which highlight groups are sampled per CSS
+variable:
+
+>lua
+    require("md-view").setup({
+      theme = {
+        mode    = "sync",
+        highlights = {
+          heading = "@markup.heading",
+          link    = { "MyLink", "Underlined" },
+        },
+      },
+    })
+<
+
+`theme.highlights` has no effect when `theme.mode` is not `"sync"`.
+
+
+NOTATION SUPPORT ~
+
+md-view.nvim renders notation languages embedded in markdown code fences. All
+notations are enabled by default and loaded via CDN — disable any to skip
+loading its library.
+
+  Notation    Fence Language           Status
+  ----------- ------------------------ ----------
+  Mermaid     mermaid                  Built-in
+  KaTeX       math / $...$ / $$...$$   Built-in
+  Graphviz    dot, graphviz            Built-in
+  WaveDrom    wavedrom                 Built-in
+  Nomnoml     nomnoml                  Built-in
+  abcjs       abc                      Built-in
+  Vega-Lite   vega-lite                Built-in
+To disable a notation:
+
+>lua
+    require("md-view").setup({
+      notations = {
+        katex = { enable = false }, -- skip loading KaTeX (~280 KB)
+      },
+    })
+<
+
+To set a mermaid diagram theme:
+
+>lua
+    require("md-view").setup({
+      notations = {
+        mermaid = { theme = "forest" },
+      },
+    })
+<
+
+
+OFFLINE SUPPORT                    *md-view.nvim-md-view.nvim-offline-support*
+
+md-view.nvim can work offline by caching vendor assets locally. This is useful
+when developing without internet access or for reproducible deployments.
+
+
+AUTO-FETCH ON SETUP ~
+
+`setup()` automatically fetches vendor assets the first time it runs
+(i.e. when the vendor directory doesn’t exist yet). You’ll see a
+notification immediately:
+
+>
+    [md-view] Fetching vendor assets for offline use...
+<
+
+followed by a completion notification once all downloads finish. The fetch is
+non-blocking — setup completes immediately and the downloads happen in the
+background.
+
+The 18 vendor libraries (markdown-it, mermaid, highlight.js, KaTeX, graphviz,
+wavedrom, nomnoml, abcjs, vega-lite, and their dependencies) are saved to
+`~/.local/share/nvim/md-view.nvim/vendor/`. The plugin automatically detects
+this directory and uses the cached assets instead of loading from CDN. If the
+vendor directory is missing or incomplete, it falls back to CDN.
+
+
+RE-FETCHING ASSETS ~
+
+Run `:MdViewFetchAssets` anytime to re-download the cached assets — for
+example after a partial failure, or to update to the latest versions.
+
+To specify a custom highlight.js theme for the cached CSS:
+
+>vim
+    :MdViewFetchAssets highlight_theme=github-dark
+<
+
+
+USAGE                                        *md-view.nvim-md-view.nvim-usage*
+
+
+COMMANDS ~
+
+  -----------------------------------------------------------------------
+  Command                  Description
+  ------------------------ ----------------------------------------------
+  :MdView                  Open preview for the current buffer
+
+  :MdViewStop              Stop the preview
+
+  :MdViewToggle            Toggle the preview on/off
+
+  :MdViewList              Pick from all active previews
+
+  :MdViewAutoOpen          Toggle automatic preview on buffer enter
+                           on/off
+
+  :MdViewFetchAssets       Re-fetch vendor assets for offline use
+  -----------------------------------------------------------------------
+
+KEYMAPS ~
+
+The plugin does not set any keymaps. Bind the commands yourself:
+
+>lua
+    vim.keymap.set("n", "<leader>mp", "<cmd>MdViewToggle<cr>", { desc = "Toggle markdown preview" })
+<
+
+
+EXAMPLE ~
+
+Given a markdown file with a mermaid block:
+
+>markdown
+    # My Document
+    
+    Some text here.
+    
+    ```mermaid
+    graph LR
+      A --> B --> C
+    ```
+<
+
+Running `:MdView` opens a browser tab with the rendered markdown and a live SVG
+diagram.
+
+
+COMPARISON                              *md-view.nvim-md-view.nvim-comparison*
+
+  ------------------------------------------------------------------------------------------------------------------
+               md-view.nvim   markdown-preview.nvim   peek.nvim   glow.nvim   render-markdown.nvim   markview.nvim
+  ------------ -------------- ----------------------- ----------- ----------- ---------------------- ---------------
+  Runtime      None (curl     Node.js + yarn          Deno        glow CLI    None                   None
+  dependency   optional)                                          (Go)                               
+
+  Renders      Browser        Browser                 Webview /   Terminal    Inline (extmarks)      Inline
+  where                                               Browser     float                              (extmarks)
+
+  Mermaid      Yes            Yes                     Yes         No          No                     No
+  diagrams                                                                                           
+
+  Notation     Mermaid,       Mermaid                 Mermaid     None        None                   None
+  support      KaTeX,                                                                                
+               Graphviz,                                                                             
+               WaveDrom,                                                                             
+               Nomnoml, ABC,                                                                         
+               Vega-Lite                                                                             
+
+  Live reload  Yes            Yes                     Yes         No          Yes                    Yes
+
+  Scroll sync  Yes            Yes                     Yes         No          N/A                    Yes (splitview)
+
+  Maintained   Yes            Yes                     Yes         Archived    Yes                    Yes
+  ------------------------------------------------------------------------------------------------------------------
+**Why md-view.nvim?**
+
+- **No external runtime.** markdown-preview.nvim requires Node.js and yarn.
+    peek.nvim requires Deno. glow.nvim requires a Go binary. md-view.nvim is pure
+    Lua — it uses Neovim’s built-in libuv TCP server and offloads rendering to
+    the browser via CDN scripts. Nothing to install beyond the plugin itself.
+- **Mermaid support without the weight.** The inline/extmark plugins
+    (render-markdown.nvim, markview.nvim) are great for in-editor rendering but
+    cannot draw diagrams. md-view.nvim gives you live mermaid SVGs alongside
+    standard markdown, without the Node.js/Deno overhead of the other browser-based
+    options.
+- **Broad notation support without the runtime.** Beyond mermaid, md-view.nvim
+    renders KaTeX math, Graphviz, WaveDrom, Nomnoml, ABC notation, and Vega-Lite
+    charts — all via CDN, no extra installs. The other browser-based options stop
+    at mermaid.
+
+
+HOW IT WORKS                          *md-view.nvim-md-view.nvim-how-it-works*
+
+The plugin starts a local HTTP server (via Neovim’s built-in libuv bindings)
+that serves an HTML page. The browser loads markdown-it, mermaid.js, and
+morphdom from CDN. Buffer changes are pushed to the browser over Server-Sent
+Events (SSE), where JavaScript re-renders the markdown and patches the DOM.
+
+See ARCHITECTURE.md <ARCHITECTURE.md> for the full technical design.
+
+
+LICENSE                                    *md-view.nvim-md-view.nvim-license*
+
+MIT <LICENSE>
+
+
+ARCHITECTURE                          *md-view.nvim-md-view.nvim-architecture*
+
+
+OVERVIEW                                  *md-view.nvim-md-view.nvim-overview*
+
+md-view.nvim is a browser-based markdown preview plugin for Neovim. It runs a
+local HTTP server inside Neovim using libuv TCP bindings, serves an HTML page
+that renders markdown with mermaid diagrams, and pushes live updates over
+Server-Sent Events (SSE) as the buffer changes.
+
+There are no external runtime dependencies — the server is pure Lua running
+on Neovim’s built-in libuv event loop, and the browser handles all rendering
+via CDN-loaded JavaScript libraries.
+
+
+PROJECT STRUCTURE                *md-view.nvim-md-view.nvim-project-structure*
+
+>
+    md-view.nvim/
+    ├── plugin/
+    │   └── md-view.lua              # User command registration
+    └── lua/md-view/
+        ├── init.lua                  # Public API facade: setup(), open(), stop(), toggle(), list()
+        ├── config.lua                # Defaults + merge via tbl_deep_extend
+        ├── preview.lua               # Preview lifecycle orchestration (create, destroy, state)
+        ├── buffer.lua                # Buffer autocmds + debounced content/scroll push
+        ├── theme.lua                 # All theme concerns: palettes, defaults, resolve, CSS
+        ├── picker.lua                # UI selector for active previews
+        ├── util.lua                  # Browser opening, debounce, platform detection
+        └── server/
+            ├── tcp.lua               # TCP server (bind, listen, accept)
+            ├── router.lua            # HTTP request parsing + route dispatch
+            ├── sse.lua               # SSE connection manager + event fan-out
+            └── template.lua          # HTML page (markdown-it + mermaid.js + morphdom)
+<
+
+
+MODULE DEPENDENCY GRAPH    *md-view.nvim-md-view.nvim-module-dependency-graph*
+
+>mermaid
+    graph TD
+        plugin["plugin/md-view.lua"]
+        init["init.lua<br/><i>API facade</i>"]
+        config["config.lua"]
+        preview["preview.lua<br/><i>orchestration</i>"]
+        theme["theme.lua<br/><i>palettes, resolve, CSS</i>"]
+        server["server/tcp.lua"]
+        router["server/router.lua"]
+        template["server/template.lua"]
+        sse["server/sse.lua"]
+        buffer["buffer.lua"]
+        util["util.lua"]
+        picker["picker.lua"]
+    
+        plugin --> init
+        init --> config
+        init --> preview
+        init -.->|lazy| picker
+        picker --> init
+    
+        preview --> theme
+        preview --> server
+        preview --> router
+        preview --> sse
+        preview --> buffer
+        preview --> util
+    
+        server -.->|on_request callback| router
+        router --> template
+        router -.->|reads from ctx| sse
+    
+        buffer --> util
+<
+
+
+DATA FLOW                                *md-view.nvim-md-view.nvim-data-flow*
+
+
+1. INITIALIZATION (:MDVIEW) ~
+
+>mermaid
+    sequenceDiagram
+        actor User
+        participant init as init.lua
+        participant config as config.lua
+        participant preview as preview.lua
+        participant theme as theme.lua
+        participant sse as server/sse.lua
+        participant server as server/tcp.lua
+        participant buffer as buffer.lua
+        participant util as util.lua
+        participant Browser
+    
+        User->>init: :MdView
+        init->>config: setup({}) if needed
+        init->>preview: create(opts)
+        preview->>theme: resolve(opts)
+        theme-->>preview: theme, highlight_theme, mermaid_theme
+        preview->>theme: palette_css(resolved_theme)
+        theme-->>preview: CSS string
+        preview->>sse: new()
+        sse-->>preview: sse_instance
+        preview->>server: start(host, port)
+        server-->>preview: srv, port
+        preview->>buffer: watch(bufnr, callbacks)
+        buffer-->>preview: watcher
+        preview->>preview: store in active_previews[bufnr]
+        preview->>util: open_browser(url)
+        util->>Browser: launch
+<
+
+
+2. BROWSER INITIAL LOAD ~
+
+>mermaid
+    sequenceDiagram
+        participant Browser
+        participant router as server/router.lua
+        participant template as server/template.lua
+        participant sse as server/sse.lua
+    
+        Browser->>router: GET /
+        router->>template: render(opts, filename)
+        template-->>router: HTML
+        router-->>Browser: HTML response
+    
+        Browser->>router: GET /content
+        router-->>Browser: JSON {content}
+    
+        Browser->>router: GET /events
+        router->>sse: add_client(socket)
+        router-->>Browser: SSE headers (keep-alive)
+    
+        Note over Browser: markdown-it parse<br/>→ morphdom patch DOM<br/>→ mermaid.run()
+<
+
+
+3. LIVE UPDATE — CONTENT ~
+
+>mermaid
+    sequenceDiagram
+        participant Neovim as Neovim Buffer
+        participant buffer as buffer.lua
+        participant sse as server/sse.lua
+        participant Browser
+    
+        Neovim->>buffer: TextChanged / TextChangedI / BufWritePost
+        Note over buffer: debounce timer resets (300ms)
+        buffer->>buffer: timer expires → read buffer lines
+        buffer->>sse: push("content", {content})
+        sse->>Browser: event: content\ndata: {json}
+    
+        Note over Browser: markdown-it parse<br/>→ morphdom diff/patch<br/>→ mermaid.run()
+<
+
+
+4. LIVE UPDATE — SCROLL SYNC ~
+
+>mermaid
+    sequenceDiagram
+        participant Neovim as Neovim Cursor
+        participant buffer as buffer.lua
+        participant sse as server/sse.lua
+        participant Browser
+    
+        Neovim->>buffer: CursorMoved / CursorMovedI
+        Note over buffer: debounce timer resets (50ms)
+        buffer->>buffer: timer expires → read cursor position
+        buffer->>sse: push("scroll", {line})
+        sse->>Browser: event: scroll\ndata: {json}
+    
+        Note over Browser: find closest<br/>data-source-line element<br/>→ scrollIntoView()
+<
+
+The scroll sync works because markdown-it exposes source map information (line
+numbers) per token. The template JS hooks into markdown-it’s block-level
+renderer rules (`paragraph_open`, `heading_open`, `blockquote_open`, etc.) to
+attach `data-source-line` attributes to rendered HTML elements. When a scroll
+event arrives, the browser finds the element whose `data-source-line` is
+closest to the cursor line and smoothly scrolls to it.
+
+
+5. SHUTDOWN ~
+
+>mermaid
+    sequenceDiagram
+        actor User
+        participant init as init.lua
+        participant preview as preview.lua
+        participant sse as server/sse.lua
+        participant buffer as buffer.lua
+        participant server as server/tcp.lua
+    
+        User->>init: :MdViewStop / BufDelete / VimLeavePre
+        init->>preview: destroy(bufnr)
+        preview->>sse: push("close", {})
+        preview->>sse: close_all()
+        preview->>buffer: watcher.stop()
+        preview->>server: stop(srv)
+        preview->>preview: delete augroup
+        preview->>preview: active_previews[bufnr] = nil
+<
+
+
+MODULE DETAILS                      *md-view.nvim-md-view.nvim-module-details*
+
+
+CONFIG.LUA ~
+
+Stores default options and the merged user configuration. Uses
+`vim.tbl_deep_extend("force", {}, defaults, opts)` to merge, matching the
+pattern from bearded-arc.nvim. The `options` field is `nil` until `setup()` is
+called; `init.open()` calls `setup({})` as a fallback if the user never called
+it explicitly.
+
+
+SERVER/TCP.LUA ~
+
+Creates a TCP server using `vim.uv` (Neovim 0.10+) or `vim.loop` (Neovim
+0.8–0.9). Binds to the configured host and port (default port 0 for OS
+auto-assignment), resolves the actual port via `getsockname()`, and returns
+both the server handle and port number.
+
+On each incoming connection, it accepts the client socket, accumulates data
+until a complete HTTP request is received (detected by `\r\n\r\n`), then calls
+the `on_request` callback on the main thread via `vim.schedule()`.
+
+
+SERVER/ROUTER.LUA ~
+
+Parses raw HTTP requests (extracts method and path from the first line) and
+dispatches to route handlers:
+
+>mermaid
+    flowchart LR
+        req["HTTP Request"] --> parse["Parse method + path"]
+        parse --> get_root{"GET /"}
+        parse --> get_content{"GET /content"}
+        parse --> get_events{"GET /events"}
+        parse --> other{"Other"}
+    
+        get_root -->|yes| html["Render template<br/>→ send HTML<br/>→ close"]
+        get_content -->|yes| json["Read buffer lines<br/>→ send JSON<br/>→ close"]
+        get_events -->|yes| sse["Send SSE headers<br/>→ register client<br/>→ keep alive"]
+        other -->|yes| notfound["404 response"]
+<
+
+Regular responses include `Content-Length` and `Connection: close`. The SSE
+endpoint sends `Content-Type: text/event-stream` with `Connection: keep-alive`
+and leaves the socket open for streaming.
+
+
+SERVER/SSE.LUA ~
+
+A simple connection manager that holds a list of open client sockets. There is
+no hard client cap — cleanup relies on dead-client removal during `push()`
+and client-side BroadcastChannel tab deduplication. Provides:
+
+- `add_client(client)` — registers a new SSE connection
+- `push(event_type, data)` — writes a named SSE event to all clients; dead clients (write errors caught via `pcall`) are removed and closed
+- `remove_client(client)` — removes and closes a specific client
+- `close_all()` — shuts down all connections
+
+Named SSE events (`content` and `scroll`) allow the browser to handle each type
+independently via `source.addEventListener(type, ...)`.
+
+
+SERVER/TEMPLATE.LUA ~
+
+Returns a self-contained HTML string via `string.format()`, injecting custom
+CSS and the mermaid theme. The HTML page loads three CDN libraries:
+
+  Library       Version   Purpose
+  ------------- --------- --------------------------------
+  markdown-it   14.x      Markdown → HTML parsing
+  mermaid.js    11.x      Mermaid → SVG rendering
+  morphdom      2.x       Efficient DOM diffing/patching
+The embedded JavaScript:
+
+1. Initializes mermaid with `startOnLoad: false` (manual rendering control)
+2. Configures markdown-it with a custom fence rule that wraps mermaid blocks in `<pre class="mermaid">` elements
+3. Hooks block-level renderer rules to add `data-source-line` attributes for scroll sync
+4. Fetches `/content` on initial load to render the current buffer state
+5. Opens an `EventSource` to `/events` with two named listeners:- `content` — re-renders markdown via morphdom DOM patching, then runs mermaid
+- `scroll` — finds the nearest element by `data-source-line` and calls `scrollIntoView()`
+
+
+
+The page uses a dark GitHub-style theme (background `#0d1117`, text `#c9d1d9`).
+
+
+BUFFER.LUA ~
+
+Attaches Neovim autocmds to a buffer with two separate debounce timers:
+
+- **Content changes** (`TextChanged`, `TextChangedI`, `BufWritePost`) — debounced at the configured `debounce_ms` (default 300ms). When the timer fires, reads all buffer lines and calls `callbacks.on_content(lines)`.
+- **Cursor movement** (`CursorMoved`, `CursorMovedI`) — debounced at 50ms (fast, since scroll sync should feel responsive). Reads the cursor position via `nvim_win_get_cursor()` and calls `callbacks.on_scroll(line)` with a 0-indexed line number.
+
+Returns a table with a `stop()` function that closes both timers and deletes
+the augroup.
+
+
+UTIL.LUA ~
+
+- **open_browser(url, browser)** — if `browser` is set, uses it directly. Otherwise auto-detects the platform: `open` (macOS), `wslview` (WSL), `xdg-open` (Linux), `cmd /c start` (Windows). Launches detached via `vim.fn.jobstart`.
+- **debounce(fn, ms)** — creates a debounced wrapper using a `uv.new_timer()`. Each call resets the timer; the function fires `ms` milliseconds after the last call, scheduled back to the main thread via `vim.schedule()`. The returned wrapper has a `.stop()` method to close the timer for cleanup.
+
+
+INIT.LUA ~
+
+A thin API facade that delegates to `config` and `preview`:
+
+- **setup(opts)** — delegates to `config.setup()`
+- **open()** — delegates to `preview.create(config.options)`
+- **stop(bufnr)** — delegates to `preview.destroy(bufnr)`
+- **toggle()** — checks `preview.get(bufnr)` then opens or stops
+- **list()** — opens the picker UI
+- **get_active_previews()** — returns `preview.get_active()`
+
+
+PREVIEW.LUA ~
+
+The orchestration module. Manages the `active_previews` table (keyed by buffer
+number) which tracks all running preview instances:
+
+>mermaid
+    classDiagram
+        class active_previews {
+            +bufnr : key
+            +server : uv_tcp_t
+            +port : number
+            +sse : SSE instance
+            +watcher : buffer watcher
+        }
+<
+
+- **create(opts)** — resolves theme via `theme.resolve()`, creates SSE instance, starts server, attaches buffer watcher, opens browser, registers cleanup autocmds for `BufDelete`/`BufWipeout`/`VimLeavePre`
+- **destroy(bufnr)** — tears down everything for a buffer: closes SSE clients, stops watcher, stops server, removes from table
+- **get(bufnr)** — returns the preview entry for a buffer
+- **get_active()** — returns the full active_previews table
+
+
+PLUGIN/MD-VIEW.LUA ~
+
+Registers three user commands (`:MdView`, `:MdViewStop`, `:MdViewToggle`) that
+lazy-load the plugin via `require("md-view")`.
+
+
+DESIGN DECISIONS                  *md-view.nvim-md-view.nvim-design-decisions*
+
+  ------------------------------------------------------------------------
+  Decision                 Choice               Rationale
+  ------------------------ -------------------- --------------------------
+  Transport                SSE over WebSocket   Simpler protocol,
+                                                browser-native
+                                                auto-reconnect via
+                                                EventSource,
+                                                unidirectional push is
+                                                sufficient
+
+  Rendering                Client-side via CDN  Zero bundling, no build
+                                                step, browser handles all
+                                                heavy lifting
+
+  Port allocation          OS auto-assign (port No conflicts when multiple
+                           0)                   buffers run previews
+                                                simultaneously
+
+  Update strategy          Full content replace Simple and correct for v1;
+                                                incremental diffing is a
+                                                future optimization
+
+  One server per buffer    Yes                  Each preview gets its own
+                                                TCP socket and port. The
+                                                resource cost is
+                                                negligible at loopback
+                                                scale (one OS file
+                                                descriptor, a few KB of
+                                                kernel memory, no extra
+                                                threads — all I/O runs on
+                                                Neovim’s existing libuv
+                                                event loop). Typical usage
+                                                is 1–3 simultaneous
+                                                previews. The alternative
+                                                — a single shared server
+                                                with path-based routing
+                                                per bufnr — would save
+                                                nothing measurable while
+                                                adding multiplexing
+                                                complexity and shared
+                                                failure surface. Isolation
+                                                also means each preview’s
+                                                URL is stable and closing
+                                                one cannot affect others.
+
+  DOM patching             morphdom             Preserves mermaid SVG
+                                                state between updates,
+                                                avoids full re-render
+                                                flicker
+
+  libuv compatibility      vim.uv or vim.loop   Works across Neovim 0.8+
+                                                (vim.loop) and 0.10+
+                                                (vim.uv)
+
+  Scroll sync              data-source-line     markdown-it exposes source
+                           attributes           map (line numbers) per
+                                                token; cheap to attach as
+                                                data attributes during
+                                                rendering
+
+  SSE event types          Named events         Separates concerns
+                           (content, scroll)    cleanly; browser handles
+                                                each independently without
+                                                parsing a type field
+
+  Debounce                 Two timers (300ms    Content updates are
+                           content, 50ms        heavier (full re-render),
+                           scroll)              cursor updates should feel
+                                                immediate
+
+  Picker UI                vim.ui.select        Picker-agnostic by design
+                                                — any replacement
+                                                (Telescope, fzf-lua,
+                                                snacks, dressing.nvim)
+                                                automatically works. No
+                                                plugin-specific
+                                                configuration is exposed;
+                                                customization is limited
+                                                to the standardised
+                                                vim.ui.select opts
+                                                (prompt, format_item,
+                                                kind)
+  ------------------------------------------------------------------------
+
+HTTP PROTOCOL                        *md-view.nvim-md-view.nvim-http-protocol*
+
+The server implements a minimal subset of HTTP/1.1 — enough for browser
+communication:
+
+- Parses the first line of the request for method and path
+- Sends proper status lines, Content-Type, and Content-Length headers
+- SSE connections use `text/event-stream` with `Connection: keep-alive`
+- Regular responses use `Connection: close` and shut down the socket after sending
+- No CORS headers are sent — the browser’s same-origin policy prevents cross-origin access to the server
+
+
+STATE LIFECYCLE                    *md-view.nvim-md-view.nvim-state-lifecycle*
+
+>mermaid
+    stateDiagram-v2
+        [*] --> Unconfigured
+    
+        Unconfigured --> Configured: setup(opts)
+        note right of Configured: config.options set
+    
+        Configured --> Active: open() → preview.create()
+        note right of Active
+            active_previews[bufnr] populated:
+            - server handle
+            - port number
+            - SSE instance
+            - buffer watcher
+            - cleanup autocmds
+        end note
+    
+        Active --> Active: open() another buffer
+        Active --> Configured: stop() → preview.destroy()
+        note left of Configured
+            Cleanup:
+            - SSE clients closed
+            - timers stopped
+            - autocmds removed
+            - server closed
+            - entry deleted
+        end note
+    
+        Active --> [*]: VimLeavePre (destroy all)
+<
+
+
+BROWSER DEPENDENCIES (CDN)*md-view.nvim-md-view.nvim-browser-dependencies-(cdn)*
+
+  --------------------------------------------------------------------------------------
+  Library       CDN URL
+  ------------- ------------------------------------------------------------------------
+  markdown-it   https://cdn.jsdelivr.net/npm/markdown-it@14/dist/markdown-it.min.js
+
+  mermaid.js    https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js
+
+  morphdom      https://cdn.jsdelivr.net/npm/morphdom@2/dist/morphdom-umd.min.js
+
+  KaTeX         https://cdn.jsdelivr.net/npm/katex@0.16.38/dist/katex.min.js
+
+  texmath       https://cdn.jsdelivr.net/npm/markdown-it-texmath@1.0.0/texmath.js
+
+  @viz-js/viz   https://cdn.jsdelivr.net/npm/@viz-js/viz@3.25.0/dist/viz-global.js
+
+  WaveDrom      https://cdn.jsdelivr.net/npm/wavedrom@3.5.0/wavedrom.min.js
+
+  graphre       https://cdn.jsdelivr.net/npm/graphre@0.1.3/dist/graphre.js
+
+  Nomnoml       https://cdn.jsdelivr.net/npm/nomnoml@1.6.2/dist/nomnoml.min.js
+
+  abcjs         https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.js
+
+  Vega          https://cdn.jsdelivr.net/npm/vega@5.30.0/build/vega.min.js
+
+  Vega-Lite     https://cdn.jsdelivr.net/npm/vega-lite@5.21.0/build/vega-lite.min.js
+
+  Vega-Embed    https://cdn.jsdelivr.net/npm/vega-embed@6.26.0/build/vega-embed.min.js
+  --------------------------------------------------------------------------------------
+
+PICKER INTEGRATION              *md-view.nvim-md-view.nvim-picker-integration*
+
+
+HOW IT WORKS                          *md-view.nvim-md-view.nvim-how-it-works*
+
+`:MdViewList` calls `vim.ui.select` with the list of active previews. Any
+plugin that overrides `vim.ui.select` automatically takes over the picker —
+no md-view-specific configuration is required beyond the optional `picker.*`
+options described below.
+
+------------------------------------------------------------------------------
+
+PER-PICKER SETUP                  *md-view.nvim-md-view.nvim-per-picker-setup*
+
+
+DRESSING.NVIM ~
+
+dressing.nvim replaces `vim.ui.select` automatically when it loads — no extra
+call needed. The `picker.kind` option is forwarded and can be used to select
+which dressing backend handles `:MdViewList`.
+
+>lua
+    -- dressing.nvim setup (relevant part)
+    require("dressing").setup({
+      select = {
+        -- Route any vim.ui.select call with kind="md-view" to the telescope backend.
+        get_config = function(opts)
+          if opts.kind == "md-view" then
+            return { backend = "telescope" }
+          end
+        end,
+      },
+    })
+    
+    -- md-view setup
+    require("md-view").setup({
+      picker = { kind = "md-view" },
+    })
+<
+
+Without `get_config`, dressing uses its default backend for all `vim.ui.select`
+calls including `:MdViewList`.
+
+------------------------------------------------------------------------------
+
+TELESCOPE-UI-SELECT.NVIM ~
+
+Load the extension after Telescope is set up. Once loaded it replaces
+`vim.ui.select` globally.
+
+>lua
+    require("telescope").setup({
+      extensions = {
+        ["ui-select"] = {
+          require("telescope.themes").get_dropdown({}),
+        },
+      },
+    })
+    require("telescope").load_extension("ui-select")
+<
+
+`picker.kind` is not used directly by telescope-ui-select. All `vim.ui.select`
+calls go through the same Telescope UI.
+
+Custom `format_item` example — if the Telescope preview pane already shows
+the URL, show only the buffer name:
+
+>lua
+    require("md-view").setup({
+      picker = {
+        format_item = function(item)
+          return item.name
+        end,
+      },
+    })
+<
+
+------------------------------------------------------------------------------
+
+FZF-LUA ~
+
+Call `register_ui_select()` once during startup. This replaces `vim.ui.select`
+with fzf-lua’s implementation.
+
+>lua
+    require("fzf-lua").register_ui_select()
+<
+
+`picker.kind` is not used directly by fzf-lua. All `vim.ui.select` calls are
+routed through the same fzf-lua UI.
+
+Custom `format_item` example — include the port number more prominently:
+
+>lua
+    require("md-view").setup({
+      picker = {
+        format_item = function(item)
+          return string.format("[:%d]  %s", item.port, item.name)
+        end,
+      },
+    })
+<
+
+------------------------------------------------------------------------------
+
+SNACKS.NVIM ~
+
+snacks replaces `vim.ui.select` automatically via its `picker.select`
+integration when snacks is set up. The `picker.kind` value is forwarded as a
+source hint that snacks can use to apply a custom display style.
+
+>lua
+    -- snacks.nvim setup (relevant part)
+    require("snacks").setup({
+      picker = { enabled = true },
+    })
+    
+    -- md-view setup — kind is forwarded to snacks as a hint
+    require("md-view").setup({
+      picker = { kind = "md-view" },
+    })
+<
+
+------------------------------------------------------------------------------
+
+MINI.PICK ~
+
+mini.pick does not replace `vim.ui.select` by default. Wire it up manually in
+your config using `MiniExtra.pickers.ui_select` (recommended) or by assigning
+`vim.ui.select` directly.
+
+**Option A — MiniExtra (recommended):**
+
+>lua
+    require("mini.extra").setup()
+    -- MiniExtra registers a ui_select picker that mini.pick will use.
+    -- No further setup needed; vim.ui.select is replaced automatically.
+<
+
+**Option B — manual assignment:**
+
+>lua
+    vim.ui.select = require("mini.pick").ui_select
+<
+
+`picker.kind` is not used by mini.pick.
+
+------------------------------------------------------------------------------
+
+USING PICKER.KIND AS A HINT*md-view.nvim-md-view.nvim-using-picker.kind-as-a-hint*
+
+`kind` is a free-form string passed as `opts.kind` to `vim.ui.select`. Pickers
+that support it (dressing.nvim, snacks.nvim) can use it to route `:MdViewList`
+to a specific backend or apply a custom display style. Pickers that ignore it
+are unaffected.
+
+>lua
+    require("md-view").setup({
+      picker = { kind = "md-view" },  -- arbitrary string; the picker decides what to do with it
+    })
+<
+
+------------------------------------------------------------------------------
+
+CUSTOM FORMAT_ITEM TIPS    *md-view.nvim-md-view.nvim-custom-format_item-tips*
+
+The default format is `"name http://host:port"`. A few common customisations:
+
+>lua
+    -- Buffer name only (useful when the picker already shows the URL in a preview pane)
+    format_item = function(item)
+      return item.name
+    end
+    
+    -- Port number first (useful when you have several previews open on different ports)
+    format_item = function(item)
+      return string.format("[:%d]  %s", item.port, item.name)
+    end
+    
+    -- Full URL only
+    format_item = function(item)
+      return string.format("http://127.0.0.1:%d", item.port)
+    end
+<
+
+Apply any of these via:
+
+>lua
+    require("md-view").setup({
+      picker = {
+        format_item = function(item)
+          return item.name  -- replace with whichever formatter you prefer
+        end,
+      },
+    })
+<
+
+==============================================================================
+2. Links                                                  *md-view.nvim-links*
+
+1. *Demo*: docs/demo/demo.gif
+2. *Colorscheme Sync*: docs/demo/colorscheme-sync.png
+3. *Picker*: docs/demo/picker.png
+4. *Error feedback*: docs/demo/error-feedback.png
+5. *Colorscheme sync*: docs/demo/colorscheme-sync.png
+
+Generated by panvimdoc <https://github.com/kdheepak/panvimdoc>
+
+vim:tw=78:ts=8:noet:ft=help:norl:
