@@ -436,6 +436,23 @@
 
   var container = document.getElementById("content");
 
+  var LOCAL_SRC_PASS = /^(https?:|data:|blob:|#)/i;
+  var LOCAL_MEDIA_EXT = /\.(png|jpe?g|gif|svg|webp|avif|bmp|ico|mp4|webm|mov|og[gva]|mp3|wav|flac)$/i;
+  function rewriteLocalSrcs(root) {
+    root.querySelectorAll('img[src], video[src], audio[src], source[src]').forEach(function(el) {
+      var src = el.getAttribute('src');
+      if (src && !LOCAL_SRC_PASS.test(src)) {
+        el.setAttribute('src', '/file?path=' + encodeURIComponent(src));
+      }
+    });
+    root.querySelectorAll('a[href]').forEach(function(el) {
+      var href = el.getAttribute('href');
+      if (href && !LOCAL_SRC_PASS.test(href) && LOCAL_MEDIA_EXT.test(href)) {
+        el.setAttribute('href', '/file?path=' + encodeURIComponent(href));
+      }
+    });
+  }
+
   function renderMarkdown(text) {
     errorEntries = [];
     fab.style.display = "none";
@@ -445,6 +462,7 @@
     var tmp = document.createElement("div");
     // Safe: content is the user's own local markdown buffer, served only on 127.0.0.1
     tmp.innerHTML = html;
+    rewriteLocalSrcs(tmp);
     morphdom(container, tmp, { childrenOnly: true });
     var mermaidNodes = container.querySelectorAll("pre.mermaid");
     var mermaidSources = {};

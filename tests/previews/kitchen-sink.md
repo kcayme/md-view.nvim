@@ -16,6 +16,38 @@ Visit [GitHub](https://github.com) or see this image:
 
 ![Placeholder](https://placehold.co/400x200)
 
+## Local Multimedia
+
+Local image (relative `src`):
+
+![Colorscheme sync](../../docs/demo/colorscheme-sync.png)
+
+Reference-style local image:
+
+![Picker][img-ref]
+
+[img-ref]: ../../docs/demo/picker.png
+
+Local video (relative `src`):
+
+<video src="../../docs/demo/demo.mp4" controls width="400"></video>
+
+Link to local image file (href rewrite):
+
+[View error-feedback.png](../../docs/demo/error-feedback.png)
+
+Link to local video file (href rewrite):
+
+[View demo.mp4](../../docs/demo/demo.mp4)
+
+Links that should NOT be rewritten:
+
+[External image](https://placehold.co/100x100/png)
+
+[Markdown doc](./other.md)
+
+[Anchor](#links-and-images)
+
 ## Blockquote
 
 > "Any sufficiently advanced technology is indistinguishable from magic."
@@ -42,19 +74,22 @@ end
 
 ## Table
 
-| Feature     | Tested |
-|-------------|--------|
-| Headings    | Yes    |
-| Lists       | Yes    |
-| Code        | Yes    |
-| Tables      | Yes    |
-| Mermaid     | Yes    |
-| Math/KaTeX  | Yes    |
-| Graphviz    | Yes    |
-| WaveDrom    | Yes    |
-| Nomnoml     | Yes    |
-| abcjs       | Yes    |
-| Vega-Lite   | Yes    |
+| Feature              | Tested |
+|----------------------|--------|
+| Headings             | Yes    |
+| Lists                | Yes    |
+| Code                 | Yes    |
+| Tables               | Yes    |
+| Mermaid              | Yes    |
+| Math/KaTeX           | Yes    |
+| Graphviz             | Yes    |
+| WaveDrom             | Yes    |
+| Nomnoml              | Yes    |
+| abcjs                | Yes    |
+| Vega-Lite            | Yes    |
+| Local images         | Yes    |
+| Local video          | Yes    |
+| Local media links    | Yes    |
 
 ---
 
