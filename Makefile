@@ -17,3 +17,9 @@ test-file:
 		-c "set rtp+=." \
 		-c "runtime plugin/plenary.vim" \
 		-c "lua require('plenary.busted').run('$(FILE)')"
+
+.PHONY: hooks
+hooks:
+	chmod +x .githooks/pre-commit
+	git config core.hooksPath .githooks
+	@echo "Git hooks configured. Pre-commit hook is now active."

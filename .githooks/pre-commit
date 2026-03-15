@@ -1,0 +1,70 @@
+#!/usr/bin/env sh
+
+# Locate stylua: PATH first, then Neovim Mason fallback
+STYLUA=$(command -v stylua 2>/dev/null)
+if [ -z "$STYLUA" ]; then
+  MASON="$HOME/.local/share/nvim/mason/packages/stylua/stylua"
+  if [ -x "$MASON" ]; then
+    STYLUA="$MASON"
+  fi
+fi
+
+# Locate selene: PATH first, then Neovim Mason fallback
+SELENE=$(command -v selene 2>/dev/null)
+if [ -z "$SELENE" ]; then
+  MASON="$HOME/.local/share/nvim/mason/packages/selene/selene"
+  if [ -x "$MASON" ]; then
+    SELENE="$MASON"
+  fi
+fi
+
+# Collect staged Lua files
+FILES=$(git diff --cached --name-only --diff-filter=ACM -- '*.lua')
+[ -z "$FILES" ] && exit 0
+
+# Stash unstaged changes so stylua only operates on staged content.
+# This prevents git add from accidentally committing work the developer
+# intentionally left out of this commit.
+STASHED=0
+if ! git diff --quiet; then
+  git stash --quiet --keep-index
+  STASHED=1
+fi
+
+cleanup() {
+  if [ "$STASHED" = "1" ]; then
+    git stash pop --quiet || true
+  fi
+}
+
+# --- stylua ---
+if [ -z "$STYLUA" ]; then
+  echo "[md-view] stylua not found — install it (Mason: :MasonInstall stylua) or add it to PATH"
+  cleanup
+  exit 1
+fi
+if ! echo "$FILES" | xargs "$STYLUA"; then
+  cleanup
+  exit 1
+fi
+echo "$FILES" | xargs git add
+
+# --- selene ---
+# Test files use plenary BDD globals (describe, it, assert.*) that conflict with
+# selene's lua51 built-in assert definition and cannot be overridden via neovim.yml.
+# Lint source files only; test files are still formatted by stylua above.
+LINT_FILES=$(echo "$FILES" | grep -v '^tests/')
+if [ -z "$SELENE" ]; then
+  echo "[md-view] selene not found — install it (Mason: :MasonInstall selene) or add it to PATH"
+  cleanup
+  exit 1
+fi
+if [ -n "$LINT_FILES" ]; then
+  if ! echo "$LINT_FILES" | xargs "$SELENE"; then
+    cleanup
+    exit 1
+  fi
+fi
+
+cleanup
+exit 0
