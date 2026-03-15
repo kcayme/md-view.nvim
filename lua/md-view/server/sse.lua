@@ -1,19 +1,11 @@
 local M = {}
 M.__index = M
 
-local MAX_CLIENTS = 10
-
 function M.new()
   return setmetatable({ clients = {} }, M)
 end
 
 function M:add_client(client)
-  if #self.clients >= MAX_CLIENTS then
-    local evicted = table.remove(self.clients, 1)
-    if not evicted:is_closing() then
-      evicted:close()
-    end
-  end
   table.insert(self.clients, client)
 end
 

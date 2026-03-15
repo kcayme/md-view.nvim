@@ -1,6 +1,8 @@
 local M = {}
 
-local template = require("md-view.template")
+local template = require("md-view.server.template")
+local vendor = require("md-view.vendor")
+local uv = vim.uv or vim.loop
 
 local function respond(client, status, content_type, body)
   local res = "HTTP/1.1 "
@@ -30,6 +32,36 @@ local function respond_sse(client)
   client:write(headers)
 end
 
+local function serve_static_file(client, filepath, content_type)
+  uv.fs_open(filepath, "r", 438, function(err, fd)
+    if err or not fd then
+      vim.schedule(function()
+        respond(client, "404 Not Found", "text/plain", "Not Found")
+      end)
+      return
+    end
+    uv.fs_fstat(fd, function(err2, stat)
+      if err2 or not stat then
+        uv.fs_close(fd, function() end)
+        vim.schedule(function()
+          respond(client, "404 Not Found", "text/plain", "Not Found")
+        end)
+        return
+      end
+      uv.fs_read(fd, stat.size, 0, function(err3, data)
+        uv.fs_close(fd, function() end)
+        vim.schedule(function()
+          if err3 or not data then
+            respond(client, "404 Not Found", "text/plain", "Not Found")
+          else
+            respond(client, "200 OK", content_type, data)
+          end
+        end)
+      end)
+    end)
+  end)
+end
+
 function M.handle(client, data, ctx)
   local method, path = data:match("^(%u+)%s+(%S+)")
   if not method then
@@ -55,6 +87,11 @@ function M.handle(client, data, ctx)
   elseif path == "/events" then
     respond_sse(client)
     ctx.sse:add_client(client)
+  elseif path:match("^/vendor/[%w%.%-_]+$") then
+    local filename = path:sub(9)
+    local ext = filename:match("%.([^%.]+)$")
+    local content_type = ext == "css" and "text/css" or "application/javascript"
+    serve_static_file(client, vendor.vendor_dir() .. "/" .. filename, content_type)
   else
     respond(client, "404 Not Found", "text/plain", "Not Found")
   end
