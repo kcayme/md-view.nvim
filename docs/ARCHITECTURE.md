@@ -373,7 +373,3 @@ stateDiagram-v2
 | Vega-Lite    | `https://cdn.jsdelivr.net/npm/vega-lite@5.21.0/build/vega-lite.min.js` |
 | Vega-Embed   | `https://cdn.jsdelivr.net/npm/vega-embed@6.26.0/build/vega-embed.min.js` |
 
-## Future Roadmap (Out of Scope for v1)
-
-- Custom themes (dark/light toggle, theme CSS files)
-- Offline mode (bundled JS dependencies instead of CDN)

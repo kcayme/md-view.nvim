@@ -440,6 +440,7 @@ Running `:MdView` opens a browser tab with the rendered markdown and a live SVG 
 | **Runtime dependency** | None (curl optional) | Node.js + yarn | Deno | glow CLI (Go) | None | None |
 | **Renders where** | Browser | Browser | Webview / Browser | Terminal float | Inline (extmarks) | Inline (extmarks) |
 | **Mermaid diagrams** | Yes | Yes | Yes | No | No | No |
+| **Notation support** | Mermaid, KaTeX, Graphviz, WaveDrom, Nomnoml, ABC, Vega-Lite | Mermaid | Mermaid | None | None | None |
 | **Live reload** | Yes | Yes | Yes | No | Yes | Yes |
 | **Scroll sync** | Yes | Yes | Yes | No | N/A | Yes (splitview) |
 | **Maintained** | Yes | Yes | Yes | Archived | Yes | Yes |
@@ -450,7 +451,7 @@ Running `:MdView` opens a browser tab with the rendered markdown and a live SVG 
 
 - **Mermaid support without the weight.** The inline/extmark plugins (render-markdown.nvim, markview.nvim) are great for in-editor rendering but cannot draw diagrams. md-view.nvim gives you live mermaid SVGs alongside standard markdown, without the Node.js/Deno overhead of the other browser-based options.
 
-- **Minimal scope.** md-view.nvim does one thing — open a browser preview with mermaid support — and keeps the codebase small enough to read in one sitting (~300 lines of Lua + an HTML template).
+- **Broad notation support without the runtime.** Beyond mermaid, md-view.nvim renders KaTeX math, Graphviz, WaveDrom, Nomnoml, ABC notation, and Vega-Lite charts — all via CDN, no extra installs. The other browser-based options stop at mermaid.
 
 ## How It Works
 
