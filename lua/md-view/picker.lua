@@ -20,9 +20,16 @@ function M.open()
   local cfg = require("md-view.config").options or {}
   local pcfg = cfg.picker or {}
 
+  local max_name_len = 0
+  for _, it in ipairs(items) do
+    if #it.name > max_name_len then
+      max_name_len = #it.name
+    end
+  end
+
   local function default_format(item)
     local url = "http://" .. (cfg.host or "127.0.0.1") .. ":" .. item.port
-    return item.name .. "  " .. url
+    return string.format("%-" .. max_name_len .. "s  %s", item.name, url)
   end
 
   local select_opts = {
