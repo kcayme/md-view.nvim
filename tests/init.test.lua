@@ -65,4 +65,46 @@ describe("md-view init", function()
     M.toggle()
     assert.is_false(create_called)
   end)
+
+  it("should not notify when curl is absent and vendor is unavailable", function()
+    package.loaded["md-view"] = nil
+    package.loaded["md-view.preview"] = {
+      create = function() end,
+      get = function()
+        return nil
+      end,
+      destroy = function() end,
+      get_active = function()
+        return {}
+      end,
+    }
+    package.loaded["md-view.vendor"] = {
+      is_available = function()
+        return false
+      end,
+      fetch = function() end,
+    }
+    local orig_executable = vim.fn.executable
+    vim.fn.executable = function(cmd)
+      if cmd == "curl" then
+        return 0
+      end
+      return orig_executable(cmd)
+    end
+
+    local notify_calls = {}
+    local orig_notify_inner = vim.notify
+    vim.notify = function(msg, level)
+      table.insert(notify_calls, { msg = msg, level = level })
+    end
+
+    local m = require("md-view")
+    m.setup({})
+
+    vim.fn.executable = orig_executable
+    vim.notify = orig_notify_inner
+    package.loaded["md-view.vendor"] = nil
+
+    assert.are.equal(0, #notify_calls, "expected no notifications when curl is absent")
+  end)
 end)

@@ -21,8 +21,8 @@ function M.setup(opts)
     register_auto_open_augroup()
   end
   local vendor = require("md-view.vendor")
-  if not vendor.is_available() then
-    vim.notify("[md-view] Fetching vendor assets for offline use...", vim.log.levels.INFO)
+  if not vendor.is_available() and vim.fn.executable("curl") == 1 then
+    vim.notify("[md-view] Caching vendor assets...", vim.log.levels.INFO)
     vendor.fetch()
   end
 end
