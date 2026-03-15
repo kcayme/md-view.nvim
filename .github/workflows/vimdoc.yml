@@ -28,7 +28,7 @@ jobs:
           printf "\n\n" >> .doc-source.md
           sed 's/^#\([^#]\)/##\1/' docs/recipes/picker-integration.md >> .doc-source.md
 
-      - uses: kdheepak/panvimdoc@v4
+      - uses: kdheepak/panvimdoc@v4.0.1
         with:
           vimdoc: md-view.nvim
           pandoc: .doc-source.md
