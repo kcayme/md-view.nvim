@@ -1,8 +1,8 @@
 local M = {}
 
-local server = require("md-view.server")
-local router = require("md-view.router")
-local sse = require("md-view.sse")
+local server = require("md-view.server.tcp")
+local router = require("md-view.server.router")
+local sse = require("md-view.server.sse")
 local buffer = require("md-view.buffer")
 local theme = require("md-view.theme")
 local util = require("md-view.util")
@@ -23,8 +23,8 @@ function M.create(opts)
   local sse_instance = sse.new()
 
   local theme_css = ""
-  if opts.theme_sync then
-    theme_css = theme.css(opts.highlights)
+  if opts.theme.mode == "sync" then
+    theme_css = theme.css(opts.theme.highlights)
   end
 
   local resolved = theme.resolve(opts)
@@ -57,7 +57,7 @@ function M.create(opts)
     on_scroll = function(data)
       sse_instance:push("scroll", data)
     end,
-  }, opts.debounce_ms, opts.scroll_sync)
+  }, opts.debounce_ms, opts.scroll.method)
 
   active_previews[bufnr] = {
     server = srv,
@@ -72,11 +72,11 @@ function M.create(opts)
 
   local cleanup_group = vim.api.nvim_create_augroup("md_view_cleanup_" .. bufnr, { clear = true })
 
-  if opts.theme_sync then
+  if opts.theme.mode == "sync" then
     vim.api.nvim_create_autocmd("ColorScheme", {
       group = cleanup_group,
       callback = function()
-        sse_instance:push("theme", { css = theme.css(opts.highlights) })
+        sse_instance:push("theme", { css = theme.css(opts.theme.highlights) })
       end,
     })
   end

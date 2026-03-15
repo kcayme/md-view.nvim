@@ -50,14 +50,14 @@ describe("theme", function()
 
   describe("resolve", function()
     it("resolves explicit dark theme", function()
-      local r = theme.resolve({ theme = "dark" })
+      local r = theme.resolve({ theme = { mode = "dark" } })
       assert.are.equal("dark", r.theme)
       assert.are.equal("vs2015", r.highlight_theme)
       assert.are.equal("dark", r.mermaid_theme)
     end)
 
     it("resolves explicit light theme", function()
-      local r = theme.resolve({ theme = "light" })
+      local r = theme.resolve({ theme = { mode = "light" } })
       assert.are.equal("light", r.theme)
       assert.are.equal("github", r.highlight_theme)
       assert.are.equal("default", r.mermaid_theme)
@@ -66,41 +66,40 @@ describe("theme", function()
     it("falls back to vim.o.background for auto", function()
       local orig = vim.o.background
       vim.o.background = "light"
-      local r = theme.resolve({ theme = "auto" })
+      local r = theme.resolve({ theme = { mode = "auto" } })
       assert.are.equal("light", r.theme)
       assert.are.equal("github", r.highlight_theme)
       vim.o.background = orig
     end)
 
-    it("respects user highlight_theme override", function()
-      local r = theme.resolve({ theme = "dark", highlight_theme = "monokai" })
+    it("respects user syntax override", function()
+      local r = theme.resolve({ theme = { mode = "dark", syntax = "monokai" } })
       assert.are.equal("monokai", r.highlight_theme)
       assert.are.equal("dark", r.mermaid_theme)
     end)
 
     it("respects user mermaid theme override", function()
-      local r = theme.resolve({ theme = "dark", mermaid = { theme = "forest" } })
+      local r = theme.resolve({ theme = { mode = "dark" }, notations = { mermaid = { theme = "forest" } } })
       assert.are.equal("forest", r.mermaid_theme)
       assert.are.equal("vs2015", r.highlight_theme)
     end)
 
     it("respects both overrides together", function()
       local r = theme.resolve({
-        theme = "light",
-        highlight_theme = "custom",
-        mermaid = { theme = "neutral" },
+        theme = { mode = "light", syntax = "custom" },
+        notations = { mermaid = { theme = "neutral" } },
       })
       assert.are.equal("custom", r.highlight_theme)
       assert.are.equal("neutral", r.mermaid_theme)
     end)
 
     it("handles nil mermaid table", function()
-      local r = theme.resolve({ theme = "dark" })
+      local r = theme.resolve({ theme = { mode = "dark" } })
       assert.are.equal("dark", r.mermaid_theme)
     end)
 
     it("handles mermaid table with nil theme", function()
-      local r = theme.resolve({ theme = "dark", mermaid = {} })
+      local r = theme.resolve({ theme = { mode = "dark" }, notations = { mermaid = {} } })
       assert.are.equal("dark", r.mermaid_theme)
     end)
   end)

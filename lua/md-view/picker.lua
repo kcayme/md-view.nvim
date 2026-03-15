@@ -17,21 +17,29 @@ function M.open()
     return
   end
 
-  vim.ui.select(items, {
-    prompt = "Markdown Previews",
-    format_item = function(item)
-      local opts = require("md-view.config").options or {}
-      local url = "http://" .. (opts.host or "127.0.0.1") .. ":" .. item.port
-      return item.name .. "  " .. url
-    end,
-  }, function(item)
+  local cfg = require("md-view.config").options or {}
+  local pcfg = cfg.picker or {}
+
+  local function default_format(item)
+    local url = "http://" .. (cfg.host or "127.0.0.1") .. ":" .. item.port
+    return item.name .. "  " .. url
+  end
+
+  local select_opts = {
+    prompt = pcfg.prompt or "Markdown Previews",
+    format_item = pcfg.format_item or default_format,
+  }
+  if pcfg.kind then
+    select_opts.kind = pcfg.kind
+  end
+
+  vim.ui.select(items, select_opts, function(item)
     if not item then
       return
     end
     vim.api.nvim_set_current_buf(item.bufnr)
-    local opts = require("md-view.config").options or {}
-    local url = "http://" .. (opts.host or "127.0.0.1") .. ":" .. item.port
-    require("md-view.util").open_browser(url, opts.browser)
+    local url = "http://" .. (cfg.host or "127.0.0.1") .. ":" .. item.port
+    require("md-view.util").open_browser(url, cfg.browser)
   end)
 end
 

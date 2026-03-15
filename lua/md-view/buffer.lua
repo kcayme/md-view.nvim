@@ -2,7 +2,7 @@ local M = {}
 
 local util = require("md-view.util")
 
-function M.watch(bufnr, callbacks, debounce_ms, scroll_sync)
+function M.watch(bufnr, callbacks, debounce_ms, scroll_method)
   local content_debounced = util.debounce(function()
     if not vim.api.nvim_buf_is_valid(bufnr) then
       return
@@ -20,11 +20,11 @@ function M.watch(bufnr, callbacks, debounce_ms, scroll_sync)
       return
     end
     local cursor = vim.api.nvim_win_get_cursor(win)
-    if scroll_sync == "percentage" then
+    if scroll_method == "cursor" then
+      callbacks.on_scroll({ line = cursor[1] - 1 })
+    else
       local total = vim.api.nvim_buf_line_count(bufnr)
       callbacks.on_scroll({ percent = (cursor[1] - 1) / math.max(total - 1, 1) })
-    else
-      callbacks.on_scroll({ line = cursor[1] - 1 })
     end
   end, 50)
 

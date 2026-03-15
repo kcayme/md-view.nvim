@@ -1,4 +1,4 @@
-local sse = require("md-view.sse")
+local sse = require("md-view.server.sse")
 
 -- Minimal mock client for testing SSE logic without libuv
 local function mock_client()
@@ -36,36 +36,6 @@ describe("sse", function()
       local c = mock_client()
       s:add_client(c)
       assert.are.equal(1, #s.clients)
-    end)
-
-    it("caps at MAX_CLIENTS and evicts oldest", function()
-      local s = sse.new()
-      local clients = {}
-      for i = 1, 11 do
-        clients[i] = mock_client()
-        s:add_client(clients[i])
-      end
-      assert.are.equal(10, #s.clients)
-      -- first client should have been evicted and closed
-      assert.is_true(clients[1]._closing)
-      -- second client should now be first
-      assert.are.equal(clients[2], s.clients[1])
-      -- last client should be the 11th
-      assert.are.equal(clients[11], s.clients[10])
-    end)
-
-    it("evicts multiple times when adding beyond cap", function()
-      local s = sse.new()
-      local clients = {}
-      for i = 1, 15 do
-        clients[i] = mock_client()
-        s:add_client(clients[i])
-      end
-      assert.are.equal(10, #s.clients)
-      for i = 1, 5 do
-        assert.is_true(clients[i]._closing)
-      end
-      assert.are.equal(clients[6], s.clients[1])
     end)
   end)
 

@@ -2,34 +2,34 @@ local M = {}
 
 local PALETTES = {
   dark = {
-    ["--md-bg"]              = "#0d1117",
-    ["--md-fg"]              = "#e6edf3",
-    ["--md-heading"]         = "#f0f6fc",
-    ["--md-bold"]            = "inherit",
-    ["--md-muted"]           = "#848d97",
-    ["--md-link"]            = "#4493f8",
-    ["--md-code-fg"]         = "#f0d96a",
-    ["--md-code-bg"]         = "#161b22",
-    ["--md-pre-fg"]          = "#e6edf3",
-    ["--md-border"]          = "#30363d",
-    ["--md-checkbox"]        = "#1f6feb",
+    ["--md-bg"] = "#0d1117",
+    ["--md-fg"] = "#e6edf3",
+    ["--md-heading"] = "#f0f6fc",
+    ["--md-bold"] = "inherit",
+    ["--md-muted"] = "#848d97",
+    ["--md-link"] = "#4493f8",
+    ["--md-code-fg"] = "#f0d96a",
+    ["--md-code-bg"] = "#161b22",
+    ["--md-pre-fg"] = "#e6edf3",
+    ["--md-border"] = "#30363d",
+    ["--md-checkbox"] = "#1f6feb",
     ["--md-table-header-bg"] = "#161b22",
-    ["--md-row-alt"]         = "#161b2205",
+    ["--md-row-alt"] = "#161b2205",
   },
   light = {
-    ["--md-bg"]              = "#ffffff",
-    ["--md-fg"]              = "#1f2328",
-    ["--md-heading"]         = "#1f2328",
-    ["--md-bold"]            = "inherit",
-    ["--md-muted"]           = "#656d76",
-    ["--md-link"]            = "#0969da",
-    ["--md-code-fg"]         = "#6639ba",
-    ["--md-code-bg"]         = "#eff1f3",
-    ["--md-pre-fg"]          = "#1f2328",
-    ["--md-border"]          = "#d1d9e0",
-    ["--md-checkbox"]        = "#0969da",
+    ["--md-bg"] = "#ffffff",
+    ["--md-fg"] = "#1f2328",
+    ["--md-heading"] = "#1f2328",
+    ["--md-bold"] = "inherit",
+    ["--md-muted"] = "#656d76",
+    ["--md-link"] = "#0969da",
+    ["--md-code-fg"] = "#6639ba",
+    ["--md-code-bg"] = "#eff1f3",
+    ["--md-pre-fg"] = "#1f2328",
+    ["--md-border"] = "#d1d9e0",
+    ["--md-checkbox"] = "#0969da",
     ["--md-table-header-bg"] = "#f6f8fa",
-    ["--md-row-alt"]         = "#f6f8fa80",
+    ["--md-row-alt"] = "#f6f8fa80",
   },
 }
 
@@ -196,16 +196,17 @@ function M.palette_css(theme_name)
 end
 
 function M.resolve(opts)
-  local resolved_theme = opts.theme
+  local resolved_theme = opts.theme.mode
   if resolved_theme ~= "light" and resolved_theme ~= "dark" then
     resolved_theme = vim.o.background
   end
 
   local defs = THEME_DEFAULTS[resolved_theme] or THEME_DEFAULTS.dark
+  local m = opts.notations and opts.notations.mermaid
   return {
     theme = resolved_theme,
-    highlight_theme = opts.highlight_theme or defs.highlight_theme,
-    mermaid_theme = (opts.mermaid and opts.mermaid.theme) or defs.mermaid_theme,
+    highlight_theme = opts.theme.syntax or defs.highlight_theme,
+    mermaid_theme = (m and m.theme) or defs.mermaid_theme,
   }
 end
 

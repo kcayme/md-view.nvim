@@ -16,14 +16,15 @@ md-view.nvim/
     ├── init.lua                  # Public API facade: setup(), open(), stop(), toggle(), list()
     ├── config.lua                # Defaults + merge via tbl_deep_extend
     ├── preview.lua               # Preview lifecycle orchestration (create, destroy, state)
-    ├── server.lua                # TCP server (bind, listen, accept)
-    ├── router.lua                # HTTP request parsing + route dispatch
-    ├── sse.lua                   # SSE connection manager + event fan-out
     ├── buffer.lua                # Buffer autocmds + debounced content/scroll push
-    ├── template.lua              # HTML page (markdown-it + mermaid.js + morphdom)
     ├── theme.lua                 # All theme concerns: palettes, defaults, resolve, CSS
     ├── picker.lua                # UI selector for active previews
-    └── util.lua                  # Browser opening, debounce, platform detection
+    ├── util.lua                  # Browser opening, debounce, platform detection
+    └── server/
+        ├── tcp.lua               # TCP server (bind, listen, accept)
+        ├── router.lua            # HTTP request parsing + route dispatch
+        ├── sse.lua               # SSE connection manager + event fan-out
+        └── template.lua          # HTML page (markdown-it + mermaid.js + morphdom)
 ```
 
 ## Module Dependency Graph
@@ -35,10 +36,10 @@ graph TD
     config["config.lua"]
     preview["preview.lua<br/><i>orchestration</i>"]
     theme["theme.lua<br/><i>palettes, resolve, CSS</i>"]
-    server["server.lua"]
-    router["router.lua"]
-    template["template.lua"]
-    sse["sse.lua"]
+    server["server/tcp.lua"]
+    router["server/router.lua"]
+    template["server/template.lua"]
+    sse["server/sse.lua"]
     buffer["buffer.lua"]
     util["util.lua"]
     picker["picker.lua"]
@@ -74,8 +75,8 @@ sequenceDiagram
     participant config as config.lua
     participant preview as preview.lua
     participant theme as theme.lua
-    participant sse as sse.lua
-    participant server as server.lua
+    participant sse as server/sse.lua
+    participant server as server/tcp.lua
     participant buffer as buffer.lua
     participant util as util.lua
     participant Browser
@@ -103,9 +104,9 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant Browser
-    participant router as router.lua
-    participant template as template.lua
-    participant sse as sse.lua
+    participant router as server/router.lua
+    participant template as server/template.lua
+    participant sse as server/sse.lua
 
     Browser->>router: GET /
     router->>template: render(opts, filename)
@@ -128,7 +129,7 @@ sequenceDiagram
 sequenceDiagram
     participant Neovim as Neovim Buffer
     participant buffer as buffer.lua
-    participant sse as sse.lua
+    participant sse as server/sse.lua
     participant Browser
 
     Neovim->>buffer: TextChanged / TextChangedI / BufWritePost
@@ -146,7 +147,7 @@ sequenceDiagram
 sequenceDiagram
     participant Neovim as Neovim Cursor
     participant buffer as buffer.lua
-    participant sse as sse.lua
+    participant sse as server/sse.lua
     participant Browser
 
     Neovim->>buffer: CursorMoved / CursorMovedI
@@ -167,9 +168,9 @@ sequenceDiagram
     actor User
     participant init as init.lua
     participant preview as preview.lua
-    participant sse as sse.lua
+    participant sse as server/sse.lua
     participant buffer as buffer.lua
-    participant server as server.lua
+    participant server as server/tcp.lua
 
     User->>init: :MdViewStop / BufDelete / VimLeavePre
     init->>preview: destroy(bufnr)
@@ -187,13 +188,13 @@ sequenceDiagram
 
 Stores default options and the merged user configuration. Uses `vim.tbl_deep_extend("force", {}, defaults, opts)` to merge, matching the pattern from bearded-arc.nvim. The `options` field is `nil` until `setup()` is called; `init.open()` calls `setup({})` as a fallback if the user never called it explicitly.
 
-### `server.lua`
+### `server/tcp.lua`
 
 Creates a TCP server using `vim.uv` (Neovim 0.10+) or `vim.loop` (Neovim 0.8–0.9). Binds to the configured host and port (default port 0 for OS auto-assignment), resolves the actual port via `getsockname()`, and returns both the server handle and port number.
 
 On each incoming connection, it accepts the client socket, accumulates data until a complete HTTP request is received (detected by `\r\n\r\n`), then calls the `on_request` callback on the main thread via `vim.schedule()`.
 
-### `router.lua`
+### `server/router.lua`
 
 Parses raw HTTP requests (extracts method and path from the first line) and dispatches to route handlers:
 
@@ -213,9 +214,9 @@ flowchart LR
 
 Regular responses include `Content-Length` and `Connection: close`. The SSE endpoint sends `Content-Type: text/event-stream` with `Connection: keep-alive` and leaves the socket open for streaming.
 
-### `sse.lua`
+### `server/sse.lua`
 
-A simple connection manager that holds a list of open client sockets. Provides:
+A simple connection manager that holds a list of open client sockets. There is no hard client cap — cleanup relies on dead-client removal during `push()` and client-side BroadcastChannel tab deduplication. Provides:
 
 - `add_client(client)` — registers a new SSE connection
 - `push(event_type, data)` — writes a named SSE event to all clients; dead clients (write errors caught via `pcall`) are removed and closed
@@ -224,7 +225,7 @@ A simple connection manager that holds a list of open client sockets. Provides:
 
 Named SSE events (`content` and `scroll`) allow the browser to handle each type independently via `source.addEventListener(type, ...)`.
 
-### `template.lua`
+### `server/template.lua`
 
 Returns a self-contained HTML string via `string.format()`, injecting custom CSS and the mermaid theme. The HTML page loads three CDN libraries:
 
@@ -309,6 +310,7 @@ Registers three user commands (`:MdView`, `:MdViewStop`, `:MdViewToggle`) that l
 | Scroll sync | `data-source-line` attributes | markdown-it exposes source map (line numbers) per token; cheap to attach as data attributes during rendering |
 | SSE event types | Named events (`content`, `scroll`) | Separates concerns cleanly; browser handles each independently without parsing a type field |
 | Debounce | Two timers (300ms content, 50ms scroll) | Content updates are heavier (full re-render), cursor updates should feel immediate |
+| Picker UI | `vim.ui.select` | Picker-agnostic by design — any replacement (Telescope, fzf-lua, snacks, dressing.nvim) automatically works. No plugin-specific configuration is exposed; customization is limited to the standardised `vim.ui.select` opts (`prompt`, `format_item`, `kind`) |
 
 ## HTTP Protocol
 
@@ -318,7 +320,7 @@ The server implements a minimal subset of HTTP/1.1 — enough for browser commun
 - Sends proper status lines, Content-Type, and Content-Length headers
 - SSE connections use `text/event-stream` with `Connection: keep-alive`
 - Regular responses use `Connection: close` and shut down the socket after sending
-- All responses include `Access-Control-Allow-Origin: *` for CORS
+- No CORS headers are sent — the browser's same-origin policy prevents cross-origin access to the server
 
 ## State Lifecycle
 
@@ -360,9 +362,18 @@ stateDiagram-v2
 | markdown-it  | `https://cdn.jsdelivr.net/npm/markdown-it@14/dist/markdown-it.min.js` |
 | mermaid.js   | `https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js` |
 | morphdom     | `https://cdn.jsdelivr.net/npm/morphdom@2/dist/morphdom-umd.min.js` |
+| KaTeX        | `https://cdn.jsdelivr.net/npm/katex@0.16.38/dist/katex.min.js` |
+| texmath      | `https://cdn.jsdelivr.net/npm/markdown-it-texmath@1.0.0/texmath.js` |
+| @viz-js/viz  | `https://cdn.jsdelivr.net/npm/@viz-js/viz@3.25.0/dist/viz-global.js` |
+| WaveDrom     | `https://cdn.jsdelivr.net/npm/wavedrom@3.5.0/wavedrom.min.js` |
+| graphre      | `https://cdn.jsdelivr.net/npm/graphre@0.1.3/dist/graphre.js` |
+| Nomnoml      | `https://cdn.jsdelivr.net/npm/nomnoml@1.6.2/dist/nomnoml.min.js` |
+| abcjs        | `https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.js` |
+| Vega         | `https://cdn.jsdelivr.net/npm/vega@5.30.0/build/vega.min.js` |
+| Vega-Lite    | `https://cdn.jsdelivr.net/npm/vega-lite@5.21.0/build/vega-lite.min.js` |
+| Vega-Embed   | `https://cdn.jsdelivr.net/npm/vega-embed@6.26.0/build/vega-embed.min.js` |
 
 ## Future Roadmap (Out of Scope for v1)
 
-- LaTeX/KaTeX math equation support
 - Custom themes (dark/light toggle, theme CSS files)
 - Offline mode (bundled JS dependencies instead of CDN)
