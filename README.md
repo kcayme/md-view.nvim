@@ -216,9 +216,6 @@ require("md-view").setup({
 > }
 > ```
 
-```lua
-```
-
 ### Syntax Highlighting Themes
 
 Fenced code blocks with a language tag (e.g. ` ```lua `, ` ```python `) are syntax highlighted using [highlight.js](https://highlightjs.org). Set `theme.syntax` to any theme from the [highlight.js demo](https://highlightjs.org/demo).
