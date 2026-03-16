@@ -22,11 +22,31 @@ jobs:
           test -f docs/ARCHITECTURE.md
           test -f docs/recipes/picker-integration.md
 
-          cat README.md > .doc-source.md
+          # Strip the H1 plugin-name line from README — panvimdoc uses the plugin
+          # name as the doc title, so keeping it would produce double-prefix tags
+          # like *md-view.nvim-md-view.nvim-features*.
+          sed '/^# md-view\.nvim$/d' README.md > .doc-source.md
           printf "\n\n" >> .doc-source.md
-          sed 's/^#\([^#]\)/##\1/' docs/ARCHITECTURE.md >> .doc-source.md
+          # Demote all heading levels so each file's content nests under its own
+          # H1 (e.g. "# Architecture" → "## Architecture"), which causes
+          # dedupsubheadings to prefix tags with the file name automatically:
+          # *md-view.nvim-architecture-overview*, *md-view.nvim-picker-integration-how-it-works*
+          sed 's/^#/##/' docs/ARCHITECTURE.md >> .doc-source.md
           printf "\n\n" >> .doc-source.md
-          sed 's/^#\([^#]\)/##\1/' docs/recipes/picker-integration.md >> .doc-source.md
+          sed 's/^#/##/' docs/recipes/picker-integration.md >> .doc-source.md
+
+      - name: Check for duplicate headings
+        run: |
+          set -euo pipefail
+          dupes=$(grep -i '^#' .doc-source.md \
+            | sed 's/^#* *//' \
+            | tr '[:upper:]' '[:lower:]' \
+            | sort | uniq -d)
+          if [ -n "$dupes" ]; then
+            echo "ERROR: duplicate headings found (will produce duplicate vimdoc tags):"
+            echo "$dupes"
+            exit 1
+          fi
 
       - uses: kdheepak/panvimdoc@v4.0.1
         with:
