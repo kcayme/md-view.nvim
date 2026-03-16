@@ -39,7 +39,6 @@ jobs:
         run: |
           set -euo pipefail
           dupes=$(grep -i '^#' .doc-source.md \
-            | sed 's/^#* *//' \
             | tr '[:upper:]' '[:lower:]' \
             | sort | uniq -d)
           if [ -n "$dupes" ]; then
