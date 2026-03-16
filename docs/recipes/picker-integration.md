@@ -1,6 +1,6 @@
 # Picker Integration
 
-## How it works
+## How picker integration works
 
 `:MdViewList` calls `vim.ui.select` with the list of active previews. Any plugin that overrides `vim.ui.select` automatically takes over the picker — no md-view-specific configuration is required beyond the optional `picker.*` options described below.
 
