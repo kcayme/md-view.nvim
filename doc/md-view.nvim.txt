@@ -1,4 +1,4 @@
-*md-view.nvim.txt*          For NVIM v0.8.0         Last change: 2026 March 15
+*md-view.nvim.txt*          For NVIM v0.8.0         Last change: 2026 March 16
 
 ==============================================================================
 Table of Contents                             *md-view.nvim-table-of-contents*
@@ -25,7 +25,7 @@ Table of Contents                             *md-view.nvim-table-of-contents*
   - State Lifecycle                |md-view.nvim-md-view.nvim-state-lifecycle|
   - Browser Dependencies (CDN)|md-view.nvim-md-view.nvim-browser-dependencies-(cdn)|
   - Picker Integration          |md-view.nvim-md-view.nvim-picker-integration|
-  - How it works                      |md-view.nvim-md-view.nvim-how-it-works|
+  - How picker integration works|md-view.nvim-md-view.nvim-how-picker-integration-works|
   - Per-picker setup              |md-view.nvim-md-view.nvim-per-picker-setup|
   - Using picker.kind as a hint|md-view.nvim-md-view.nvim-using-picker.kind-as-a-hint|
   - Custom format_item tips|md-view.nvim-md-view.nvim-custom-format_item-tips|
@@ -335,10 +335,6 @@ Examples:
         opts  = { auto_open = { enable = true } },
       }
   <
->lua
-    
-<
-
 
 SYNTAX HIGHLIGHTING THEMES ~
 
@@ -1170,7 +1166,7 @@ BROWSER DEPENDENCIES (CDN)*md-view.nvim-md-view.nvim-browser-dependencies-(cdn)*
 PICKER INTEGRATION              *md-view.nvim-md-view.nvim-picker-integration*
 
 
-HOW IT WORKS                          *md-view.nvim-md-view.nvim-how-it-works*
+HOW PICKER INTEGRATION WORKS*md-view.nvim-md-view.nvim-how-picker-integration-works*
 
 `:MdViewList` calls `vim.ui.select` with the list of active previews. Any
 plugin that overrides `vim.ui.select` automatically takes over the picker —
