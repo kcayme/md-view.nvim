@@ -3,37 +3,19 @@
 ==============================================================================
 Table of Contents                             *md-view.nvim-table-of-contents*
 
-1. md-view.nvim                                    |md-view.nvim-md-view.nvim|
-  - Why another markdown preview plugin?|md-view.nvim-md-view.nvim-why-another-markdown-preview-plugin?|
-  - Features                              |md-view.nvim-md-view.nvim-features|
-  - Requirements                      |md-view.nvim-md-view.nvim-requirements|
-  - Installation                      |md-view.nvim-md-view.nvim-installation|
-  - Configuration                    |md-view.nvim-md-view.nvim-configuration|
-  - Offline Support                |md-view.nvim-md-view.nvim-offline-support|
-  - Usage                                    |md-view.nvim-md-view.nvim-usage|
-  - Comparison                          |md-view.nvim-md-view.nvim-comparison|
-  - How It Works                      |md-view.nvim-md-view.nvim-how-it-works|
-  - License                                |md-view.nvim-md-view.nvim-license|
-  - Architecture                      |md-view.nvim-md-view.nvim-architecture|
-  - Overview                              |md-view.nvim-md-view.nvim-overview|
-  - Project Structure            |md-view.nvim-md-view.nvim-project-structure|
-  - Module Dependency Graph|md-view.nvim-md-view.nvim-module-dependency-graph|
-  - Data Flow                            |md-view.nvim-md-view.nvim-data-flow|
-  - Module Details                  |md-view.nvim-md-view.nvim-module-details|
-  - Design Decisions              |md-view.nvim-md-view.nvim-design-decisions|
-  - HTTP Protocol                    |md-view.nvim-md-view.nvim-http-protocol|
-  - State Lifecycle                |md-view.nvim-md-view.nvim-state-lifecycle|
-  - Browser Dependencies (CDN)|md-view.nvim-md-view.nvim-browser-dependencies-(cdn)|
-  - Picker Integration          |md-view.nvim-md-view.nvim-picker-integration|
-  - How picker integration works|md-view.nvim-md-view.nvim-how-picker-integration-works|
-  - Per-picker setup              |md-view.nvim-md-view.nvim-per-picker-setup|
-  - Using picker.kind as a hint|md-view.nvim-md-view.nvim-using-picker.kind-as-a-hint|
-  - Custom format_item tips|md-view.nvim-md-view.nvim-custom-format_item-tips|
-2. Links                                                  |md-view.nvim-links|
-
-==============================================================================
-1. md-view.nvim                                    *md-view.nvim-md-view.nvim*
-
+  - Why another markdown preview plugin?|md-view.nvim-why-another-markdown-preview-plugin?|
+  - Features                                           |md-view.nvim-features|
+  - Requirements                                   |md-view.nvim-requirements|
+  - Installation                                   |md-view.nvim-installation|
+  - Configuration                                 |md-view.nvim-configuration|
+  - Offline Support                             |md-view.nvim-offline-support|
+  - Usage                                                 |md-view.nvim-usage|
+  - Comparison                                       |md-view.nvim-comparison|
+  - How It Works                                   |md-view.nvim-how-it-works|
+  - License                                             |md-view.nvim-license|
+  - Architecture                                   |md-view.nvim-architecture|
+  - Picker Integration                       |md-view.nvim-picker-integration|
+1. Links                                                  |md-view.nvim-links|
 Browser-based markdown preview for Neovim with live mermaid diagram rendering.
 
 Opens a browser tab that renders your markdown buffer — including mermaid
@@ -43,7 +25,7 @@ viewport aligned with your cursor position.
 
 
 
-WHY ANOTHER MARKDOWN PREVIEW PLUGIN?*md-view.nvim-md-view.nvim-why-another-markdown-preview-plugin?*
+WHY ANOTHER MARKDOWN PREVIEW PLUGIN?*md-view.nvim-why-another-markdown-preview-plugin?*
 
 I heavily use mermaid diagrams in my markdown files. The in-editor previewers I
 tried don’t render them, and the browser-based ones that do (like
@@ -64,7 +46,7 @@ that’s lightweight and just works out of the box — no runtime, no setup.
     diagrams.
 
 
-FEATURES                                  *md-view.nvim-md-view.nvim-features*
+FEATURES                                               *md-view.nvim-features*
 
 - **Live preview** — browser updates within ~300ms of each edit
 - **Mermaid diagrams** — fenced `mermaid` code blocks render as SVG
@@ -75,13 +57,13 @@ FEATURES                                  *md-view.nvim-md-view.nvim-features*
 - **Auto-cleanup** — servers shut down when buffers close or Neovim exits
 
 
-REQUIREMENTS                          *md-view.nvim-md-view.nvim-requirements*
+REQUIREMENTS                                       *md-view.nvim-requirements*
 
 - Neovim >= 0.8
 - A web browser
 
 
-INSTALLATION                          *md-view.nvim-md-view.nvim-installation*
+INSTALLATION                                       *md-view.nvim-installation*
 
 
 LAZY.NVIM ~
@@ -98,7 +80,7 @@ PACKER.NVIM ~
 <
 
 
-CONFIGURATION                        *md-view.nvim-md-view.nvim-configuration*
+CONFIGURATION                                     *md-view.nvim-configuration*
 
 >lua
     require("md-view").setup({
@@ -503,7 +485,7 @@ To set a mermaid diagram theme:
 <
 
 
-OFFLINE SUPPORT                    *md-view.nvim-md-view.nvim-offline-support*
+OFFLINE SUPPORT                                 *md-view.nvim-offline-support*
 
 md-view.nvim can work offline by caching vendor assets locally. This is useful
 when developing without internet access or for reproducible deployments.
@@ -542,7 +524,7 @@ To specify a custom highlight.js theme for the cached CSS:
 <
 
 
-USAGE                                        *md-view.nvim-md-view.nvim-usage*
+USAGE                                                     *md-view.nvim-usage*
 
 
 COMMANDS ~
@@ -592,7 +574,7 @@ Running `:MdView` opens a browser tab with the rendered markdown and a live SVG
 diagram.
 
 
-COMPARISON                              *md-view.nvim-md-view.nvim-comparison*
+COMPARISON                                           *md-view.nvim-comparison*
 
   ------------------------------------------------------------------------------------------------------------------
                md-view.nvim   markdown-preview.nvim   peek.nvim   glow.nvim   render-markdown.nvim   markview.nvim
@@ -636,7 +618,7 @@ COMPARISON                              *md-view.nvim-md-view.nvim-comparison*
     at mermaid.
 
 
-HOW IT WORKS                          *md-view.nvim-md-view.nvim-how-it-works*
+HOW IT WORKS                                       *md-view.nvim-how-it-works*
 
 The plugin starts a local HTTP server (via Neovim’s built-in libuv bindings)
 that serves an HTML page. The browser loads markdown-it, mermaid.js, and
@@ -646,15 +628,15 @@ Events (SSE), where JavaScript re-renders the markdown and patches the DOM.
 See ARCHITECTURE.md <ARCHITECTURE.md> for the full technical design.
 
 
-LICENSE                                    *md-view.nvim-md-view.nvim-license*
+LICENSE                                                 *md-view.nvim-license*
 
 MIT <LICENSE>
 
 
-ARCHITECTURE                          *md-view.nvim-md-view.nvim-architecture*
+ARCHITECTURE                                       *md-view.nvim-architecture*
 
 
-OVERVIEW                                  *md-view.nvim-md-view.nvim-overview*
+OVERVIEW ~
 
 md-view.nvim is a browser-based markdown preview plugin for Neovim. It runs a
 local HTTP server inside Neovim using libuv TCP bindings, serves an HTML page
@@ -666,7 +648,7 @@ on Neovim’s built-in libuv event loop, and the browser handles all rendering
 via CDN-loaded JavaScript libraries.
 
 
-PROJECT STRUCTURE                *md-view.nvim-md-view.nvim-project-structure*
+PROJECT STRUCTURE ~
 
 >
     md-view.nvim/
@@ -688,7 +670,7 @@ PROJECT STRUCTURE                *md-view.nvim-md-view.nvim-project-structure*
 <
 
 
-MODULE DEPENDENCY GRAPH    *md-view.nvim-md-view.nvim-module-dependency-graph*
+MODULE DEPENDENCY GRAPH ~
 
 >mermaid
     graph TD
@@ -726,10 +708,10 @@ MODULE DEPENDENCY GRAPH    *md-view.nvim-md-view.nvim-module-dependency-graph*
 <
 
 
-DATA FLOW                                *md-view.nvim-md-view.nvim-data-flow*
+DATA FLOW ~
 
 
-1. INITIALIZATION (:MDVIEW) ~
+1. INITIALIZATION (:MDVIEW)
 
 >mermaid
     sequenceDiagram
@@ -763,7 +745,7 @@ DATA FLOW                                *md-view.nvim-md-view.nvim-data-flow*
 <
 
 
-2. BROWSER INITIAL LOAD ~
+2. BROWSER INITIAL LOAD
 
 >mermaid
     sequenceDiagram
@@ -788,7 +770,7 @@ DATA FLOW                                *md-view.nvim-md-view.nvim-data-flow*
 <
 
 
-3. LIVE UPDATE — CONTENT ~
+3. LIVE UPDATE — CONTENT
 
 >mermaid
     sequenceDiagram
@@ -807,7 +789,7 @@ DATA FLOW                                *md-view.nvim-md-view.nvim-data-flow*
 <
 
 
-4. LIVE UPDATE — SCROLL SYNC ~
+4. LIVE UPDATE — SCROLL SYNC
 
 >mermaid
     sequenceDiagram
@@ -833,7 +815,7 @@ event arrives, the browser finds the element whose `data-source-line` is
 closest to the cursor line and smoothly scrolls to it.
 
 
-5. SHUTDOWN ~
+5. SHUTDOWN
 
 >mermaid
     sequenceDiagram
@@ -855,10 +837,10 @@ closest to the cursor line and smoothly scrolls to it.
 <
 
 
-MODULE DETAILS                      *md-view.nvim-md-view.nvim-module-details*
+MODULE DETAILS ~
 
 
-CONFIG.LUA ~
+CONFIG.LUA
 
 Stores default options and the merged user configuration. Uses
 `vim.tbl_deep_extend("force", {}, defaults, opts)` to merge, matching the
@@ -867,7 +849,7 @@ called; `init.open()` calls `setup({})` as a fallback if the user never called
 it explicitly.
 
 
-SERVER/TCP.LUA ~
+SERVER/TCP.LUA
 
 Creates a TCP server using `vim.uv` (Neovim 0.10+) or `vim.loop` (Neovim
 0.8–0.9). Binds to the configured host and port (default port 0 for OS
@@ -879,7 +861,7 @@ until a complete HTTP request is received (detected by `\r\n\r\n`), then calls
 the `on_request` callback on the main thread via `vim.schedule()`.
 
 
-SERVER/ROUTER.LUA ~
+SERVER/ROUTER.LUA
 
 Parses raw HTTP requests (extracts method and path from the first line) and
 dispatches to route handlers:
@@ -903,7 +885,7 @@ endpoint sends `Content-Type: text/event-stream` with `Connection: keep-alive`
 and leaves the socket open for streaming.
 
 
-SERVER/SSE.LUA ~
+SERVER/SSE.LUA
 
 A simple connection manager that holds a list of open client sockets. There is
 no hard client cap — cleanup relies on dead-client removal during `push()`
@@ -918,7 +900,7 @@ Named SSE events (`content` and `scroll`) allow the browser to handle each type
 independently via `source.addEventListener(type, ...)`.
 
 
-SERVER/TEMPLATE.LUA ~
+SERVER/TEMPLATE.LUA
 
 Returns a self-contained HTML string via `string.format()`, injecting custom
 CSS and the mermaid theme. The HTML page loads three CDN libraries:
@@ -942,7 +924,7 @@ The embedded JavaScript:
 The page uses a dark GitHub-style theme (background `#0d1117`, text `#c9d1d9`).
 
 
-BUFFER.LUA ~
+BUFFER.LUA
 
 Attaches Neovim autocmds to a buffer with two separate debounce timers:
 
@@ -953,13 +935,13 @@ Returns a table with a `stop()` function that closes both timers and deletes
 the augroup.
 
 
-UTIL.LUA ~
+UTIL.LUA
 
 - **open_browser(url, browser)** — if `browser` is set, uses it directly. Otherwise auto-detects the platform: `open` (macOS), `wslview` (WSL), `xdg-open` (Linux), `cmd /c start` (Windows). Launches detached via `vim.fn.jobstart`.
 - **debounce(fn, ms)** — creates a debounced wrapper using a `uv.new_timer()`. Each call resets the timer; the function fires `ms` milliseconds after the last call, scheduled back to the main thread via `vim.schedule()`. The returned wrapper has a `.stop()` method to close the timer for cleanup.
 
 
-INIT.LUA ~
+INIT.LUA
 
 A thin API facade that delegates to `config` and `preview`:
 
@@ -971,7 +953,7 @@ A thin API facade that delegates to `config` and `preview`:
 - **get_active_previews()** — returns `preview.get_active()`
 
 
-PREVIEW.LUA ~
+PREVIEW.LUA
 
 The orchestration module. Manages the `active_previews` table (keyed by buffer
 number) which tracks all running preview instances:
@@ -993,13 +975,13 @@ number) which tracks all running preview instances:
 - **get_active()** — returns the full active_previews table
 
 
-PLUGIN/MD-VIEW.LUA ~
+PLUGIN/MD-VIEW.LUA
 
 Registers three user commands (`:MdView`, `:MdViewStop`, `:MdViewToggle`) that
 lazy-load the plugin via `require("md-view")`.
 
 
-DESIGN DECISIONS                  *md-view.nvim-md-view.nvim-design-decisions*
+DESIGN DECISIONS ~
 
   ------------------------------------------------------------------------
   Decision                 Choice               Rationale
@@ -1085,7 +1067,7 @@ DESIGN DECISIONS                  *md-view.nvim-md-view.nvim-design-decisions*
                                                 kind)
   ------------------------------------------------------------------------
 
-HTTP PROTOCOL                        *md-view.nvim-md-view.nvim-http-protocol*
+HTTP PROTOCOL ~
 
 The server implements a minimal subset of HTTP/1.1 — enough for browser
 communication:
@@ -1097,7 +1079,7 @@ communication:
 - No CORS headers are sent — the browser’s same-origin policy prevents cross-origin access to the server
 
 
-STATE LIFECYCLE                    *md-view.nvim-md-view.nvim-state-lifecycle*
+STATE LIFECYCLE ~
 
 >mermaid
     stateDiagram-v2
@@ -1131,7 +1113,7 @@ STATE LIFECYCLE                    *md-view.nvim-md-view.nvim-state-lifecycle*
 <
 
 
-BROWSER DEPENDENCIES (CDN)*md-view.nvim-md-view.nvim-browser-dependencies-(cdn)*
+BROWSER DEPENDENCIES (CDN) ~
 
   --------------------------------------------------------------------------------------
   Library       CDN URL
@@ -1163,10 +1145,10 @@ BROWSER DEPENDENCIES (CDN)*md-view.nvim-md-view.nvim-browser-dependencies-(cdn)*
   Vega-Embed    https://cdn.jsdelivr.net/npm/vega-embed@6.26.0/build/vega-embed.min.js
   --------------------------------------------------------------------------------------
 
-PICKER INTEGRATION              *md-view.nvim-md-view.nvim-picker-integration*
+PICKER INTEGRATION                           *md-view.nvim-picker-integration*
 
 
-HOW PICKER INTEGRATION WORKS*md-view.nvim-md-view.nvim-how-picker-integration-works*
+HOW IT WORKS ~
 
 `:MdViewList` calls `vim.ui.select` with the list of active previews. Any
 plugin that overrides `vim.ui.select` automatically takes over the picker —
@@ -1175,10 +1157,10 @@ options described below.
 
 ------------------------------------------------------------------------------
 
-PER-PICKER SETUP                  *md-view.nvim-md-view.nvim-per-picker-setup*
+PER-PICKER SETUP ~
 
 
-DRESSING.NVIM ~
+DRESSING.NVIM
 
 dressing.nvim replaces `vim.ui.select` automatically when it loads — no extra
 call needed. The `picker.kind` option is forwarded and can be used to select
@@ -1208,7 +1190,7 @@ calls including `:MdViewList`.
 
 ------------------------------------------------------------------------------
 
-TELESCOPE-UI-SELECT.NVIM ~
+TELESCOPE-UI-SELECT.NVIM
 
 Load the extension after Telescope is set up. Once loaded it replaces
 `vim.ui.select` globally.
@@ -1242,7 +1224,7 @@ the URL, show only the buffer name:
 
 ------------------------------------------------------------------------------
 
-FZF-LUA ~
+FZF-LUA
 
 Call `register_ui_select()` once during startup. This replaces `vim.ui.select`
 with fzf-lua’s implementation.
@@ -1268,7 +1250,7 @@ Custom `format_item` example — include the port number more prominently:
 
 ------------------------------------------------------------------------------
 
-SNACKS.NVIM ~
+SNACKS.NVIM
 
 snacks replaces `vim.ui.select` automatically via its `picker.select`
 integration when snacks is set up. The `picker.kind` value is forwarded as a
@@ -1288,7 +1270,7 @@ source hint that snacks can use to apply a custom display style.
 
 ------------------------------------------------------------------------------
 
-MINI.PICK ~
+MINI.PICK
 
 mini.pick does not replace `vim.ui.select` by default. Wire it up manually in
 your config using `MiniExtra.pickers.ui_select` (recommended) or by assigning
@@ -1312,7 +1294,7 @@ your config using `MiniExtra.pickers.ui_select` (recommended) or by assigning
 
 ------------------------------------------------------------------------------
 
-USING PICKER.KIND AS A HINT*md-view.nvim-md-view.nvim-using-picker.kind-as-a-hint*
+USING PICKER.KIND AS A HINT ~
 
 `kind` is a free-form string passed as `opts.kind` to `vim.ui.select`. Pickers
 that support it (dressing.nvim, snacks.nvim) can use it to route `:MdViewList`
@@ -1327,7 +1309,7 @@ are unaffected.
 
 ------------------------------------------------------------------------------
 
-CUSTOM FORMAT_ITEM TIPS    *md-view.nvim-md-view.nvim-custom-format_item-tips*
+CUSTOM FORMAT_ITEM TIPS ~
 
 The default format is `"name http://host:port"`. A few common customisations:
 
@@ -1361,7 +1343,7 @@ Apply any of these via:
 <
 
 ==============================================================================
-2. Links                                                  *md-view.nvim-links*
+1. Links                                                  *md-view.nvim-links*
 
 1. *Demo*: docs/demo/demo.gif
 2. *Colorscheme Sync*: docs/demo/colorscheme-sync.png
