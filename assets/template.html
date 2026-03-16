@@ -307,12 +307,16 @@
   document.getElementById("notation-popup-close").addEventListener("click", hidePopup);
   fab.addEventListener("click", togglePopup);
 
+  function safeParse(raw) {
+    try { return JSON.parse(raw); } catch (_) { return null; }
+  }
+
   var vizPromise = (typeof Viz !== 'undefined') ? Viz.instance() : null;
 
   var md = window.markdownit({
     html: true, linkify: true, typographer: true,
     highlight: function(str, lang) {
-      if (lang && hljs.getLanguage(lang)) {
+      if (typeof hljs !== 'undefined' && lang && hljs.getLanguage(lang)) {
         try { return hljs.highlight(str, { language: lang }).value; } catch (_) {}
       }
       return "";
@@ -562,8 +566,8 @@
             el.classList.add("notation-error");
             notifyError("WaveDrom", source);
           }
+          el.setAttribute("data-rendered", "true");
         }
-        el.setAttribute("data-rendered", "true");
       });
     }
 
@@ -572,6 +576,7 @@
         var sourceEl = el.querySelector(".nomnoml-source");
         if (sourceEl) {
           var source = sourceEl.textContent;
+          sourceEl.remove();
           try {
             el.innerHTML = nomnoml.renderSvg(source);
           } catch (e) {
@@ -579,8 +584,8 @@
             el.classList.add("notation-error");
             notifyError("Nomnoml", source);
           }
+          el.setAttribute("data-rendered", "true");
         }
-        el.setAttribute("data-rendered", "true");
       });
     }
 
@@ -599,8 +604,8 @@
             el.classList.add("notation-error");
             notifyError("ABC", source);
           }
+          el.setAttribute("data-rendered", "true");
         }
-        el.setAttribute("data-rendered", "true");
       });
     }
 
@@ -621,17 +626,24 @@
             el.classList.add("notation-error");
             notifyError("Vega-Lite", source);
           }
+          el.setAttribute("data-rendered", "true");
         }
-        el.setAttribute("data-rendered", "true");
       });
     }
   }
 
   fetch("/content")
     .then(function(r) { return r.json(); })
-    .then(function(d) { renderMarkdown(d.content); });
+    .then(function(d) { renderMarkdown(d.content); })
+    .catch(function(e) {
+      console.error("md-view: failed to load initial content", e);
+      container.textContent = "Failed to load preview. Try reopening the preview.";
+    });
 
   var source = new EventSource("/events");
+  source.onerror = function() {
+    console.warn("md-view: SSE connection lost, waiting to reconnect\u2026");
+  };
 
   var channel = new BroadcastChannel("mdview_" + location.port);
   channel.onmessage = function(e) {
@@ -645,12 +657,13 @@
   channel.postMessage("takeover");
 
   source.addEventListener("content", function(e) {
-    var d = JSON.parse(e.data);
-    renderMarkdown(d.content);
+    var d = safeParse(e.data);
+    if (d) renderMarkdown(d.content);
   });
 
   source.addEventListener("theme", function(e) {
-    var d = JSON.parse(e.data);
+    var d = safeParse(e.data);
+    if (!d) return;
     var style = document.getElementById("md-view-theme");
     if (!style) {
       style = document.createElement("style");
@@ -667,7 +680,8 @@
   });
 
   source.addEventListener("scroll", function(e) {
-    var d = JSON.parse(e.data);
+    var d = safeParse(e.data);
+    if (!d) return;
     if (d.percent != null) {
       var maxScroll = document.documentElement.scrollHeight - window.innerHeight;
       window.scrollTo({ top: d.percent * maxScroll, behavior: "smooth" });
