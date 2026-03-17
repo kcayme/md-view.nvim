@@ -35,6 +35,14 @@ describe("template", function()
       assert.truthy(html:find("</html>"))
     end)
 
+    it("renderMarkdown has idempotency guard to prevent double-render of same content", function()
+      local html = template.render(make_opts(), "test.md")
+      -- Guard variable must be declared and checked at function entry so that
+      -- concurrent SSE replay + fetch("/content") arriving with identical text
+      -- does not trigger two mermaid.run() calls (which would cause flicker).
+      assert.truthy(html:find("lastRenderedContent"))
+    end)
+
     it("injects the title", function()
       local html = template.render(make_opts(), "my-doc.md")
       assert.truthy(html:find("<title>my%-doc%.md</title>"))

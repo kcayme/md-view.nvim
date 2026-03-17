@@ -523,7 +523,7 @@
     });
   }
 
-  function renderMarkdown(text) {
+  function _renderMarkdown(text) {
     errorEntries = [];
     fab.style.display = "none";
     hidePopup();
@@ -735,6 +735,13 @@
       col.appendChild(btn);
       wrapper.appendChild(col);
     });
+  }
+
+  var lastRenderedContent = null;
+  function renderMarkdown(text) {
+    if (text === lastRenderedContent) return;
+    lastRenderedContent = text;
+    _renderMarkdown(text);
   }
 
   fetch("/content")
