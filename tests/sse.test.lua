@@ -102,6 +102,74 @@ describe("sse", function()
     end)
   end)
 
+  describe("add_client replay", function()
+    it("should replay last palette event to a newly connected client", function()
+      local s = sse.new()
+      local c1 = mock_client()
+      s:add_client(c1)
+      s:push("palette", { css = ":root { --md-bg: #fff; }" })
+
+      -- new client connects after palette was pushed
+      local c2 = mock_client()
+      s:add_client(c2)
+
+      -- c2 should have received 1 write (the replayed palette event)
+      assert.are.equal(1, #c2._writes)
+      assert.truthy(c2._writes[1]:find("^event: palette\n"))
+    end)
+
+    it("should replay only the latest event per type when multiple were pushed", function()
+      local s = sse.new()
+      local c1 = mock_client()
+      s:add_client(c1)
+      s:push("palette", { css = "first" })
+      s:push("palette", { css = "second" })
+
+      local c2 = mock_client()
+      s:add_client(c2)
+
+      -- only ONE write (latest palette), not two
+      assert.are.equal(1, #c2._writes)
+      assert.truthy(c2._writes[1]:find('"second"'))
+    end)
+
+    it("should replay multiple distinct event types to new client", function()
+      local s = sse.new()
+      local c1 = mock_client()
+      s:add_client(c1)
+      s:push("palette", { css = "palette-css" })
+      s:push("theme", { css = "theme-css" })
+
+      local c2 = mock_client()
+      s:add_client(c2)
+
+      assert.are.equal(2, #c2._writes)
+    end)
+
+    it("should NOT replay close events to new clients", function()
+      local s = sse.new()
+      local c1 = mock_client()
+      s:add_client(c1)
+      -- simulate a close push (even though in practice this wouldn't happen)
+      -- by pushing close before close_all
+      s:push("close", {})
+
+      local c2 = mock_client()
+      s:add_client(c2)
+
+      -- close should not be replayed — c2 should not be closed
+      assert.is_false(c2._closing)
+      assert.are.equal(0, #c2._writes)
+    end)
+
+    it("should receive no replay when no events have been pushed", function()
+      local s = sse.new()
+      local c = mock_client()
+      s:add_client(c)
+      assert.are.equal(0, #c._writes)
+    end)
+  end)
+
   describe("close_all", function()
     it("closes all clients and empties the list", function()
       local s = sse.new()

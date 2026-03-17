@@ -2,11 +2,17 @@ local M = {}
 M.__index = M
 
 function M.new()
-  return setmetatable({ clients = {} }, M)
+  return setmetatable({ clients = {}, last = {} }, M)
 end
 
 function M:add_client(client)
   table.insert(self.clients, client)
+  for event_type, data in pairs(self.last) do
+    local payload = "event: " .. event_type .. "\ndata: " .. vim.json.encode(data) .. "\n\n"
+    pcall(function()
+      client:write(payload)
+    end)
+  end
 end
 
 function M:remove_client(client)
@@ -22,6 +28,9 @@ function M:remove_client(client)
 end
 
 function M:push(event_type, data)
+  if event_type ~= "close" then
+    self.last[event_type] = data
+  end
   local payload = "event: " .. event_type .. "\ndata: " .. vim.json.encode(data) .. "\n\n"
   local dead = {}
   for i, client in ipairs(self.clients) do
