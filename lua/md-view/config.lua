@@ -35,6 +35,11 @@ M.defaults = {
     format_item = nil,
     kind = nil,
   },
+  single_page = {
+    enable = false,
+    port = 4999,
+    tab_label = "parent",
+  },
 }
 
 M.options = nil

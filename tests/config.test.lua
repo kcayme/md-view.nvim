@@ -347,5 +347,30 @@ describe("config", function()
       assert.are.equal(custom_fmt, config.options.picker.format_item)
       assert.are.equal("mdview", config.options.picker.kind)
     end)
+
+    it("has single_page defaults", function()
+      config.setup({})
+      local sp = config.options.single_page
+      assert.is_not_nil(sp)
+      assert.is_false(sp.enable)
+      assert.are.equal(4999, sp.port)
+      assert.are.equal("parent", sp.tab_label)
+    end)
+
+    it("merges single_page user options over defaults", function()
+      config.setup({ single_page = { enable = true, port = 5000 } })
+      local sp = config.options.single_page
+      assert.is_true(sp.enable)
+      assert.are.equal(5000, sp.port)
+      assert.are.equal("parent", sp.tab_label)
+    end)
+
+    it("accepts a function as single_page.tab_label", function()
+      local fn = function(ctx)
+        return ctx.filename
+      end
+      config.setup({ single_page = { tab_label = fn } })
+      assert.are.equal(fn, config.options.single_page.tab_label)
+    end)
   end)
 end)
