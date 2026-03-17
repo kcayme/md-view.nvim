@@ -77,6 +77,11 @@ require("md-view").setup({
   css = nil,
   -- Auto-close the browser tab when the preview is stopped.
   auto_close = true,
+  -- When true, always opens a new browser tab when switching to a buffer that
+  -- already has an active preview (via :MdView or auto_open). This ensures the
+  -- browser always shows the preview for the current buffer, at the cost of
+  -- breaking any split-tab arrangement in the browser.
+  follow_focus = false,
   -- Scroll sync method. "percentage" syncs by proportional scroll offset.
   -- "cursor" anchors to the nearest source line in the preview DOM.
   scroll = {
@@ -149,6 +154,8 @@ Calling `setup()` is optional. All options have sensible defaults.
 | `notations` | `table` | see above | Per-notation configuration. Each notation is `{ enable = true, ...options }`. Set `enable = false` to skip loading the CDN library. |
 | `notations.mermaid.theme` | `string\|nil` | `nil` | Mermaid diagram theme. One of `"default"`, `"dark"`, `"forest"`, `"neutral"`, or `"base"`. `nil` auto-chooses based on `theme.mode`. |
 | `filetypes` | `string[]` | `{ "markdown" }` | List of buffer filetypes the plugin will preview. Running `:MdView` on a buffer whose filetype is not in the list emits a warning and does nothing. Set to `{}` to allow any filetype. |
+| `auto_close` | `boolean` | `true` | Auto-close the browser tab when the preview is stopped. |
+| `follow_focus` | `boolean` | `false` | When `true`, always opens a new browser tab when revisiting a buffer that already has an active preview (via `:MdView` or `auto_open`). Ensures the browser always shows the preview for the current buffer. **Note:** opens a new tab each time, closing the existing one via the tab-dedup mechanism — any split-tab arrangement in the browser will break. |
 | `auto_open.enable` | `boolean` | `false` | When `true`, automatically opens (or re-focuses) a preview whenever you enter a qualifying buffer. The filetype must still be in `filetypes`. Toggle at runtime with `:MdViewAutoOpen`. |
 | `auto_open.events` | `string[]` | `{ "BufWinEnter" }` | Neovim autocmd events that trigger the auto-open check. Replace with e.g. `{ "BufEnter" }` if you prefer a different event. |
 | `picker.prompt` | `string` | `"Markdown Previews"` | Title/prompt shown at the top of the `:MdViewList` picker. |

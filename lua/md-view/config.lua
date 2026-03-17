@@ -7,6 +7,7 @@ M.defaults = {
   debounce_ms = 300,
   css = nil,
   auto_close = true,
+  follow_focus = false,
   scroll = {
     method = "percentage", -- "percentage" | "cursor"
   },

@@ -46,7 +46,12 @@ function M.open()
     end
     vim.api.nvim_set_current_buf(item.bufnr)
     local url = "http://" .. (cfg.host or "127.0.0.1") .. ":" .. item.port
-    require("md-view.util").open_browser(url, cfg.browser)
+    local preview = previews[item.bufnr]
+    if preview and #preview.sse.clients > 0 then
+      vim.notify("[md-view] Preview already open at " .. url)
+    else
+      require("md-view.util").open_browser(url, cfg.browser)
+    end
   end)
 end
 

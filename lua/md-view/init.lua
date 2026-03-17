@@ -75,7 +75,7 @@ function M.open(opts)
       theme = vim.tbl_extend("force", preview_opts.theme, { mode = current_live_theme }),
     })
   end
-  preview.create(preview_opts)
+  preview.create(vim.tbl_extend("force", preview_opts, { silent = opts.silent }))
   if current_live_theme and existing then
     existing.sse:push("palette", { css = compute_live_css() })
   end

@@ -96,6 +96,10 @@ CONFIGURATION                                     *md-view.nvim-configuration*
       css = nil,
       -- Auto-close the browser tab when the preview is stopped.
       auto_close = true,
+      -- When true, always opens a new browser tab when revisiting a buffer that
+      -- already has an active preview (via :MdView or auto_open).
+      -- NOTE: breaks any split-tab arrangement in the browser.
+      follow_focus = false,
       -- Scroll sync method. "percentage" syncs by proportional scroll offset.
       -- "cursor" anchors to the nearest source line in the preview DOM.
       scroll = {
@@ -184,6 +188,19 @@ OPTIONS ~
   css                       string\|nil     nil                   Custom CSS string injected into
                                                                   the preview page. Use this to
                                                                   override any default styles.
+
+  follow_focus              boolean         false                 When true, always opens a new
+                                                                  browser tab when revisiting a
+                                                                  buffer that already has an active
+                                                                  preview (via :MdView or
+                                                                  auto_open). Ensures the browser
+                                                                  always shows the preview for the
+                                                                  current buffer. NOTE: opens a new
+                                                                  tab each time, closing the
+                                                                  existing one via the tab-dedup
+                                                                  mechanism — any split-tab
+                                                                  arrangement in the browser will
+                                                                  break.
 
   theme.mode                string          "auto"                Color theme for the preview
                                                                   page. "auto" follows Neovim’s

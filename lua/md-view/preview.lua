@@ -15,8 +15,20 @@ function M.create(opts)
   if active_previews[bufnr] then
     local preview = active_previews[bufnr]
     local url = "http://" .. opts.host .. ":" .. preview.port
-    vim.notify("[md-view] Reopening preview at " .. url)
-    util.open_browser(url, opts.browser)
+    if #preview.sse.clients > 0 and not opts.follow_focus then
+      -- Tab is open: do not open a new tab. Opening a new tab would trigger the
+      -- BroadcastChannel "takeover" and close the existing tab, breaking any
+      -- split-tab arrangement in the browser.
+      if not opts.silent then
+        vim.notify("[md-view] Preview already open at " .. url)
+      end
+      return
+    else
+      if not opts.silent then
+        vim.notify("[md-view] Reopening preview at " .. url)
+      end
+      util.open_browser(url, opts.browser)
+    end
     return
   end
 
