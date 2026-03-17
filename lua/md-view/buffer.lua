@@ -33,6 +33,10 @@ function M.watch(bufnr, callbacks, debounce_ms, scroll_method)
 
   local ids = {}
 
+  -- Tracks whether the last on-disk change was written by Neovim itself (BufWritePost).
+  -- Used to suppress the redundant fs_watch push that would otherwise double-fire on :w.
+  local wrote_from_nvim = false
+
   ids[#ids + 1] = vim.api.nvim_create_autocmd(
     { "TextChanged", "TextChangedI", "BufWritePost", "BufReadPost", "FileChangedShellPost" },
     {
@@ -43,6 +47,14 @@ function M.watch(bufnr, callbacks, debounce_ms, scroll_method)
       end,
     }
   )
+
+  ids[#ids + 1] = vim.api.nvim_create_autocmd("BufWritePost", {
+    group = group,
+    buffer = bufnr,
+    callback = function()
+      wrote_from_nvim = true
+    end,
+  })
 
   ids[#ids + 1] = vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
     group = group,
@@ -61,6 +73,10 @@ function M.watch(bufnr, callbacks, debounce_ms, scroll_method)
 
   if filepath and filepath ~= "" then
     file_content_debounced = util.debounce(function()
+      if wrote_from_nvim then
+        wrote_from_nvim = false
+        return
+      end
       uv.fs_open(filepath, "r", 292, function(err, fd)
         if err or not fd then
           return
