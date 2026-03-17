@@ -1,4 +1,5 @@
 local template = require("md-view.server.template")
+local vendor = require("md-view.vendor")
 
 describe("template", function()
   local function make_opts(overrides)
@@ -15,6 +16,19 @@ describe("template", function()
   end
 
   describe("render", function()
+    local orig_is_available
+
+    before_each(function()
+      orig_is_available = vendor.is_available
+      vendor.is_available = function()
+        return false
+      end
+    end)
+
+    after_each(function()
+      vendor.is_available = orig_is_available
+    end)
+
     it("returns valid HTML", function()
       local html = template.render(make_opts(), "test.md")
       assert.truthy(html:find("<!DOCTYPE html>"))
@@ -315,6 +329,19 @@ describe("template", function()
   end)
 
   describe("security", function()
+    local orig_is_available
+
+    before_each(function()
+      orig_is_available = vendor.is_available
+      vendor.is_available = function()
+        return false
+      end
+    end)
+
+    after_each(function()
+      vendor.is_available = orig_is_available
+    end)
+
     it("HTML-escapes title with angle brackets", function()
       local html = template.render(make_opts(), "</title><script>alert(1)</script>")
       assert.is_nil(html:find("</title><script>"))

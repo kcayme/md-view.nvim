@@ -2,6 +2,11 @@ local M = {}
 
 local config = require("md-view.config")
 local preview = require("md-view.preview")
+local theme = require("md-view.theme")
+
+local VALID_THEME_MODES = { dark = true, light = true, auto = true, sync = true }
+local THEME_CYCLE = { "dark", "light", "auto", "sync" }
+local current_live_theme = nil
 
 local function register_auto_open_augroup()
   local group = vim.api.nvim_create_augroup("md_view_auto_open", { clear = true })
@@ -15,6 +20,7 @@ local function register_auto_open_augroup()
 end
 
 function M.setup(opts)
+  current_live_theme = nil
   config.setup(opts)
   pcall(vim.api.nvim_del_augroup_by_name, "md_view_auto_open")
   if config.options.auto_open.enable then
@@ -87,6 +93,68 @@ function M.toggle_auto_open()
   else
     vim.notify("[md-view] auto-open disabled")
   end
+end
+
+function M.set_theme(mode)
+  -- Validate explicit arg first (before checking active previews)
+  if mode and mode ~= "" then
+    if not VALID_THEME_MODES[mode] then
+      vim.notify("[md-view] invalid theme mode: '" .. mode .. "'", vim.log.levels.WARN)
+      return
+    end
+  end
+
+  -- Early exit if no active previews (no state mutation)
+  if vim.tbl_isempty(preview.get_active()) then
+    return
+  end
+
+  local notified_mode
+  if mode and mode ~= "" then
+    -- Explicit arg path
+    current_live_theme = mode
+    notified_mode = mode
+  else
+    -- Cycle path: lazy-initialize then advance
+    if current_live_theme == nil then
+      if config.options and config.options.theme and config.options.theme.mode == "sync" then
+        current_live_theme = "sync"
+      elseif config.options then
+        current_live_theme = theme.resolve(config.options).theme
+      else
+        current_live_theme = "dark"
+      end
+    end
+    -- Advance to next in cycle
+    local idx = 1
+    for i, v in ipairs(THEME_CYCLE) do
+      if v == current_live_theme then
+        idx = i
+        break
+      end
+    end
+    current_live_theme = THEME_CYCLE[(idx % #THEME_CYCLE) + 1]
+    notified_mode = current_live_theme
+  end
+
+  -- Resolve CSS
+  local css
+  if current_live_theme == "sync" then
+    local highlights = (config.options and config.options.theme and config.options.theme.highlights) or {}
+    css = theme.css(highlights)
+  elseif current_live_theme == "auto" then
+    local resolved = vim.o.background == "light" and "light" or "dark"
+    css = theme.palette_css(resolved)
+  else
+    css = theme.palette_css(current_live_theme)
+  end
+
+  -- Push to all active previews
+  for _, p in pairs(preview.get_active()) do
+    p.sse:push("palette", { css = css })
+  end
+
+  vim.notify("[md-view] theme: " .. notified_mode, vim.log.levels.INFO)
 end
 
 return M
