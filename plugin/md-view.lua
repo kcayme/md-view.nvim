@@ -18,6 +18,10 @@ vim.api.nvim_create_user_command("MdViewAutoOpen", function()
   require("md-view").toggle_auto_open()
 end, { desc = "Toggle md-view auto-open preview on buffer enter" })
 
+vim.api.nvim_create_user_command("MdViewTheme", function(cmd_opts)
+  require("md-view").set_theme(cmd_opts.args)
+end, { desc = "Switch live preview theme (dark/light/auto/sync); no arg cycles", nargs = "?" })
+
 vim.api.nvim_create_user_command("MdViewFetchAssets", function(cmd_opts)
   local opts = {}
   local theme = cmd_opts.args:match("highlight_theme=(%S+)")
