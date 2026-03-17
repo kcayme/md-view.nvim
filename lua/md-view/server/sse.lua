@@ -1,6 +1,12 @@
 local M = {}
 M.__index = M
 
+-- Event types whose last value is replayed to newly-connected clients.
+-- content: fetched via /content on page load — replay is redundant and causes double-render.
+-- scroll: ephemeral position — replaying on reconnect causes a jarring viewport jump.
+-- close: one-shot signal — must never be replayed to reconnecting clients.
+local REPLAY_EVENTS = { palette = true, theme = true }
+
 function M.new()
   return setmetatable({ clients = {}, last = {} }, M)
 end
@@ -28,7 +34,7 @@ function M:remove_client(client)
 end
 
 function M:push(event_type, data)
-  if event_type ~= "close" then
+  if REPLAY_EVENTS[event_type] then
     self.last[event_type] = data
   end
   local payload = "event: " .. event_type .. "\ndata: " .. vim.json.encode(data) .. "\n\n"
@@ -57,6 +63,7 @@ function M:close_all()
     end
   end
   self.clients = {}
+  self.last = {}
 end
 
 return M

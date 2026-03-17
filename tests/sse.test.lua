@@ -150,15 +150,36 @@ describe("sse", function()
       local s = sse.new()
       local c1 = mock_client()
       s:add_client(c1)
-      -- simulate a close push (even though in practice this wouldn't happen)
-      -- by pushing close before close_all
       s:push("close", {})
 
       local c2 = mock_client()
       s:add_client(c2)
 
-      -- close should not be replayed — c2 should not be closed
       assert.is_false(c2._closing)
+      assert.are.equal(0, #c2._writes)
+    end)
+
+    it("should NOT replay content events (browser fetches /content on load)", function()
+      local s = sse.new()
+      local c1 = mock_client()
+      s:add_client(c1)
+      s:push("content", { content = "# Hello" })
+
+      local c2 = mock_client()
+      s:add_client(c2)
+
+      assert.are.equal(0, #c2._writes)
+    end)
+
+    it("should NOT replay scroll events (ephemeral position)", function()
+      local s = sse.new()
+      local c1 = mock_client()
+      s:add_client(c1)
+      s:push("scroll", { percent = 0.5 })
+
+      local c2 = mock_client()
+      s:add_client(c2)
+
       assert.are.equal(0, #c2._writes)
     end)
 
@@ -181,6 +202,19 @@ describe("sse", function()
       assert.are.equal(0, #s.clients)
       assert.is_true(c1._closing)
       assert.is_true(c2._closing)
+    end)
+
+    it("clears last-event state so stale events are not replayed after destroy", function()
+      local s = sse.new()
+      local c1 = mock_client()
+      s:add_client(c1)
+      s:push("palette", { css = "some-css" })
+      s:close_all()
+
+      -- After close_all, a new client should receive no replay
+      local c2 = mock_client()
+      s:add_client(c2)
+      assert.are.equal(0, #c2._writes)
     end)
 
     it("handles already-closing clients gracefully", function()
