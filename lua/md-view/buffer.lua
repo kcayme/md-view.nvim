@@ -96,6 +96,7 @@ function M.watch(bufnr, callbacks, debounce_ms, scroll_method)
       end)
     end, debounce_ms)
 
+    -- Note: rename-based writers (sed -i, rsync, etc.) will silently stop the watcher.
     local handle = uv.new_fs_event()
     local ok = pcall(function()
       handle:start(filepath, {}, function(ferr, _name, _events)
