@@ -142,6 +142,15 @@ function M.handle(client, data, ctx)
   elseif path == "/events" then
     respond_sse(client)
     ctx.sse:add_client(client)
+    -- tcp.lua calls read_stop() before routing; restart reading so we detect
+    -- when the browser tab closes (EOF) and remove the stale SSE client.
+    client:read_start(function(read_err, _data)
+      if read_err or not _data then
+        vim.schedule(function()
+          ctx.sse:remove_client(client)
+        end)
+      end
+    end)
   elseif path:match("^/vendor/[%w%.%-_]+$") then
     local filename = path:sub(9)
     local ext = filename:match("%.([^%.]+)$")
