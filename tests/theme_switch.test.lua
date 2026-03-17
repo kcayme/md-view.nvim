@@ -343,4 +343,170 @@ describe("theme_switch", function()
       assert.are.equal(0, #notify_calls)
     end)
   end)
+
+  describe("new preview inherits current_live_theme", function()
+    local create_opts
+    local orig_filetype
+
+    before_each(function()
+      create_opts = nil
+      orig_filetype = vim.bo.filetype
+      vim.bo.filetype = "markdown"
+      -- Override mock create to capture opts
+      package.loaded["md-view.preview"].create = function(opts)
+        create_opts = opts
+      end
+    end)
+
+    after_each(function()
+      vim.bo.filetype = orig_filetype
+    end)
+
+    it("should open new preview with current_live_theme mode when set", function()
+      active_previews = { make_preview() }
+      M.setup({ theme = { mode = "dark" } })
+      notify_calls = {}
+      M.set_theme("light")
+
+      -- Now open a new preview; it should use light, not configured dark
+      active_previews = {}
+      M.open()
+      assert.are.equal("light", create_opts.theme.mode)
+    end)
+
+    it("should open new preview with configured mode when current_live_theme is nil", function()
+      M.setup({ theme = { mode = "dark" } })
+      M.open()
+      assert.are.equal("dark", create_opts.theme.mode)
+    end)
+
+    it("should not mutate config.options when overriding for new preview", function()
+      active_previews = { make_preview() }
+      M.setup({ theme = { mode = "dark" } })
+      notify_calls = {}
+      M.set_theme("light")
+
+      active_previews = {}
+      M.open()
+      -- config.options must remain unchanged
+      local config = require("md-view.config")
+      assert.are.equal("dark", config.options.theme.mode)
+    end)
+
+    it("should apply current_live_theme for each subsequent new preview", function()
+      active_previews = { make_preview() }
+      M.setup({ theme = { mode = "dark" } })
+      notify_calls = {}
+      M.set_theme("sync")
+
+      active_previews = {}
+      M.open()
+      assert.are.equal("sync", create_opts.theme.mode)
+
+      -- Open again — same live theme should apply
+      create_opts = nil
+      M.open()
+      assert.are.equal("sync", create_opts.theme.mode)
+    end)
+
+    it("should use cycled theme (not config sync) when opening new preview after 2 no-arg cycles", function()
+      -- Reproduce: configure sync, cycle twice (sync→dark→light), open new preview
+      active_previews = { make_preview() }
+      M.setup({ theme = { mode = "sync" } })
+      notify_calls = {}
+
+      M.set_theme("") -- sync→dark
+      M.set_theme("") -- dark→light
+      assert.are.equal("light", notify_calls[#notify_calls].msg:match("theme: (%S+)"))
+
+      -- Open a brand-new preview; should use "light", not the configured "sync"
+      active_previews = {}
+      M.open()
+      assert.are.equal("light", create_opts.theme.mode)
+    end)
+  end)
+
+  describe("reopen existing preview inherits live theme", function()
+    local existing_preview
+    local reopen_sse_events
+    local orig_filetype
+
+    local function make_existing_preview()
+      reopen_sse_events = {}
+      return {
+        sse = {
+          push = function(self, event_type, data)
+            table.insert(reopen_sse_events, { event = event_type, data = data })
+          end,
+        },
+        port = 8080,
+      }
+    end
+
+    before_each(function()
+      existing_preview = nil
+      reopen_sse_events = {}
+      orig_filetype = vim.bo.filetype
+      vim.bo.filetype = "markdown"
+      package.loaded["md-view.preview"].get = function()
+        return existing_preview
+      end
+      package.loaded["md-view.preview"].create = function() end
+    end)
+
+    after_each(function()
+      vim.bo.filetype = orig_filetype
+    end)
+
+    it("should push palette SSE to existing preview when live theme is set", function()
+      existing_preview = make_existing_preview()
+      active_previews = { make_preview() }
+      M.setup({ theme = { mode = "dark" } })
+      notify_calls = {}
+      M.set_theme("light")
+
+      M.open()
+
+      assert.are.equal(1, #reopen_sse_events)
+      assert.are.equal("palette", reopen_sse_events[1].event)
+      assert.are.equal(theme.palette_css("light"), reopen_sse_events[1].data.css)
+    end)
+
+    it("should not push palette SSE when no live theme is set", function()
+      existing_preview = make_existing_preview()
+      M.setup({ theme = { mode = "dark" } })
+
+      M.open()
+
+      assert.are.equal(0, #reopen_sse_events)
+    end)
+
+    it("should push correct CSS for auto mode when reopening", function()
+      vim.o.background = "light"
+      existing_preview = make_existing_preview()
+      active_previews = { make_preview() }
+      M.setup({ theme = { mode = "dark" } })
+      notify_calls = {}
+      M.set_theme("auto")
+
+      M.open()
+
+      assert.are.equal(1, #reopen_sse_events)
+      assert.are.equal(theme.palette_css("light"), reopen_sse_events[1].data.css)
+    end)
+
+    it("should push correct CSS for sync mode when reopening", function()
+      existing_preview = make_existing_preview()
+      active_previews = { make_preview() }
+      M.setup({ theme = { mode = "dark" } })
+      notify_calls = {}
+      M.set_theme("sync")
+
+      M.open()
+
+      assert.are.equal(1, #reopen_sse_events)
+      -- sync CSS contains :root block (from theme.css())
+      assert.truthy(reopen_sse_events[1].data.css:find(":root {"))
+    end)
+  end)
 end)

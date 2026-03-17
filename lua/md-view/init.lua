@@ -8,6 +8,18 @@ local VALID_THEME_MODES = { dark = true, light = true, auto = true, sync = true 
 local THEME_CYCLE = { "dark", "light", "auto", "sync" }
 local current_live_theme = nil
 
+local function compute_live_css()
+  if current_live_theme == "sync" then
+    local highlights = (config.options and config.options.theme and config.options.theme.highlights) or {}
+    return theme.css(highlights)
+  elseif current_live_theme == "auto" then
+    local resolved = vim.o.background == "light" and "light" or "dark"
+    return theme.palette_css(resolved)
+  else
+    return theme.palette_css(current_live_theme)
+  end
+end
+
 local function register_auto_open_augroup()
   local group = vim.api.nvim_create_augroup("md_view_auto_open", { clear = true })
   vim.api.nvim_create_autocmd(config.options.auto_open.events, {
@@ -56,7 +68,17 @@ function M.open(opts)
       return
     end
   end
-  preview.create(config.options)
+  local existing = preview.get(bufnr)
+  local preview_opts = config.options
+  if current_live_theme then
+    preview_opts = vim.tbl_extend("force", preview_opts, {
+      theme = vim.tbl_extend("force", preview_opts.theme, { mode = current_live_theme }),
+    })
+  end
+  preview.create(preview_opts)
+  if current_live_theme and existing then
+    existing.sse:push("palette", { css = compute_live_css() })
+  end
 end
 
 function M.stop(bufnr)
@@ -137,19 +159,8 @@ function M.set_theme(mode)
     notified_mode = current_live_theme
   end
 
-  -- Resolve CSS
-  local css
-  if current_live_theme == "sync" then
-    local highlights = (config.options and config.options.theme and config.options.theme.highlights) or {}
-    css = theme.css(highlights)
-  elseif current_live_theme == "auto" then
-    local resolved = vim.o.background == "light" and "light" or "dark"
-    css = theme.palette_css(resolved)
-  else
-    css = theme.palette_css(current_live_theme)
-  end
-
   -- Push to all active previews
+  local css = compute_live_css()
   for _, p in pairs(preview.get_active()) do
     p.sse:push("palette", { css = css })
   end
