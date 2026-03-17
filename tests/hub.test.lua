@@ -1,0 +1,73 @@
+local hub = require("md-view.server.hub")
+
+describe("hub", function()
+  describe("new", function()
+    it("creates empty state", function()
+      local h = hub.new()
+      assert.is_not_nil(h)
+      assert.are.same({}, h.registry)
+      assert.are.same({}, h.clients)
+      assert.are.same({}, h.last)
+      assert.is_nil(h.server)
+    end)
+  end)
+
+  describe("resolve_label", function()
+    it("filename preset returns basename", function()
+      local h = hub.new()
+      local label = h:resolve_label({ bufnr = 1, filename = "README.md", path = "/project/README.md" }, "filename")
+      assert.are.equal("README.md", label)
+    end)
+
+    it("parent preset returns parent/filename", function()
+      local h = hub.new()
+      local label = h:resolve_label({ bufnr = 1, filename = "design.md", path = "/project/docs/design.md" }, "parent")
+      assert.are.equal("docs/design.md", label)
+    end)
+
+    it("function preset is called with ctx and returns its result", function()
+      local h = hub.new()
+      local received = nil
+      local fn = function(ctx)
+        received = ctx
+        return "custom"
+      end
+      local label = h:resolve_label({ bufnr = 7, filename = "foo.md", path = "/a/b/foo.md" }, fn)
+      assert.are.equal("custom", label)
+      assert.are.equal(7, received.bufnr)
+      assert.are.equal("foo.md", received.filename)
+    end)
+
+    it("unknown string preset falls back to filename", function()
+      local h = hub.new()
+      local label = h:resolve_label({ bufnr = 1, filename = "foo.md", path = "/a/foo.md" }, "unknown")
+      assert.are.equal("foo.md", label)
+    end)
+  end)
+
+  describe("register / unregister", function()
+    it("register adds entry with resolved label", function()
+      local h = hub.new()
+      h:register(5, "/project/docs/design.md", "filename")
+      assert.is_not_nil(h.registry[5])
+      assert.are.equal("design.md", h.registry[5].label)
+      assert.are.equal("design.md", h.registry[5].title)
+    end)
+
+    it("unregister removes entry and evicts last replay state", function()
+      local h = hub.new()
+      h:register(5, "/project/docs/design.md", "filename")
+      h.last[5] = { palette = { id = 5, css = "x" } }
+      h:unregister(5)
+      assert.is_nil(h.registry[5])
+      assert.is_nil(h.last[5])
+    end)
+
+    it("unregister on unknown bufnr does not error", function()
+      local h = hub.new()
+      assert.has_no.errors(function()
+        h:unregister(99)
+      end)
+    end)
+  end)
+end)
