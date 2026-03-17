@@ -1,4 +1,4 @@
-*md-view.nvim.txt*          For NVIM v0.8.0         Last change: 2026 March 16
+*md-view.nvim.txt*          For NVIM v0.8.0         Last change: 2026 March 17
 
 ==============================================================================
 Table of Contents                             *md-view.nvim-table-of-contents*
@@ -96,9 +96,10 @@ CONFIGURATION                                     *md-view.nvim-configuration*
       css = nil,
       -- Auto-close the browser tab when the preview is stopped.
       auto_close = true,
-      -- When true, always opens a new browser tab when revisiting a buffer that
-      -- already has an active preview (via :MdView or auto_open).
-      -- NOTE: breaks any split-tab arrangement in the browser.
+      -- When true, always opens a new browser tab when switching to a buffer that
+      -- already has an active preview (via :MdView or auto_open). This ensures the
+      -- browser always shows the preview for the current buffer, at the cost of
+      -- breaking any split-tab arrangement in the browser.
       follow_focus = false,
       -- Scroll sync method. "percentage" syncs by proportional scroll offset.
       -- "cursor" anchors to the nearest source line in the preview DOM.
@@ -189,19 +190,6 @@ OPTIONS ~
                                                                   the preview page. Use this to
                                                                   override any default styles.
 
-  follow_focus              boolean         false                 When true, always opens a new
-                                                                  browser tab when revisiting a
-                                                                  buffer that already has an active
-                                                                  preview (via :MdView or
-                                                                  auto_open). Ensures the browser
-                                                                  always shows the preview for the
-                                                                  current buffer. NOTE: opens a new
-                                                                  tab each time, closing the
-                                                                  existing one via the tab-dedup
-                                                                  mechanism — any split-tab
-                                                                  arrangement in the browser will
-                                                                  break.
-
   theme.mode                string          "auto"                Color theme for the preview
                                                                   page. "auto" follows Neovim’s
                                                                   background setting; "dark" /
@@ -243,6 +231,22 @@ OPTIONS ~
                                                                   emits a warning and does
                                                                   nothing. Set to {} to allow any
                                                                   filetype.
+
+  auto_close                boolean         true                  Auto-close the browser tab when
+                                                                  the preview is stopped.
+
+  follow_focus              boolean         false                 When true, always opens a new
+                                                                  browser tab when revisiting a
+                                                                  buffer that already has an
+                                                                  active preview (via :MdView or
+                                                                  auto_open). Ensures the browser
+                                                                  always shows the preview for the
+                                                                  current buffer. Note: opens a
+                                                                  new tab each time, closing the
+                                                                  existing one via the tab-dedup
+                                                                  mechanism — any split-tab
+                                                                  arrangement in the browser will
+                                                                  break.
 
   auto_open.enable          boolean         false                 When true, automatically opens
                                                                   (or re-focuses) a preview
