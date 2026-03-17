@@ -42,19 +42,14 @@ function M.watch(bufnr, callbacks, debounce_ms, scroll_method)
     {
       group = group,
       buffer = bufnr,
-      callback = function()
+      callback = function(ev)
+        if ev.event == "BufWritePost" then
+          wrote_from_nvim = true
+        end
         content_debounced()
       end,
     }
   )
-
-  ids[#ids + 1] = vim.api.nvim_create_autocmd("BufWritePost", {
-    group = group,
-    buffer = bufnr,
-    callback = function()
-      wrote_from_nvim = true
-    end,
-  })
 
   ids[#ids + 1] = vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
     group = group,
@@ -77,7 +72,7 @@ function M.watch(bufnr, callbacks, debounce_ms, scroll_method)
         wrote_from_nvim = false
         return
       end
-      uv.fs_open(filepath, "r", 292, function(err, fd)
+      uv.fs_open(filepath, "r", 438, function(err, fd)
         if err or not fd then
           return
         end
