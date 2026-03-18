@@ -133,6 +133,17 @@ require("md-view").setup({
     -- to provide a specialised UI (e.g. a file-preview pane).
     kind = nil,
   },
+  -- Single-page mode: all active previews share one browser tab.
+  -- The mux server uses the top-level `port` option (0 = OS-assigned).
+  single_page = {
+    enable = false,
+    -- How to label each preview's tab in the hub page.
+    -- "filename"  — basename only (e.g. "README.md")
+    -- "relative"  — path relative to cwd (e.g. "docs/README.md")
+    -- "parent"    — parent dir + basename (e.g. "docs/README.md")
+    -- function(ctx) — custom label; ctx = { bufnr, filename, path }
+    tab_label = "parent",
+  },
 })
 ```
 
@@ -161,6 +172,8 @@ Calling `setup()` is optional. All options have sensible defaults.
 | `picker.prompt` | `string` | `"Markdown Previews"` | Title/prompt shown at the top of the `:MdViewList` picker. |
 | `picker.format_item` | `function\|nil` | `nil` | `function(item) → string`. `item` has `.bufnr`, `.port`, `.name` (basename). `nil` uses the built-in `"name  http://host:port"` format. |
 | `picker.kind` | `string\|nil` | `nil` | Hint passed as `opts.kind` to `vim.ui.select`. Some picker replacements use this to provide a specialised UI (e.g. a file-preview pane). |
+| `single_page.enable` | `boolean` | `false` | When `true`, all active previews are multiplexed into one browser tab via a shared hub server. The hub uses the top-level `port` option for its address. |
+| `single_page.tab_label` | `string\|function` | `"parent"` | Label shown on each preview's tab in the hub. `"filename"` — basename; `"relative"` — path relative to cwd; `"parent"` — parent dir + basename; `function(ctx) → string` for a fully custom label (`ctx` has `.bufnr`, `.filename`, `.path`). |
 
 Examples:
 
