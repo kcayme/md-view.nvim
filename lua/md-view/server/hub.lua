@@ -1,8 +1,7 @@
 local M = {}
 M.__index = M
 
--- selene: allow(unused_variable)
-local REPLAY_EVENTS = { palette = true, theme = true } -- used in Task 3 SSE push
+local REPLAY_EVENTS = { palette = true, theme = true }
 
 function M.new()
   return setmetatable({
@@ -46,6 +45,64 @@ end
 function M:unregister(bufnr)
   self.registry[bufnr] = nil
   self.last[bufnr] = nil
+end
+
+function M:add_client(client)
+  table.insert(self.clients, client)
+  -- Replay last palette+theme per registered preview
+  for bufnr, _ in pairs(self.registry) do
+    local per_preview = self.last[bufnr]
+    if per_preview then
+      for event_type, data in pairs(per_preview) do
+        if REPLAY_EVENTS[event_type] then
+          local payload = "event: " .. event_type .. "\ndata: " .. vim.json.encode(data) .. "\n\n"
+          pcall(function()
+            client:write(payload)
+          end)
+        end
+      end
+    end
+  end
+end
+
+function M:push(event_type, data)
+  -- Store per-preview replay state for allowlisted event types
+  if REPLAY_EVENTS[event_type] and data.id then
+    local bufnr = data.id
+    if self.registry[bufnr] then
+      if not self.last[bufnr] then
+        self.last[bufnr] = {}
+      end
+      self.last[bufnr][event_type] = data
+    end
+  end
+  local payload = "event: " .. event_type .. "\ndata: " .. vim.json.encode(data) .. "\n\n"
+  local dead = {}
+  for i, client in ipairs(self.clients) do
+    local ok = pcall(function()
+      client:write(payload)
+    end)
+    if not ok then
+      dead[#dead + 1] = i
+    end
+  end
+  for i = #dead, 1, -1 do
+    local client = self.clients[dead[i]]
+    table.remove(self.clients, dead[i])
+    if not client:is_closing() then
+      client:close()
+    end
+  end
+end
+
+-- Close all SSE clients. Called only on full hub shutdown.
+function M:close_all()
+  for _, client in ipairs(self.clients) do
+    if not client:is_closing() then
+      client:close()
+    end
+  end
+  self.clients = {}
 end
 
 return M
