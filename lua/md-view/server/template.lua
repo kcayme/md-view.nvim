@@ -58,29 +58,13 @@ local function sanitize_theme_name(name)
   return name:gsub("[^%w_%-]", "")
 end
 
-function M.render(opts, filename)
-  local tmpl = load_template()
-  if not tmpl then
-    return ""
-  end
-  local css = opts.css or ""
-  local mermaid_theme = opts.mermaid and opts.mermaid.theme or "default"
-  local highlight_theme = opts.highlight_theme or "vs2015"
-  local title = filename and filename ~= "" and filename or "md-view"
-  local theme_css = opts.theme_css or ""
-  local palette_css = opts.palette_css or ""
-
-  if not VALID_MERMAID_THEMES[mermaid_theme] then
-    mermaid_theme = "default"
-  end
-  highlight_theme = sanitize_theme_name(highlight_theme)
-  title = html_escape(title)
-
+local function build_script_tags(opts)
   local use_local = vendor.is_available()
   local function asset_src(local_name, cdn_url)
     return use_local and ("/vendor/" .. local_name) or cdn_url
   end
 
+  local highlight_theme = sanitize_theme_name(opts.highlight_theme or "vs2015")
   local highlight_link = ""
   if opts.theme ~= "sync" then
     highlight_link = '<link rel="stylesheet" href="'
@@ -178,6 +162,37 @@ function M.render(opts, filename)
       .. '"></script>'
   end
 
+  local mermaid_theme = opts.mermaid and opts.mermaid.theme or "default"
+  if not VALID_MERMAID_THEMES[mermaid_theme] then
+    mermaid_theme = "default"
+  end
+
+  return {
+    core_scripts = core_scripts,
+    mermaid_tags = mermaid_tags,
+    katex = katex_tags,
+    graphviz = graphviz_tags,
+    wavedrom = wavedrom_tags,
+    nomnoml = nomnoml_tags,
+    abcjs = abcjs_tag,
+    vegalite = vegalite_tags,
+    mermaid_theme = mermaid_theme,
+  }
+end
+
+function M.render(opts, filename)
+  local tmpl = load_template()
+  if not tmpl then
+    return ""
+  end
+  local css = opts.css or ""
+  local title = filename and filename ~= "" and filename or "md-view"
+  local theme_css = opts.theme_css or ""
+  local palette_css = opts.palette_css or ""
+  title = html_escape(title)
+
+  local tags = build_script_tags(opts)
+
   local html = tmpl
     :gsub("{{PALETTE_CSS}}", function()
       return palette_css
@@ -189,36 +204,119 @@ function M.render(opts, filename)
       return css
     end)
     :gsub("{{MERMAID_THEME}}", function()
-      return mermaid_theme
+      return tags.mermaid_theme
     end)
     :gsub("{{CORE_SCRIPTS}}", function()
-      return core_scripts
+      return tags.core_scripts
     end)
     :gsub("{{MERMAID_TAGS}}", function()
-      return mermaid_tags
+      return tags.mermaid_tags
     end)
     :gsub("{{KATEX}}", function()
-      return katex_tags
+      return tags.katex
     end)
     :gsub("{{GRAPHVIZ}}", function()
-      return graphviz_tags
+      return tags.graphviz
     end)
     :gsub("{{WAVEDROM}}", function()
-      return wavedrom_tags
+      return tags.wavedrom
     end)
     :gsub("{{NOMNOML}}", function()
-      return nomnoml_tags
+      return tags.nomnoml
     end)
     :gsub("{{ABCJS}}", function()
-      return abcjs_tag
+      return tags.abcjs
     end)
     :gsub("{{VEGALITE}}", function()
-      return vegalite_tags
+      return tags.vegalite
     end)
     :gsub("{{TITLE}}", function()
       return title
     end)
   return html
+end
+
+-- Three states: nil = not yet tried, false = failed, string = loaded
+local HUB_TEMPLATE
+
+local function load_hub_template()
+  if type(HUB_TEMPLATE) == "string" then
+    return HUB_TEMPLATE
+  end
+  if HUB_TEMPLATE == false then
+    return nil
+  end
+  local path = vim.api.nvim_get_runtime_file("assets/hub.html", false)[1]
+  if not path then
+    vim.notify("md-view.nvim: could not find assets/hub.html in runtimepath", vim.log.levels.ERROR)
+    HUB_TEMPLATE = false
+    return nil
+  end
+  local fh, err = io.open(path, "rb")
+  if not fh then
+    vim.notify("md-view.nvim: could not open " .. path .. ": " .. (err or ""), vim.log.levels.ERROR)
+    HUB_TEMPLATE = false
+    return nil
+  end
+  local content = fh:read("*a")
+  fh:close()
+  if not content or content == "" then
+    vim.notify("md-view.nvim: assets/hub.html is empty or unreadable", vim.log.levels.ERROR)
+    HUB_TEMPLATE = false
+    return nil
+  end
+  HUB_TEMPLATE = content
+  return HUB_TEMPLATE
+end
+
+-- Render the hub shell page. Same CDN scripts as render(); title is "md-view".
+function M.render_hub(opts)
+  local tmpl = load_hub_template()
+  if not tmpl then
+    return ""
+  end
+  opts = opts or {}
+  local tags = build_script_tags(opts)
+  local css = opts.css or ""
+  local theme_css = opts.theme_css or ""
+  local palette_css = opts.palette_css or ""
+  return tmpl
+    :gsub("{{PALETTE_CSS}}", function()
+      return palette_css
+    end)
+    :gsub("{{THEME_CSS}}", function()
+      return theme_css
+    end)
+    :gsub("{{CSS}}", function()
+      return css
+    end)
+    :gsub("{{MERMAID_THEME}}", function()
+      return tags.mermaid_theme
+    end)
+    :gsub("{{CORE_SCRIPTS}}", function()
+      return tags.core_scripts
+    end)
+    :gsub("{{MERMAID_TAGS}}", function()
+      return tags.mermaid_tags
+    end)
+    :gsub("{{KATEX}}", function()
+      return tags.katex
+    end)
+    :gsub("{{GRAPHVIZ}}", function()
+      return tags.graphviz
+    end)
+    :gsub("{{WAVEDROM}}", function()
+      return tags.wavedrom
+    end)
+    :gsub("{{NOMNOML}}", function()
+      return tags.nomnoml
+    end)
+    :gsub("{{ABCJS}}", function()
+      return tags.abcjs
+    end)
+    :gsub("{{VEGALITE}}", function()
+      return tags.vegalite
+    end)
 end
 
 return M

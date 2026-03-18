@@ -519,3 +519,29 @@ describe("template", function()
     end)
   end)
 end)
+
+describe("render_hub", function()
+  it("returns non-empty HTML", function()
+    local html = template.render_hub({
+      css = "",
+      theme_css = "",
+      palette_css = "",
+      theme = { mode = "dark", syntax = nil },
+      highlight_theme = "vs2015",
+      mermaid = { theme = "default" },
+      notations = {
+        mermaid = { enable = true },
+        katex = { enable = false },
+        graphviz = { enable = false },
+        wavedrom = { enable = false },
+        nomnoml = { enable = false },
+        abc = { enable = false },
+        vegalite = { enable = false },
+      },
+    })
+    assert.is_truthy(html and #html > 0)
+    assert.truthy(html:find("hub%-tabs"))
+    assert.truthy(html:find("hub%-panels"))
+    assert.truthy(html:find("md%-view%-hub"))
+  end)
+end)
