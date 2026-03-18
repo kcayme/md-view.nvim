@@ -123,7 +123,11 @@ describe("preview mux integration", function()
     preview.destroy(bufnr)
   end)
 
-  it("pushes preview_removed and does NOT push close on destroy", function()
+  it("pushes preview_removed and does NOT push close when auto_close is false", function()
+    config.setup({
+      single_page = { enable = true, tab_label = "filename" },
+      auto_close = false,
+    })
     local preview = require("md-view.preview")
     local bufnr = vim.api.nvim_get_current_buf()
 
@@ -142,7 +146,29 @@ describe("preview mux integration", function()
       end
     end
     assert.is_true(has_removed, "preview_removed not pushed")
-    assert.is_false(has_close, "close event must be suppressed in mux mode")
+    assert.is_false(has_close, "close must not be pushed when auto_close = false")
+  end)
+
+  it("pushes close when last preview is destroyed and auto_close is true", function()
+    config.setup({
+      single_page = { enable = true, tab_label = "filename" },
+      auto_close = true,
+    })
+    local preview = require("md-view.preview")
+    local bufnr = vim.api.nvim_get_current_buf()
+
+    preview.create(config.options)
+    fake_mux._events = {} -- clear after create
+
+    preview.destroy(bufnr)
+
+    local has_close = false
+    for _, ev in ipairs(fake_mux._events) do
+      if ev.event_type == "close" then
+        has_close = true
+      end
+    end
+    assert.is_true(has_close, "close must be pushed when auto_close = true and last preview is gone")
   end)
 
   it("does not open per-preview URL when preview already active in single_page mode", function()

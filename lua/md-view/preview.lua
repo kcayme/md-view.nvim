@@ -236,6 +236,9 @@ function M.destroy(bufnr)
       end
     end
     if remaining == 0 then
+      if config.options and config.options.auto_close then
+        _mux:push("close", {})
+      end
       _mux:stop()
       _mux = nil
     end

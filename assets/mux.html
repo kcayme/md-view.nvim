@@ -932,6 +932,11 @@
     el.textContent = d.css;
   });
 
+  source.addEventListener("close", function() {
+    source.close();
+    window.close();
+  });
+
   source.onerror = function() {
     console.warn("md-view hub: SSE connection lost, waiting to reconnect\u2026");
   };

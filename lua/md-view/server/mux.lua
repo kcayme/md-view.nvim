@@ -3,83 +3,11 @@ M.__index = M
 
 local server = require("md-view.server.tcp")
 local vendor = require("md-view.vendor")
-local uv = vim.uv or vim.loop
+local http = require("md-view.server.http")
 
 local REPLAY_EVENTS = { palette = true, theme = true, preview_added = true }
 -- preview_added must be replayed before palette/theme so the panel exists when styles arrive
 local REPLAY_ORDER = { "preview_added", "palette", "theme" }
-
-local function respond(client, status, content_type, body)
-  local res = "HTTP/1.1 "
-    .. status
-    .. "\r\nContent-Type: "
-    .. content_type
-    .. "\r\nContent-Length: "
-    .. #body
-    .. "\r\nConnection: close\r\n\r\n"
-    .. body
-  client:write(res, function()
-    if not client:is_closing() then
-      client:shutdown(function()
-        if not client:is_closing() then
-          client:close()
-        end
-      end)
-    end
-  end)
-end
-
-local function respond_sse(client)
-  local headers = "HTTP/1.1 200 OK\r\n"
-    .. "Content-Type: text/event-stream\r\n"
-    .. "Cache-Control: no-cache\r\n"
-    .. "Connection: keep-alive\r\n\r\n"
-  client:write(headers)
-end
-
-local function serve_static_file(client, filepath, content_type)
-  uv.fs_open(filepath, "r", 438, function(err, fd)
-    if err or not fd then
-      vim.schedule(function()
-        respond(client, "404 Not Found", "text/plain", "Not Found")
-      end)
-      return
-    end
-    uv.fs_fstat(fd, function(err2, stat)
-      if err2 or not stat then
-        uv.fs_close(fd, function() end)
-        vim.schedule(function()
-          respond(client, "404 Not Found", "text/plain", "Not Found")
-        end)
-        return
-      end
-      uv.fs_read(fd, stat.size, 0, function(err3, data)
-        uv.fs_close(fd, function() end)
-        vim.schedule(function()
-          if err3 or not data then
-            respond(client, "500 Internal Server Error", "text/plain", "Read error")
-            return
-          end
-          local res = "HTTP/1.1 200 OK\r\nContent-Type: "
-            .. content_type
-            .. "\r\nContent-Length: "
-            .. #data
-            .. "\r\nConnection: close\r\n\r\n"
-            .. data
-          client:write(res, function()
-            if not client:is_closing() then
-              client:shutdown(function()
-                if not client:is_closing() then
-                  client:close()
-                end
-              end)
-            end
-          end)
-        end)
-      end)
-    end)
-  end)
-end
 
 function M.new()
   return setmetatable({
@@ -201,16 +129,16 @@ end
 function M:handle(client, data)
   local method, path = data:match("^(%u+)%s+(%S+)")
   if not method then
-    respond(client, "400 Bad Request", "text/plain", "Bad Request")
+    http.respond(client, "400 Bad Request", "text/plain", "Bad Request")
     return
   end
   if method ~= "GET" then
-    respond(client, "405 Method Not Allowed", "text/plain", "Method Not Allowed")
+    http.respond(client, "405 Method Not Allowed", "text/plain", "Method Not Allowed")
     return
   end
 
   if path == "/favicon.ico" then
-    respond(client, "204 No Content", "text/plain", "")
+    http.respond(client, "204 No Content", "text/plain", "")
   elseif path == "/" then
     local template = require("md-view.server.template")
     local config = require("md-view.config")
@@ -227,9 +155,9 @@ function M:handle(client, data)
       mermaid = { theme = resolved.mermaid_theme },
     })
     local html = template.render_mux(render_opts)
-    respond(client, "200 OK", "text/html", html)
+    http.respond(client, "200 OK", "text/html", html)
   elseif path == "/sse" then
-    respond_sse(client)
+    http.respond_sse(client)
     self:add_client(client)
     -- Detect disconnection; remove from client list without closing all clients
     client:read_start(function(read_err, _chunk)
@@ -252,19 +180,19 @@ function M:handle(client, data)
     local id_str = qs:match("^id=([^&]*)") or qs:match("[&]id=([^&]*)")
     local bufnr = id_str and tonumber(id_str)
     if not bufnr or not self.registry[bufnr] then
-      respond(client, "400 Bad Request", "text/plain", "Bad Request")
+      http.respond(client, "400 Bad Request", "text/plain", "Bad Request")
       return
     end
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
     local content = table.concat(lines, "\n")
-    respond(client, "200 OK", "application/json", vim.json.encode({ content = content }))
+    http.respond(client, "200 OK", "application/json", vim.json.encode({ content = content }))
   elseif path:match("^/vendor/[%w%.%-_]+$") then
     local filename = path:sub(9)
     local ext = filename:match("%.([^%.]+)$")
     local content_type = ext == "css" and "text/css" or "application/javascript"
-    serve_static_file(client, vendor.vendor_dir() .. "/" .. filename, content_type)
+    http.serve_static_file(client, vendor.vendor_dir() .. "/" .. filename, content_type)
   else
-    respond(client, "404 Not Found", "text/plain", "Not Found")
+    http.respond(client, "404 Not Found", "text/plain", "Not Found")
   end
 end
 
