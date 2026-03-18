@@ -49,6 +49,22 @@ function M.create(opts)
   local bufnr = vim.api.nvim_get_current_buf()
 
   if active_previews[bufnr] then
+    local sp = opts.single_page
+    if sp and sp.enable and _mux and _mux.server then
+      -- Single-page mode: route to the mux, not the per-preview server
+      local mux_url = "http://" .. opts.host .. ":" .. _mux.port
+      if #_mux.clients > 0 and not opts.follow_focus then
+        if not opts.silent then
+          vim.notify("[md-view] Preview already open in hub at " .. mux_url)
+        end
+      else
+        if not opts.silent then
+          vim.notify("[md-view] Reopening hub at " .. mux_url)
+        end
+        util.open_browser(mux_url, opts.browser)
+      end
+      return
+    end
     local preview = active_previews[bufnr]
     local url = "http://" .. opts.host .. ":" .. preview.port
     if #preview.sse.clients > 0 and not opts.follow_focus then

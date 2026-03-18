@@ -145,6 +145,30 @@ describe("preview mux integration", function()
     assert.is_false(has_close, "close event must be suppressed in mux mode")
   end)
 
+  it("does not open per-preview URL when preview already active in single_page mode", function()
+    local open_calls = {}
+    -- Must replace before requiring preview so preview.lua captures the tracking mock
+    package.loaded["md-view.util"] = {
+      open_browser = function(url)
+        table.insert(open_calls, url)
+      end,
+    }
+    local preview = require("md-view.preview")
+    local bufnr = vim.api.nvim_get_current_buf()
+
+    -- First create: starts mux (clients=0), opens hub URL once
+    preview.create(config.options)
+    assert.are.equal(1, #open_calls, "browser should open once for first create")
+    assert.truthy(open_calls[1]:find(":" .. fake_mux.port), "should open hub URL, not per-preview URL")
+
+    -- Second create for same bufnr: mux has no SSE clients yet (headless), should open hub URL again
+    preview.create(config.options)
+    assert.are.equal(2, #open_calls, "browser should open again when mux has no clients")
+    assert.truthy(open_calls[2]:find(":" .. fake_mux.port), "second open should still be hub URL")
+
+    preview.destroy(bufnr)
+  end)
+
   it("registers mux entry before pushing preview_added", function()
     local preview = require("md-view.preview")
     local bufnr = vim.api.nvim_get_current_buf()
