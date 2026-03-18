@@ -63,7 +63,10 @@ use("kcayme/md-view.nvim")
 
 ## Configuration
 
+`setup()` is optional — all options have sensible defaults. Adding `---@type MdViewOptions` above your call enables LSP completion and hover docs. See [docs/options.md](docs/options.md) for the full reference.
+
 ```lua
+---@type MdViewOptions
 require("md-view").setup({
   -- Port for the local preview server. 0 = auto-assign a free port.
   port = 0,
@@ -143,98 +146,90 @@ require("md-view").setup({
     -- "parent"    — parent dir + basename (e.g. "docs/README.md")
     -- function(ctx) — custom label; ctx = { bufnr, filename, path }
     tab_label = "parent",
+    -- What to close when a preview ends (overrides top-level `auto_close`).
+    -- nil    — inherit from top-level `auto_close`
+    -- "page" — close the browser window when the last preview ends
+    -- "tab"  — only remove the preview's tab; keep the window open
+    -- false  — same as "tab"
+    close_by = nil,
   },
 })
 ```
 
-Calling `setup()` is optional. All options have sensible defaults.
+### Type specification
 
-### Options
+Full [LuaLS / EmmyLua](https://luals.github.io/wiki/annotations/) types for the configuration. Adding `---@type MdViewOptions` above your `setup()` call enables completion and inline docs in any editor with `lua-language-server` configured.
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `port` | `number` | `0` | Port for the local preview server. `0` lets the OS auto-assign a free port. |
-| `host` | `string` | `"127.0.0.1"` | Bind address for the preview server. |
-| `browser` | `string\|nil` | `nil` | Path to a browser executable. `nil` auto-detects (`open` on macOS, `xdg-open` on Linux, `cmd /c start` on Windows). |
-| `debounce_ms` | `number` | `300` | Milliseconds to wait after the last edit before pushing an update to the browser. |
-| `scroll.method` | `string` | `"percentage"` | Scroll sync algorithm. `"percentage"` keeps the browser at the same proportional offset as the cursor. `"cursor"` anchors the browser to the nearest source line in the rendered DOM. |
-| `css` | `string\|nil` | `nil` | Custom CSS string injected into the preview page. Use this to override any default styles. |
-| `theme.mode` | `string` | `"auto"` | Color theme for the preview page. `"auto"` follows Neovim's `background` setting; `"dark"` / `"light"` force a palette; `"sync"` mirrors your current colorscheme live (see [Neovim Colorscheme Sync](#neovim-colorscheme-sync)). |
-| `theme.syntax` | `string\|nil` | `nil` | [highlight.js theme](https://highlightjs.org/demo) for syntax highlighting in fenced code blocks. `nil` auto-selects based on `theme.mode`: dark themes use `"vs2015"`, light themes use `"github"`. See [Syntax Highlighting Themes](#syntax-highlighting-themes) for available options. |
-| `theme.highlights` | `table` | `{}` | Highlight group overrides for CSS variable extraction. Only used when `theme.mode = "sync"`. See [Neovim Colorscheme Sync](#neovim-colorscheme-sync). |
-| `notations` | `table` | see above | Per-notation configuration. Each notation is `{ enable = true, ...options }`. Set `enable = false` to skip loading the CDN library. |
-| `notations.mermaid.theme` | `string\|nil` | `nil` | Mermaid diagram theme. One of `"default"`, `"dark"`, `"forest"`, `"neutral"`, or `"base"`. `nil` auto-chooses based on `theme.mode`. |
-| `filetypes` | `string[]` | `{ "markdown" }` | List of buffer filetypes the plugin will preview. Running `:MdView` on a buffer whose filetype is not in the list emits a warning and does nothing. Set to `{}` to allow any filetype. |
-| `auto_close` | `boolean` | `true` | Auto-close the browser tab when the preview is stopped. |
-| `follow_focus` | `boolean` | `false` | When `true`, always opens a new browser tab when revisiting a buffer that already has an active preview (via `:MdView` or `auto_open`). Ensures the browser always shows the preview for the current buffer. **Note:** opens a new tab each time, closing the existing one via the tab-dedup mechanism — any split-tab arrangement in the browser will break. |
-| `auto_open.enable` | `boolean` | `false` | When `true`, automatically opens (or re-focuses) a preview whenever you enter a qualifying buffer. The filetype must still be in `filetypes`. Toggle at runtime with `:MdViewAutoOpen`. |
-| `auto_open.events` | `string[]` | `{ "BufWinEnter" }` | Neovim autocmd events that trigger the auto-open check. Replace with e.g. `{ "BufEnter" }` if you prefer a different event. |
-| `picker.prompt` | `string` | `"Markdown Previews"` | Title/prompt shown at the top of the `:MdViewList` picker. |
-| `picker.format_item` | `function\|nil` | `nil` | `function(item) → string`. `item` has `.bufnr`, `.port`, `.name` (basename). `nil` uses the built-in `"name  http://host:port"` format. |
-| `picker.kind` | `string\|nil` | `nil` | Hint passed as `opts.kind` to `vim.ui.select`. Some picker replacements use this to provide a specialised UI (e.g. a file-preview pane). |
-| `single_page.enable` | `boolean` | `false` | When `true`, all active previews are multiplexed into one browser tab via a shared hub server. The hub uses the top-level `port` option for its address. |
-| `single_page.tab_label` | `string\|function` | `"parent"` | Label shown on each preview's tab in the hub. `"filename"` — basename; `"relative"` — path relative to cwd; `"parent"` — parent dir + basename; `function(ctx) → string` for a fully custom label (`ctx` has `.bufnr`, `.filename`, `.path`). |
-
-Examples:
+<details>
+<summary>Expand type definitions</summary>
 
 ```lua
--- Allow markdown and MDX buffers (replaces the default list)
-require("md-view").setup({
-  filetypes = { "markdown", "mdx" },
-})
+---@alias MdViewThemeMode "auto"|"dark"|"light"|"sync"
+---@alias MdViewScrollMethod "percentage"|"cursor"
+---@alias MdViewTabLabel "filename"|"relative"|"parent"
+---@alias MdViewCloseBy "page"|"tab"|false|nil
 
--- Allow any filetype (no restriction)
-require("md-view").setup({
-  filetypes = {},
-})
+---@class MdViewTabLabelCtx
+---@field bufnr integer
+---@field filename string
+---@field path string
 
--- Auto-open a preview whenever you enter a markdown buffer
-require("md-view").setup({
-  auto_open = { enable = true },
-})
+---@class MdViewScrollOptions
+---@field method MdViewScrollMethod
 
--- Auto-open on BufEnter instead of BufWinEnter
-require("md-view").setup({
-  auto_open = { enable = true, events = { "BufEnter" } },
-})
+---@class MdViewThemeOptions
+---@field mode MdViewThemeMode
+---@field syntax string|nil
+---@field highlights table<string, string>
 
--- Customise the :MdViewList picker title
-require("md-view").setup({
-  picker = { prompt = "My Previews" },
-})
+---@class MdViewNotationOptions
+---@field enable boolean
 
--- Show only the buffer name (no URL) in the picker
-require("md-view").setup({
-  picker = {
-    format_item = function(item)
-      return item.name
-    end,
-  },
-})
+---@class MdViewMermaidNotationOptions : MdViewNotationOptions
+---@field theme string|nil
+
+---@class MdViewNotationsOptions
+---@field mermaid MdViewMermaidNotationOptions
+---@field katex MdViewNotationOptions
+---@field graphviz MdViewNotationOptions
+---@field wavedrom MdViewNotationOptions
+---@field nomnoml MdViewNotationOptions
+---@field abc MdViewNotationOptions
+---@field vegalite MdViewNotationOptions
+
+---@class MdViewAutoOpenOptions
+---@field enable boolean
+---@field events string[]
+
+---@class MdViewPickerOptions
+---@field prompt string
+---@field format_item (fun(item: table): string)|nil
+---@field kind string|nil
+
+---@class MdViewSinglePageOptions
+---@field enable boolean
+---@field tab_label MdViewTabLabel|(fun(ctx: MdViewTabLabelCtx): string)
+---@field close_by MdViewCloseBy
+
+---@class MdViewOptions
+---@field port integer
+---@field host string
+---@field browser string|nil
+---@field debounce_ms integer
+---@field css string|nil
+---@field auto_close boolean
+---@field follow_focus boolean
+---@field scroll MdViewScrollOptions
+---@field theme MdViewThemeOptions
+---@field notations MdViewNotationsOptions
+---@field filetypes string[]
+---@field auto_open MdViewAutoOpenOptions
+---@field picker MdViewPickerOptions
+---@field single_page MdViewSinglePageOptions
 ```
 
-> **Picker integrations:** See [`docs/recipes/picker-integration.md`](docs/recipes/picker-integration.md) for setup guides covering dressing.nvim, Telescope, fzf-lua, snacks.nvim, and mini.pick.
+</details>
 
-> **lazy.nvim users:** `auto_open` requires the plugin to load at startup so it can register its autocmd. If your spec uses `cmd = {...}` the plugin won't load until a command is invoked and auto-open will never fire. Either set `lazy = false`, or add the trigger event to your spec:
->
-> ```lua
-> {
->   "kcayme/md-view.nvim",
->   lazy = false,
->   opts = { auto_open = { enable = true } },
-> }
-> ```
->
-> Or, to keep command-based lazy-loading while still supporting auto-open:
->
-> ```lua
-> {
->   "kcayme/md-view.nvim",
->   cmd   = { "MdView", "MdViewStop", "MdViewToggle", "MdViewAutoOpen" },
->   event = { "BufWinEnter" },
->   opts  = { auto_open = { enable = true } },
-> }
-> ```
 
 ### Syntax Highlighting Themes
 
@@ -394,6 +389,13 @@ require("md-view").setup({
   },
 })
 ```
+
+## Recipes
+
+- [Filetypes](docs/recipes/filetypes.md) — restrict or expand which buffer filetypes open a preview
+- [Auto-open](docs/recipes/auto-open.md) — open previews automatically on buffer enter; lazy.nvim setup
+- [Picker integration](docs/recipes/picker-integration.md) — dressing.nvim, Telescope, fzf-lua, snacks.nvim, mini.pick
+- [Single-page mode](docs/recipes/single-page-mode.md) — multiplex all previews into one browser tab
 
 ## Offline Support
 

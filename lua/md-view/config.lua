@@ -1,5 +1,68 @@
 local M = {}
 
+---@alias MdViewThemeMode "auto"|"dark"|"light"|"sync"
+---@alias MdViewScrollMethod "percentage"|"cursor"
+---@alias MdViewTabLabel "filename"|"relative"|"parent"
+---@alias MdViewCloseBy "page"|"tab"|false|nil
+
+---@class MdViewTabLabelCtx
+---@field bufnr integer
+---@field filename string
+---@field path string
+
+---@class MdViewScrollOptions
+---@field method MdViewScrollMethod
+
+---@class MdViewThemeOptions
+---@field mode MdViewThemeMode
+---@field syntax string|nil
+---@field highlights table<string, string>
+
+---@class MdViewNotationOptions
+---@field enable boolean
+
+---@class MdViewMermaidNotationOptions : MdViewNotationOptions
+---@field theme string|nil
+
+---@class MdViewNotationsOptions
+---@field mermaid MdViewMermaidNotationOptions
+---@field katex MdViewNotationOptions
+---@field graphviz MdViewNotationOptions
+---@field wavedrom MdViewNotationOptions
+---@field nomnoml MdViewNotationOptions
+---@field abc MdViewNotationOptions
+---@field vegalite MdViewNotationOptions
+
+---@class MdViewAutoOpenOptions
+---@field enable boolean
+---@field events string[]
+
+---@class MdViewPickerOptions
+---@field prompt string
+---@field format_item (fun(item: table): string)|nil
+---@field kind string|nil
+
+---@class MdViewSinglePageOptions
+---@field enable boolean
+---@field tab_label MdViewTabLabel|(fun(ctx: MdViewTabLabelCtx): string)
+---@field close_by MdViewCloseBy
+
+---@class MdViewOptions
+---@field port integer
+---@field host string
+---@field browser string|nil
+---@field debounce_ms integer
+---@field css string|nil
+---@field auto_close boolean
+---@field follow_focus boolean
+---@field scroll MdViewScrollOptions
+---@field theme MdViewThemeOptions
+---@field notations MdViewNotationsOptions
+---@field filetypes string[]
+---@field auto_open MdViewAutoOpenOptions
+---@field picker MdViewPickerOptions
+---@field single_page MdViewSinglePageOptions
+
 M.defaults = {
   port = 0,
   host = "127.0.0.1",
@@ -41,10 +104,12 @@ M.defaults = {
   },
 }
 
+---@type MdViewOptions|nil
 M.options = nil
 
 local LOOPBACK = { ["127.0.0.1"] = true, ["::1"] = true, ["localhost"] = true }
 
+---@param opts MdViewOptions|nil
 function M.setup(opts)
   -- Deprecated: theme_sync = true → theme = { mode = "sync" }
   if opts and opts.theme_sync == true then

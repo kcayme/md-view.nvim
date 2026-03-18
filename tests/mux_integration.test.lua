@@ -177,6 +177,72 @@ describe("preview mux integration", function()
     assert.is_true(has_close, "close must be pushed when auto_close = true and last preview is gone")
   end)
 
+  it("single_page.close_by = 'tab' suppresses close even when auto_close = true", function()
+    config.setup({
+      single_page = { enable = true, tab_label = "filename", close_by = "tab" },
+      auto_close = true,
+    })
+    local preview = require("md-view.preview")
+    local bufnr = vim.api.nvim_get_current_buf()
+
+    preview.create(config.options)
+    fake_mux._events = {}
+
+    preview.destroy(bufnr)
+
+    local has_close = false
+    for _, ev in ipairs(fake_mux._events) do
+      if ev.event_type == "close" then
+        has_close = true
+      end
+    end
+    assert.is_false(has_close, "single_page.close_by='tab' must suppress window close")
+  end)
+
+  it("single_page.close_by = 'page' pushes close even when top-level auto_close = false", function()
+    config.setup({
+      single_page = { enable = true, tab_label = "filename", close_by = "page" },
+      auto_close = false,
+    })
+    local preview = require("md-view.preview")
+    local bufnr = vim.api.nvim_get_current_buf()
+
+    preview.create(config.options)
+    fake_mux._events = {}
+
+    preview.destroy(bufnr)
+
+    local has_close = false
+    for _, ev in ipairs(fake_mux._events) do
+      if ev.event_type == "close" then
+        has_close = true
+      end
+    end
+    assert.is_true(has_close, "single_page.close_by='page' must push close regardless of top-level auto_close")
+  end)
+
+  it("single_page.close_by = false suppresses close even when auto_close = true", function()
+    config.setup({
+      single_page = { enable = true, tab_label = "filename", close_by = false },
+      auto_close = true,
+    })
+    local preview = require("md-view.preview")
+    local bufnr = vim.api.nvim_get_current_buf()
+
+    preview.create(config.options)
+    fake_mux._events = {}
+
+    preview.destroy(bufnr)
+
+    local has_close = false
+    for _, ev in ipairs(fake_mux._events) do
+      if ev.event_type == "close" then
+        has_close = true
+      end
+    end
+    assert.is_false(has_close, "single_page.close_by=false must suppress window close")
+  end)
+
   it("does not open per-preview URL when preview already active in single_page mode", function()
     local open_calls = {}
     -- Must replace before requiring preview so preview.lua captures the tracking mock

@@ -1,5 +1,11 @@
 local M = {}
 
+---@class MdViewPreview
+---@field server userdata TCP server handle
+---@field port integer
+---@field sse MdViewSse
+---@field watcher table
+
 local server = require("md-view.server.tcp")
 local router = require("md-view.server.router")
 local direct = require("md-view.server.handlers.direct")
@@ -46,6 +52,7 @@ local function ensure_mux(opts)
   return _mux
 end
 
+---@param opts MdViewOptions
 function M.create(opts)
   local bufnr = vim.api.nvim_get_current_buf()
 
@@ -213,6 +220,7 @@ function M.create(opts)
   end
 end
 
+---@param bufnr integer|nil
 function M.destroy(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local preview = active_previews[bufnr]
@@ -235,7 +243,16 @@ function M.destroy(bufnr)
       end
     end
     if remaining == 0 then
-      if config.options and config.options.auto_close then
+      local close_by = sp.close_by
+      local should_close_page
+      if close_by == nil then
+        -- Inherit from top-level auto_close
+        should_close_page = config.options and config.options.auto_close == true
+      else
+        -- single_page.close_by = "page" closes the window; "tab" or false keeps it open
+        should_close_page = close_by == "page"
+      end
+      if should_close_page then
         _mux:push("close", {})
       end
       _mux:stop()
@@ -254,14 +271,18 @@ function M.destroy(bufnr)
   active_previews[bufnr] = nil
 end
 
+---@param bufnr integer
+---@return MdViewPreview|nil
 function M.get(bufnr)
   return active_previews[bufnr]
 end
 
+---@return table<integer, MdViewPreview>
 function M.get_active()
   return active_previews
 end
 
+---@return MdViewMux|nil
 function M.get_mux()
   return _mux
 end

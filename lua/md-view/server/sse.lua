@@ -1,16 +1,22 @@
 local M = {}
 M.__index = M
 
+---@class MdViewSse
+---@field clients table[]
+---@field last table<string, table>
+
 -- Event types whose last value is replayed to newly-connected clients.
 -- content: fetched via /content on page load — replay is redundant and causes double-render.
 -- scroll: ephemeral position — replaying on reconnect causes a jarring viewport jump.
 -- close: one-shot signal — must never be replayed to reconnecting clients.
 local REPLAY_EVENTS = { palette = true, theme = true }
 
+---@return MdViewSse
 function M.new()
   return setmetatable({ clients = {}, last = {} }, M)
 end
 
+---@param client table
 function M:add_client(client)
   table.insert(self.clients, client)
   for event_type, data in pairs(self.last) do
@@ -21,6 +27,7 @@ function M:add_client(client)
   end
 end
 
+---@param client table
 function M:remove_client(client)
   for i, c in ipairs(self.clients) do
     if c == client then
@@ -33,6 +40,8 @@ function M:remove_client(client)
   end
 end
 
+---@param event_type string
+---@param data table
 function M:push(event_type, data)
   if REPLAY_EVENTS[event_type] then
     self.last[event_type] = data

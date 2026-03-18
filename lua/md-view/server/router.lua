@@ -2,6 +2,25 @@ local M = {}
 
 local uv = vim.uv or vim.loop
 
+---@class MdViewRequest
+---@field method string
+---@field path string
+---@field query table<string, string>
+---@field params table<string, string>
+---@field body string
+---@field headers table<string, string>
+
+---@class MdViewResponse
+---@field send fun(status: string, content_type: string, body: string)
+---@field json fun(status: string, data: table)
+---@field send_file fun(filepath: string, content_type: string)
+---@field sse_upgrade fun(sse_instance: MdViewSse)
+
+---@class MdViewRoute
+---@field method string
+---@field path string
+---@field handler fun(req: MdViewRequest, res: MdViewResponse, ctx: table)
+
 -- Exposed so handlers/direct.lua can look up content types without duplicating.
 M.MEDIA_TYPES = {
   png = "image/png",
@@ -46,6 +65,9 @@ end
 -- Returns the normalised absolute path, or nil for empty/nil input.
 -- No traversal restriction: the server is loopback-only and the user already
 -- has full filesystem access; blocking ../ would prevent valid relative paths.
+---@param bufdir string
+---@param raw string|nil
+---@return string|nil
 function M.resolve_media_path(bufdir, raw)
   if not raw or raw == "" then
     return nil
@@ -113,6 +135,8 @@ end
 
 -- Build a res helper that wraps a raw libuv client.
 -- Handlers call res methods; the client handle never leaves router.lua.
+---@param client table
+---@return MdViewResponse
 function M.build_res(client)
   return {
     -- Send a plain HTTP response and close the connection.
@@ -151,6 +175,8 @@ end
 
 -- Parse a raw HTTP request buffer into a req table.
 -- Populates: method, path, query, params (empty — filled by dispatch), body, headers.
+---@param buf string
+---@return MdViewRequest|nil
 function M.parse(buf)
   local method, path_and_query = buf:match("^(%u+)%s+(%S+)")
   if not method then
@@ -215,6 +241,10 @@ end
 
 -- Dispatch req through a route table, populating req.params on match.
 -- Responds 404 if no route matches.
+---@param routes MdViewRoute[]
+---@param req MdViewRequest
+---@param res MdViewResponse
+---@param ctx table
 function M.dispatch(routes, req, res, ctx)
   for _, route in ipairs(routes) do
     if route.method == req.method then
@@ -231,6 +261,9 @@ end
 
 -- Factory: returns an on_request(client, buf) closure for tcp.start().
 -- Binds the route table and context at server creation time.
+---@param routes MdViewRoute[]
+---@param ctx table
+---@return fun(client: table, buf: string)
 function M.new(routes, ctx)
   return function(client, buf)
     local req = M.parse(buf)

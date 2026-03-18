@@ -89,3 +89,38 @@ require("md-view").setup({
   },
 })
 ```
+
+---
+
+## Controlling close behaviour
+
+By default, `single_page` mode inherits the top-level `auto_close` setting. You can override this independently with `close_by`:
+
+| Value | Behaviour |
+|-------|-----------|
+| `nil` (default) | Inherit from top-level `auto_close` — `true` closes the window when the last preview ends, `false` never does. |
+| `"page"` | Close the browser window when the last preview ends, regardless of `auto_close`. |
+| `"tab"` / `false` | Only remove the preview's tab from the hub page; never close the browser window. |
+
+**Keep the hub window open after all previews close** (useful if you want to reuse the tab later):
+
+```lua
+require("md-view").setup({
+  single_page = {
+    enable = true,
+    close_by = "tab",
+  },
+})
+```
+
+**Always close the window when the last preview ends**, even if `auto_close = false` elsewhere:
+
+```lua
+require("md-view").setup({
+  auto_close = false,   -- don't auto-close individual (non-single-page) previews
+  single_page = {
+    enable = true,
+    close_by = "page",  -- but do close the hub window when it empties
+  },
+})
+```

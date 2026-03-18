@@ -1,14 +1,30 @@
 local M = {}
 M.__index = M
 
+---@class MdViewMux
+---@field registry table<integer, {title: string, label: string}>
+---@field clients table[]
+---@field last table<integer, table<string, table>>
+---@field last_hub_palette table|nil
+---@field server userdata|nil
+---@field port integer|nil
+
 local server = require("md-view.server.tcp")
 local vendor = require("md-view.vendor")
 local http = require("md-view.server.http")
+local router = require("md-view.server.router")
+
+local function url_decode(s)
+  return (s:gsub("%%(%x%x)", function(h)
+    return string.char(tonumber(h, 16))
+  end))
+end
 
 local REPLAY_EVENTS = { palette = true, theme = true, preview_added = true }
 -- preview_added must be replayed before palette/theme so the panel exists when styles arrive
 local REPLAY_ORDER = { "preview_added", "palette", "theme" }
 
+---@return MdViewMux
 function M.new()
   return setmetatable({
     registry = {}, -- bufnr -> { title, label }
@@ -40,6 +56,9 @@ end
 -- Register a preview. Registry entry is inserted synchronously so that
 -- /content?id= is valid before preview_added is pushed.
 -- Caller must push preview_added after calling register.
+---@param bufnr integer
+---@param path string
+---@param tab_label_cfg MdViewTabLabel|(fun(ctx: MdViewTabLabelCtx): string)|nil
 function M:register(bufnr, path, tab_label_cfg)
   local filename = vim.fn.fnamemodify(path, ":t")
   local ctx = { bufnr = bufnr, filename = filename, path = path }
@@ -49,6 +68,7 @@ end
 
 -- Unregister a preview. Evicts per-preview replay state.
 -- Caller must push preview_removed before calling unregister.
+---@param bufnr integer
 function M:unregister(bufnr)
   self.registry[bufnr] = nil
   self.last[bufnr] = nil
@@ -82,6 +102,8 @@ function M:add_client(client)
   end
 end
 
+---@param event_type string
+---@param data table
 function M:push(event_type, data)
   -- Store hub-level palette for replay
   if event_type == "hub_palette" then
@@ -191,12 +213,34 @@ function M:handle(client, data)
     local ext = filename:match("%.([^%.]+)$")
     local content_type = ext == "css" and "text/css" or "application/javascript"
     http.serve_static_file(client, vendor.vendor_dir() .. "/" .. filename, content_type)
+  elseif path:match("^/file%?") then
+    local qs = path:match("%?(.*)$") or ""
+    local id_str = qs:match("^id=([^&]*)") or qs:match("[&]id=([^&]*)")
+    local path_enc = qs:match("^path=([^&]*)") or qs:match("[&]path=([^&]*)")
+    local bufnr = id_str and tonumber(id_str)
+    local raw = path_enc and url_decode(path_enc) or nil
+    if not bufnr or not self.registry[bufnr] or not raw or raw == "" then
+      http.respond(client, "400 Bad Request", "text/plain", "Bad Request")
+      return
+    end
+    local bufdir = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":p:h")
+    local abs = router.resolve_media_path(bufdir, raw)
+    if not abs then
+      http.respond(client, "400 Bad Request", "text/plain", "Bad Request")
+      return
+    end
+    local ext = (abs:match("%.([^%.]+)$") or ""):lower()
+    local content_type = router.MEDIA_TYPES[ext] or "application/octet-stream"
+    http.serve_static_file(client, abs, content_type)
   else
     http.respond(client, "404 Not Found", "text/plain", "Not Found")
   end
 end
 
 -- Start the hub TCP server. Returns true on success, false on bind failure.
+---@param host string
+---@param port integer
+---@return boolean
 function M:start(host, port)
   local srv, p = server.start(host, port, function(client, data)
     self:handle(client, data)
