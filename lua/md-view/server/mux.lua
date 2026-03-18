@@ -86,6 +86,7 @@ function M.new()
     registry = {}, -- bufnr -> { title, label }
     clients = {}, -- SSE client list (shared across all previews)
     last = {}, -- last[bufnr][event_type] = data (per-preview replay state)
+    last_hub_palette = nil, -- hub-level palette CSS replayed on connect
     server = nil,
     port = nil,
   }, M)
@@ -127,6 +128,13 @@ end
 
 function M:add_client(client)
   table.insert(self.clients, client)
+  -- Replay hub-level palette first so the chrome is styled before panels appear
+  if self.last_hub_palette then
+    local payload = "event: hub_palette\ndata: " .. vim.json.encode(self.last_hub_palette) .. "\n\n"
+    pcall(function()
+      client:write(payload)
+    end)
+  end
   -- Replay per-preview state in fixed order: preview_added first (creates panel),
   -- then palette/theme (style the panel). Arbitrary table iteration would apply
   -- palette before the panel exists, losing the style.
@@ -147,6 +155,10 @@ function M:add_client(client)
 end
 
 function M:push(event_type, data)
+  -- Store hub-level palette for replay
+  if event_type == "hub_palette" then
+    self.last_hub_palette = data
+  end
   -- Store per-preview replay state for allowlisted event types
   if REPLAY_EVENTS[event_type] and data.id then
     local bufnr = data.id
@@ -202,7 +214,19 @@ function M:handle(client, data)
   elseif path == "/" then
     local template = require("md-view.server.template")
     local config = require("md-view.config")
-    local html = template.render_mux(config.options)
+    local theme_mod = require("md-view.theme")
+    local resolved = theme_mod.resolve(config.options)
+    local theme_css = config.options.theme
+        and config.options.theme.mode == "sync"
+        and theme_mod.css(config.options.theme.highlights or {})
+      or ""
+    local render_opts = vim.tbl_extend("force", config.options, {
+      palette_css = theme_mod.palette_css(resolved.theme),
+      theme_css = theme_css,
+      highlight_theme = resolved.highlight_theme,
+      mermaid = { theme = resolved.mermaid_theme },
+    })
+    local html = template.render_mux(render_opts)
     respond(client, "200 OK", "text/html", html)
   elseif path == "/sse" then
     respond_sse(client)

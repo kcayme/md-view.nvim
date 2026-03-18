@@ -174,6 +174,7 @@ function M.create(opts)
         local h = get_mux()
         if h and h.server then
           h:push("theme", { id = bufnr, css = css })
+          h:push("hub_palette", { css = theme.palette_css(vim.o.background == "light" and "light" or "dark") })
         end
       end,
     })

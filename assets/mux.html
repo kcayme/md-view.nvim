@@ -919,6 +919,18 @@
     if (d && panels[d.id]) panels[d.id].applyPalette(d.css);
   });
 
+  source.addEventListener("hub_palette", function(e) {
+    var d = safeParse(e.data);
+    if (!d) return;
+    var el = document.getElementById("md-view-hub-palette");
+    if (!el) {
+      el = document.createElement("style");
+      el.id = "md-view-hub-palette";
+      document.head.appendChild(el);
+    }
+    el.textContent = d.css;
+  });
+
   source.onerror = function() {
     console.warn("md-view hub: SSE connection lost, waiting to reconnect\u2026");
   };

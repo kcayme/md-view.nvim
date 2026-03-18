@@ -168,6 +168,10 @@ function M.set_theme(mode)
       h:push("palette", { id = bufnr, css = css })
     end
   end
+  -- Push hub-level palette so the chrome (tab bar, body) updates immediately
+  if h and h.server then
+    h:push("hub_palette", { css = css })
+  end
 
   vim.notify("[md-view] theme: " .. notified_mode, vim.log.levels.INFO)
 end
