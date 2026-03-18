@@ -161,8 +161,12 @@ function M.set_theme(mode)
 
   -- Push to all active previews
   local css = compute_live_css()
-  for _, p in pairs(preview.get_active()) do
+  local h = preview.get_hub and preview.get_hub()
+  for bufnr, p in pairs(preview.get_active()) do
     p.sse:push("palette", { css = css })
+    if h and h.server then
+      h:push("palette", { id = bufnr, css = css })
+    end
   end
 
   vim.notify("[md-view] theme: " .. notified_mode, vim.log.levels.INFO)
