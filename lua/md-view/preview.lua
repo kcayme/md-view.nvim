@@ -2,6 +2,7 @@ local M = {}
 
 local server = require("md-view.server.tcp")
 local router = require("md-view.server.router")
+local direct = require("md-view.server.handlers.direct")
 local sse = require("md-view.server.sse")
 local buffer = require("md-view.buffer")
 local theme = require("md-view.theme")
@@ -105,9 +106,7 @@ function M.create(opts)
     sse = sse_instance,
   }
 
-  local srv, port = server.start(opts.host, opts.port, function(client, data)
-    router.handle(client, data, ctx)
-  end)
+  local srv, port = server.start(opts.host, opts.port, router.new(direct.routes, ctx))
 
   if not srv then
     return

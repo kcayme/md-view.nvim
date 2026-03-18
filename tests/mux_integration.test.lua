@@ -64,7 +64,12 @@ describe("preview mux integration", function()
       end,
     }
     package.loaded["md-view.util"] = { open_browser = function() end }
-    package.loaded["md-view.server.router"] = { handle = function() end }
+    package.loaded["md-view.server.router"] = {
+      new = function()
+        return function() end
+      end,
+    }
+    package.loaded["md-view.server.handlers.direct"] = { routes = {} }
     package.loaded["md-view.server.template"] = {
       render = function()
         return ""
@@ -98,6 +103,7 @@ describe("preview mux integration", function()
     package.loaded["md-view.buffer"] = nil
     package.loaded["md-view.util"] = nil
     package.loaded["md-view.server.router"] = nil
+    package.loaded["md-view.server.handlers.direct"] = nil
     package.loaded["md-view.server.template"] = nil
     package.loaded["md-view.theme"] = nil
     -- Do not clear md-view.config: destroy() requires it, and before_each resets it via setup()
