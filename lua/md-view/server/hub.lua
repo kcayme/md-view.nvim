@@ -2,6 +2,8 @@ local M = {}
 M.__index = M
 
 local server = require("md-view.server.tcp")
+local vendor = require("md-view.vendor")
+local uv = vim.uv or vim.loop
 
 local REPLAY_EVENTS = { palette = true, theme = true }
 
@@ -31,6 +33,50 @@ local function respond_sse(client)
     .. "Cache-Control: no-cache\r\n"
     .. "Connection: keep-alive\r\n\r\n"
   client:write(headers)
+end
+
+local function serve_static_file(client, filepath, content_type)
+  uv.fs_open(filepath, "r", 438, function(err, fd)
+    if err or not fd then
+      vim.schedule(function()
+        respond(client, "404 Not Found", "text/plain", "Not Found")
+      end)
+      return
+    end
+    uv.fs_fstat(fd, function(err2, stat)
+      if err2 or not stat then
+        uv.fs_close(fd, function() end)
+        vim.schedule(function()
+          respond(client, "404 Not Found", "text/plain", "Not Found")
+        end)
+        return
+      end
+      uv.fs_read(fd, stat.size, 0, function(err3, data)
+        uv.fs_close(fd, function() end)
+        vim.schedule(function()
+          if err3 or not data then
+            respond(client, "500 Internal Server Error", "text/plain", "Read error")
+            return
+          end
+          local res = "HTTP/1.1 200 OK\r\nContent-Type: "
+            .. content_type
+            .. "\r\nContent-Length: "
+            .. #data
+            .. "\r\nConnection: close\r\n\r\n"
+            .. data
+          client:write(res, function()
+            if not client:is_closing() then
+              client:shutdown(function()
+                if not client:is_closing() then
+                  client:close()
+                end
+              end)
+            end
+          end)
+        end)
+      end)
+    end)
+  end)
 end
 
 function M.new()
@@ -181,6 +227,11 @@ function M:handle(client, data)
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
     local content = table.concat(lines, "\n")
     respond(client, "200 OK", "application/json", vim.json.encode({ content = content }))
+  elseif path:match("^/vendor/[%w%.%-_]+$") then
+    local filename = path:sub(9)
+    local ext = filename:match("%.([^%.]+)$")
+    local content_type = ext == "css" and "text/css" or "application/javascript"
+    serve_static_file(client, vendor.vendor_dir() .. "/" .. filename, content_type)
   else
     respond(client, "404 Not Found", "text/plain", "Not Found")
   end
