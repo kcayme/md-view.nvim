@@ -5,7 +5,9 @@ local server = require("md-view.server.tcp")
 local vendor = require("md-view.vendor")
 local uv = vim.uv or vim.loop
 
-local REPLAY_EVENTS = { palette = true, theme = true }
+local REPLAY_EVENTS = { palette = true, theme = true, preview_added = true }
+-- preview_added must be replayed before palette/theme so the panel exists when styles arrive
+local REPLAY_ORDER = { "preview_added", "palette", "theme" }
 
 local function respond(client, status, content_type, body)
   local res = "HTTP/1.1 "
@@ -125,12 +127,15 @@ end
 
 function M:add_client(client)
   table.insert(self.clients, client)
-  -- Replay last palette+theme per registered preview
+  -- Replay per-preview state in fixed order: preview_added first (creates panel),
+  -- then palette/theme (style the panel). Arbitrary table iteration would apply
+  -- palette before the panel exists, losing the style.
   for bufnr, _ in pairs(self.registry) do
     local per_preview = self.last[bufnr]
     if per_preview then
-      for event_type, data in pairs(per_preview) do
-        if REPLAY_EVENTS[event_type] then
+      for _, event_type in ipairs(REPLAY_ORDER) do
+        local data = per_preview[event_type]
+        if data then
           local payload = "event: " .. event_type .. "\ndata: " .. vim.json.encode(data) .. "\n\n"
           pcall(function()
             client:write(payload)

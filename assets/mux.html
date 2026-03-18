@@ -880,6 +880,7 @@
   source.addEventListener("preview_added", function(e) {
     var d = safeParse(e.data);
     if (!d) return;
+    if (panels[d.id]) return; // already registered (SSE reconnect replay)
     panels[d.id] = createPanel(d.id, d.label);
     activateTab(d.id);
     fetch("/content?id=" + d.id)
