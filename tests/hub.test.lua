@@ -186,3 +186,66 @@ describe("hub SSE", function()
     end)
   end)
 end)
+
+describe("hub server routing", function()
+  local function fake_client()
+    local c = {
+      _writes = {},
+      _closed = false,
+      is_closing = function(self)
+        return self._closed
+      end,
+      write = function(self, data, cb)
+        table.insert(self._writes, data)
+        if cb then
+          cb()
+        end
+      end,
+      shutdown = function(self, cb)
+        if cb then
+          cb()
+        end
+      end,
+      close = function(self)
+        self._closed = true
+      end,
+      read_start = function() end,
+    }
+    return c
+  end
+
+  it("returns 400 for /content with no id", function()
+    local h = hub.new()
+    local c = fake_client()
+    h:handle(c, "GET /content HTTP/1.1\r\n\r\n")
+    assert.truthy(c._writes[1] and c._writes[1]:find("400"))
+  end)
+
+  it("returns 400 for /content with non-integer id", function()
+    local h = hub.new()
+    local c = fake_client()
+    h:handle(c, "GET /content?id=notanumber HTTP/1.1\r\n\r\n")
+    assert.truthy(c._writes[1] and c._writes[1]:find("400"))
+  end)
+
+  it("returns 400 for /content with unregistered bufnr", function()
+    local h = hub.new()
+    local c = fake_client()
+    h:handle(c, "GET /content?id=9999 HTTP/1.1\r\n\r\n")
+    assert.truthy(c._writes[1] and c._writes[1]:find("400"))
+  end)
+
+  it("returns 405 for non-GET methods", function()
+    local h = hub.new()
+    local c = fake_client()
+    h:handle(c, "POST / HTTP/1.1\r\n\r\n")
+    assert.truthy(c._writes[1] and c._writes[1]:find("405"))
+  end)
+
+  it("returns 404 for unknown paths", function()
+    local h = hub.new()
+    local c = fake_client()
+    h:handle(c, "GET /unknown HTTP/1.1\r\n\r\n")
+    assert.truthy(c._writes[1] and c._writes[1]:find("404"))
+  end)
+end)
