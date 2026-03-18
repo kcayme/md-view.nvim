@@ -161,7 +161,7 @@ function M.set_theme(mode)
 
   -- Push to all active previews
   local css = compute_live_css()
-  local h = preview.get_hub and preview.get_hub()
+  local h = preview.get_mux and preview.get_mux()
   for bufnr, p in pairs(preview.get_active()) do
     p.sse:push("palette", { css = css })
     if h and h.server then

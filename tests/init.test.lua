@@ -112,7 +112,7 @@ describe("md-view init", function()
 
   it("forwards palette to hub SSE when set_theme is called in hub mode", function()
     local hub_pushed = {}
-    local fake_hub = {
+    local fake_mux = {
       server = "mock",
       push = function(self, et, data)
         table.insert(hub_pushed, { event_type = et, data = data })
@@ -129,8 +129,8 @@ describe("md-view init", function()
       get_active = function()
         return { [1] = { sse = { push = function() end } } }
       end,
-      get_hub = function()
-        return fake_hub
+      get_mux = function()
+        return fake_mux
       end,
     }
     M = require("md-view")

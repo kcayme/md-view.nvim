@@ -520,9 +520,9 @@ describe("template", function()
   end)
 end)
 
-describe("render_hub", function()
+describe("render_mux", function()
   it("returns non-empty HTML", function()
-    local html = template.render_hub({
+    local html = template.render_mux({
       css = "",
       theme_css = "",
       palette_css = "",

@@ -195,7 +195,7 @@ function M:handle(client, data)
   if path == "/" then
     local template = require("md-view.server.template")
     local config = require("md-view.config")
-    local html = template.render_hub(config.options)
+    local html = template.render_mux(config.options)
     respond(client, "200 OK", "text/html", html)
   elseif path == "/sse" then
     respond_sse(client)

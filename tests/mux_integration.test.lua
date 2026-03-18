@@ -1,7 +1,7 @@
 local config = require("md-view.config")
 
-describe("preview hub integration", function()
-  local fake_hub
+describe("preview mux integration", function()
+  local fake_mux
   local orig_notify
 
   before_each(function()
@@ -10,9 +10,9 @@ describe("preview hub integration", function()
 
     -- Reset module cache so preview.lua picks up mocked dependencies
     package.loaded["md-view.preview"] = nil
-    package.loaded["md-view.server.hub"] = nil
+    package.loaded["md-view.server.mux"] = nil
 
-    fake_hub = {
+    fake_mux = {
       registry = {},
       clients = {},
       last = {},
@@ -39,9 +39,9 @@ describe("preview hub integration", function()
       close_all = function() end,
       add_client = function() end,
     }
-    package.loaded["md-view.server.hub"] = {
+    package.loaded["md-view.server.mux"] = {
       new = function()
-        return fake_hub
+        return fake_mux
       end,
     }
 
@@ -86,14 +86,14 @@ describe("preview hub integration", function()
       filetypes = { "markdown" },
       single_page = { enable = true, port = 4999, tab_label = "filename" },
     })
-    vim.g.md_view_hub_vimleave_registered = nil
+    vim.g.md_view_mux_vimleave_registered = nil
     vim.g.md_view_vimleave_registered = nil
   end)
 
   after_each(function()
     vim.notify = orig_notify
     package.loaded["md-view.preview"] = nil
-    package.loaded["md-view.server.hub"] = nil
+    package.loaded["md-view.server.mux"] = nil
     package.loaded["md-view.server.tcp"] = nil
     package.loaded["md-view.buffer"] = nil
     package.loaded["md-view.util"] = nil
@@ -101,11 +101,11 @@ describe("preview hub integration", function()
     package.loaded["md-view.server.template"] = nil
     package.loaded["md-view.theme"] = nil
     -- Do not clear md-view.config: destroy() requires it, and before_each resets it via setup()
-    vim.g.md_view_hub_vimleave_registered = nil
+    vim.g.md_view_mux_vimleave_registered = nil
     vim.g.md_view_vimleave_registered = nil
   end)
 
-  it("pushes preview_added to hub when a preview is created", function()
+  it("pushes preview_added to mux when a preview is created", function()
     local preview = require("md-view.preview")
     -- Use the actual current buf so preview.create's nvim_get_current_buf() matches
     local bufnr = vim.api.nvim_get_current_buf()
@@ -113,7 +113,7 @@ describe("preview hub integration", function()
     preview.create(config.options)
 
     local found = false
-    for _, ev in ipairs(fake_hub._events) do
+    for _, ev in ipairs(fake_mux._events) do
       if ev.event_type == "preview_added" and ev.data.id == bufnr then
         found = true
       end
@@ -128,12 +128,12 @@ describe("preview hub integration", function()
     local bufnr = vim.api.nvim_get_current_buf()
 
     preview.create(config.options)
-    fake_hub._events = {} -- clear after create
+    fake_mux._events = {} -- clear after create
 
     preview.destroy(bufnr)
 
     local has_removed, has_close = false, false
-    for _, ev in ipairs(fake_hub._events) do
+    for _, ev in ipairs(fake_mux._events) do
       if ev.event_type == "preview_removed" then
         has_removed = true
       end
@@ -142,17 +142,17 @@ describe("preview hub integration", function()
       end
     end
     assert.is_true(has_removed, "preview_removed not pushed")
-    assert.is_false(has_close, "close event must be suppressed in hub mode")
+    assert.is_false(has_close, "close event must be suppressed in mux mode")
   end)
 
-  it("registers hub entry before pushing preview_added", function()
+  it("registers mux entry before pushing preview_added", function()
     local preview = require("md-view.preview")
     local bufnr = vim.api.nvim_get_current_buf()
 
     -- Intercept push to verify registry is populated at push time
     local registry_at_push = nil
-    local orig_push = fake_hub.push
-    fake_hub.push = function(self, et, data)
+    local orig_push = fake_mux.push
+    fake_mux.push = function(self, et, data)
       if et == "preview_added" then
         registry_at_push = vim.deepcopy(self.registry)
       end

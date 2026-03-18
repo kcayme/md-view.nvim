@@ -237,41 +237,41 @@ function M.render(opts, filename)
 end
 
 -- Three states: nil = not yet tried, false = failed, string = loaded
-local HUB_TEMPLATE
+local MUX_TEMPLATE
 
-local function load_hub_template()
-  if type(HUB_TEMPLATE) == "string" then
-    return HUB_TEMPLATE
+local function load_mux_template()
+  if type(MUX_TEMPLATE) == "string" then
+    return MUX_TEMPLATE
   end
-  if HUB_TEMPLATE == false then
+  if MUX_TEMPLATE == false then
     return nil
   end
-  local path = vim.api.nvim_get_runtime_file("assets/hub.html", false)[1]
+  local path = vim.api.nvim_get_runtime_file("assets/mux.html", false)[1]
   if not path then
-    vim.notify("md-view.nvim: could not find assets/hub.html in runtimepath", vim.log.levels.ERROR)
-    HUB_TEMPLATE = false
+    vim.notify("md-view.nvim: could not find assets/mux.html in runtimepath", vim.log.levels.ERROR)
+    MUX_TEMPLATE = false
     return nil
   end
   local fh, err = io.open(path, "rb")
   if not fh then
     vim.notify("md-view.nvim: could not open " .. path .. ": " .. (err or ""), vim.log.levels.ERROR)
-    HUB_TEMPLATE = false
+    MUX_TEMPLATE = false
     return nil
   end
   local content = fh:read("*a")
   fh:close()
   if not content or content == "" then
-    vim.notify("md-view.nvim: assets/hub.html is empty or unreadable", vim.log.levels.ERROR)
-    HUB_TEMPLATE = false
+    vim.notify("md-view.nvim: assets/mux.html is empty or unreadable", vim.log.levels.ERROR)
+    MUX_TEMPLATE = false
     return nil
   end
-  HUB_TEMPLATE = content
-  return HUB_TEMPLATE
+  MUX_TEMPLATE = content
+  return MUX_TEMPLATE
 end
 
--- Render the hub shell page. Same CDN scripts as render(); title is "md-view".
-function M.render_hub(opts)
-  local tmpl = load_hub_template()
+-- Render the mux shell page. Same CDN scripts as render(); title is "md-view".
+function M.render_mux(opts)
+  local tmpl = load_mux_template()
   if not tmpl then
     return ""
   end
