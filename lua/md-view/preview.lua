@@ -153,7 +153,25 @@ function M.create(opts)
     vim.api.nvim_create_autocmd("ColorScheme", {
       group = cleanup_group,
       callback = function()
-        sse_instance:push("theme", { css = theme.css(opts.theme.highlights) })
+        local css = theme.css(opts.theme.highlights)
+        sse_instance:push("theme", { css = css })
+        local h = get_hub()
+        if h and h.server then
+          h:push("theme", { id = bufnr, css = css })
+        end
+      end,
+    })
+  end
+
+  if sp and sp.enable then
+    vim.api.nvim_create_autocmd("BufEnter", {
+      group = cleanup_group,
+      buffer = bufnr,
+      callback = function()
+        local h = get_hub()
+        if h and h.server then
+          h:push("focus", { id = bufnr })
+        end
       end,
     })
   end
@@ -223,6 +241,10 @@ end
 
 function M.get_active()
   return active_previews
+end
+
+function M.get_hub()
+  return _hub
 end
 
 return M
