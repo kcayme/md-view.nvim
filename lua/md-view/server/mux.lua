@@ -192,7 +192,9 @@ function M:handle(client, data)
     return
   end
 
-  if path == "/" then
+  if path == "/favicon.ico" then
+    respond(client, "204 No Content", "text/plain", "")
+  elseif path == "/" then
     local template = require("md-view.server.template")
     local config = require("md-view.config")
     local html = template.render_mux(config.options)

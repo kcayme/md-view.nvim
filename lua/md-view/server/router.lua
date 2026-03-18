@@ -129,7 +129,9 @@ function M.handle(client, data, ctx)
     return
   end
 
-  if path == "/" then
+  if path == "/favicon.ico" then
+    respond(client, "204 No Content", "text/plain", "")
+  elseif path == "/" then
     local bufname = vim.api.nvim_buf_get_name(ctx.bufnr)
     local filename = vim.fn.fnamemodify(bufname, ":t")
     local html = template.render(ctx.config, filename)
