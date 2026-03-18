@@ -353,15 +353,13 @@ describe("config", function()
       local sp = config.options.single_page
       assert.is_not_nil(sp)
       assert.is_false(sp.enable)
-      assert.are.equal(4999, sp.port)
       assert.are.equal("parent", sp.tab_label)
     end)
 
     it("merges single_page user options over defaults", function()
-      config.setup({ single_page = { enable = true, port = 5000 } })
+      config.setup({ single_page = { enable = true } })
       local sp = config.options.single_page
       assert.is_true(sp.enable)
-      assert.are.equal(5000, sp.port)
       assert.are.equal("parent", sp.tab_label)
     end)
 

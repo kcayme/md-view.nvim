@@ -37,7 +37,6 @@ M.defaults = {
   },
   single_page = {
     enable = false,
-    port = 4999,
     tab_label = "parent",
   },
 }

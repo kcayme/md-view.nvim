@@ -21,7 +21,7 @@ local function ensure_mux(opts)
     _mux = mux_mod.new()
   end
   if not _mux.server then
-    local ok = _mux:start(opts.host, opts.single_page.port)
+    local ok = _mux:start(opts.host, opts.port)
     if not ok then
       -- tcp.lua already called vim.notify on bind failure
       _mux = nil

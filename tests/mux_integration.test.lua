@@ -84,7 +84,7 @@ describe("preview mux integration", function()
 
     config.setup({
       filetypes = { "markdown" },
-      single_page = { enable = true, port = 4999, tab_label = "filename" },
+      single_page = { enable = true, tab_label = "filename" },
     })
     vim.g.md_view_mux_vimleave_registered = nil
     vim.g.md_view_vimleave_registered = nil
