@@ -132,6 +132,36 @@ describe("handlers/direct", function()
       direct.serve_vendor(req, res, {})
       assert.equals("text/css", res._send_file_ct)
     end)
+
+    it("responds 404 for filenames containing path separators", function()
+      local res = mock_res()
+      local req = { params = { file = "../../etc/passwd" }, query = {} }
+      direct.serve_vendor(req, res, {})
+      assert.equals("404 Not Found", res._status)
+    end)
+  end)
+
+  -- ── serve_shell ───────────────────────────────────────────────────────
+  describe("serve_shell", function()
+    local bufnr
+
+    after_each(function()
+      if bufnr then
+        pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+        bufnr = nil
+      end
+    end)
+
+    it("responds 200 with text/html", function()
+      bufnr = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_name(bufnr, "/home/user/docs/readme.md")
+      local res = mock_res()
+      direct.serve_shell({}, res, mock_ctx(bufnr))
+      assert.equals("200 OK", res._status)
+      assert.equals("text/html", res._ct)
+      assert.is_not_nil(res._body)
+      assert.is_true(#res._body > 0)
+    end)
   end)
 
   -- ── serve_file ────────────────────────────────────────────────────────

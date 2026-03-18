@@ -22,6 +22,10 @@ end
 
 function M.serve_vendor(req, res, _ctx)
   local filename = req.params.file
+  if not filename or not filename:match("^[%w%.%-_]+$") then
+    res.send("404 Not Found", "text/plain", "Not Found")
+    return
+  end
   local ext = filename:match("%.([^%.]+)$")
   local content_type = ext == "css" and "text/css" or "application/javascript"
   res.send_file(vendor.vendor_dir() .. "/" .. filename, content_type)
