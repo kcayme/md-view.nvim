@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check formatting (stylua)
+        uses: JohnnyMorganz/stylua-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: latest
+          args: --check lua/
+
+      - name: Install selene
+        run: |
+          url=$(curl -fsSL https://api.github.com/repos/Kampfkarren/selene/releases/latest \
+            | jq -r '.assets[] | select(.name | test("^selene-[0-9].*-linux\\.zip$")) | .browser_download_url')
+          curl -fsSL "$url" -o selene.zip
+          unzip -q selene.zip selene
+          chmod +x selene
+          sudo mv selene /usr/local/bin/
+
+      - name: Lint source files (selene)
+        run: selene lua/
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Neovim (stable)
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: Install plenary.nvim
+        run: |
+          mkdir -p ~/.local/share/nvim/lazy
+          git clone --depth 1 https://github.com/nvim-lua/plenary.nvim \
+            ~/.local/share/nvim/lazy/plenary.nvim
+
+      - name: Run tests
+        run: make test
