@@ -4,12 +4,15 @@ TEST_FILES := $(wildcard $(TESTS_DIR)/*.test.lua)
 
 .PHONY: test
 test:
-	@for f in $(TEST_FILES); do \
+	@failed=0; \
+	for f in $(TEST_FILES); do \
 		nvim --headless -u $(INIT) \
 			-c "set rtp+=." \
 			-c "runtime plugin/plenary.vim" \
-			-c "lua require('plenary.busted').run('$$f')" ; \
-	done
+			-c "lua require('plenary.busted').run('$$f')" \
+		|| failed=1; \
+	done; \
+	exit $$failed
 
 .PHONY: test-file
 test-file:
