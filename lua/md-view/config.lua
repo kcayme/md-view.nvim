@@ -16,7 +16,7 @@ local M = {}
 ---@class MdViewThemeOptions
 ---@field mode MdViewThemeMode
 ---@field syntax string|nil
----@field highlights table<string, string>
+---@field highlights table<string, string|string[]>
 
 ---@class MdViewNotationOptions
 ---@field enable boolean

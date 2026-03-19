@@ -182,7 +182,7 @@ Full [LuaLS / EmmyLua](https://luals.github.io/wiki/annotations/) types for the 
 ---@class MdViewThemeOptions
 ---@field mode MdViewThemeMode
 ---@field syntax string|nil
----@field highlights table<string, string>
+---@field highlights table<string, string|string[]>
 
 ---@class MdViewNotationOptions
 ---@field enable boolean
