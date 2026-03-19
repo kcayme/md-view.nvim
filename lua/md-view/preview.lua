@@ -164,7 +164,9 @@ function M.create(opts)
       h:register(bufnr, bufname, sp.tab_label)
       local entry = h.registry[bufnr]
       h:push("preview_added", { id = bufnr, title = entry.title, label = entry.label })
-      h:push("hub_palette", { css = theme.palette_css(resolved.theme) })
+      local hub_pal_css = opts.theme.mode == "sync" and theme.css(opts.theme.highlights)
+        or theme.palette_css(resolved.theme)
+      h:push("hub_palette", { css = hub_pal_css })
     end
   end
 
@@ -193,7 +195,7 @@ function M.create(opts)
         local h = get_mux()
         if h and h.server then
           h:push("theme", { id = bufnr, css = css })
-          h:push("hub_palette", { css = theme.palette_css(vim.o.background == "light" and "light" or "dark") })
+          h:push("hub_palette", { css = css })
         end
       end,
     })
