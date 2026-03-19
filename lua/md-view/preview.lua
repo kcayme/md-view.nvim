@@ -92,14 +92,15 @@ local function ensure_mux(opts)
   if not _mux.server then
     local handle = router.new(hub_mod.routes, { hub = _mux })
     local srv, p = server.start(opts.host, opts.port, handle)
+
     if not srv then
       _mux = nil
       return nil
     end
+
     _mux.server = srv
     _mux.port = p
-    local hub_url = "http://" .. opts.host .. ":" .. _mux.port
-    vim.notify("[md-view] Hub serving at " .. hub_url)
+
     -- VimLeavePre safety net (registered once)
     if not vim.g.md_view_mux_vimleave_registered then
       vim.g.md_view_mux_vimleave_registered = true
@@ -260,9 +261,12 @@ function M.create(opts)
       -- Hub tab already open — focus event handled by BufEnter autocmd
       vim.notify("[md-view] Preview added to hub at " .. url)
       return
+    else
+      vim.notify("[md-view] Hub serving at " .. url)
     end
+  else
+    vim.notify("[md-view] Serving at " .. url)
   end
-  vim.notify("[md-view] Serving at " .. url)
   util.open_browser(url, opts.browser)
 
   local cleanup_group = vim.api.nvim_create_augroup("md_view_cleanup_" .. bufnr, { clear = true })
