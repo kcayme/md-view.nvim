@@ -254,10 +254,7 @@
     if (panels[d.id]) return; // already registered (SSE reconnect replay)
     panels[d.id] = createPanel(d.id, d.label);
     activateTab(d.id);
-    fetch("/content?id=" + d.id)
-      .then(function(r) { return r.json(); })
-      .then(function(data) { if (panels[d.id]) panels[d.id].renderMarkdown(data.content); })
-      .catch(function(err) { console.error("md-view hub: failed to load content for id=" + d.id, err); });
+    // initial content arrives via SSE content event pushed on connect
   });
 
   source.addEventListener("preview_removed", function(e) {

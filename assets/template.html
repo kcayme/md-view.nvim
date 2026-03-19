@@ -48,14 +48,6 @@
   var container = document.getElementById("content");
   var renderMarkdown = makeRenderer(container, null, errorUI.notifyError, errorUI.clearErrors);
 
-  fetch("/content")
-    .then(function(r) { return r.json(); })
-    .then(function(d) { renderMarkdown(d.content); })
-    .catch(function(e) {
-      console.error("md-view: failed to load initial content", e);
-      container.textContent = "Failed to load preview. Try reopening the preview.";
-    });
-
   var source = new EventSource("/events");
   source.onerror = function() {
     console.warn("md-view: SSE connection lost, waiting to reconnect\u2026");

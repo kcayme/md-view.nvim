@@ -6,6 +6,7 @@ M.__index = M
 ---@field clients table[]
 ---@field last table<integer, table<string, table>>
 ---@field last_hub_palette table|nil
+---@field on_client_added (fun(client: table))|nil
 ---@field server userdata|nil
 ---@field port integer|nil
 
@@ -20,6 +21,7 @@ function M.new()
     clients = {}, -- SSE client list (shared across all previews)
     last = {}, -- last[bufnr][event_type] = data (per-preview replay state)
     last_hub_palette = nil, -- hub-level palette CSS replayed on connect
+    on_client_added = nil, -- set by preview.lua to push initial content on connect
     server = nil,
     port = nil,
   }, M)
@@ -88,6 +90,11 @@ function M:add_client(client)
         end
       end
     end
+  end
+  -- Push initial content after preview_added replay so panels exist in the browser
+  -- when the content events arrive.
+  if self.on_client_added then
+    self.on_client_added(client)
   end
 end
 

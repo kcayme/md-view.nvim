@@ -6,6 +6,7 @@ local M = {}
 ---@field sse MdViewSse
 ---@field watcher table
 
+local uv = vim.uv or vim.loop
 local server = require("md-view.server.tcp")
 local router = require("md-view.server.router")
 local direct = require("md-view.server.handlers.direct")
@@ -22,10 +23,71 @@ local function get_mux()
   return _mux
 end
 
+-- Read current content for bufnr: from buffer if it has unsaved edits, from disk otherwise.
+-- callback(content_string) is always called from the main Neovim thread.
+local function read_content_async(bufnr, callback)
+  local modified = vim.api.nvim_get_option_value("modified", { buf = bufnr })
+  if modified then
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    callback(table.concat(lines, "\n"))
+    return
+  end
+  local filepath = vim.api.nvim_buf_get_name(bufnr)
+  if filepath == "" then
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    callback(table.concat(lines, "\n"))
+    return
+  end
+  uv.fs_open(filepath, "r", 438, function(err, fd)
+    if err or not fd then
+      vim.schedule(function()
+        if vim.api.nvim_buf_is_valid(bufnr) then
+          callback(table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n"))
+        end
+      end)
+      return
+    end
+    uv.fs_fstat(fd, function(ferr, stat)
+      if ferr or not stat then
+        uv.fs_close(fd, function() end)
+        vim.schedule(function()
+          if vim.api.nvim_buf_is_valid(bufnr) then
+            callback(table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n"))
+          end
+        end)
+        return
+      end
+      uv.fs_read(fd, stat.size, 0, function(rerr, data)
+        uv.fs_close(fd, function() end)
+        vim.schedule(function()
+          if rerr or not data then
+            if vim.api.nvim_buf_is_valid(bufnr) then
+              callback(table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n"))
+            end
+          else
+            callback(data)
+          end
+        end)
+      end)
+    end)
+  end)
+end
+
 -- Start hub if not already running. Returns hub instance or nil on failure.
 local function ensure_mux(opts)
   if not _mux then
     _mux = hub_mod.new()
+    _mux.on_client_added = function(client)
+      for buf, _ in pairs(active_previews) do
+        if _mux.registry[buf] then
+          read_content_async(buf, function(content)
+            pcall(function()
+              client:write("event: content\ndata: " .. vim.json.encode({ id = buf, content = content }) .. "\n\n")
+            end)
+          end)
+        end
+      end
+    end
   end
   if not _mux.server then
     local handle = router.new(hub_mod.routes, { hub = _mux })
@@ -105,6 +167,13 @@ function M.create(opts)
   end
 
   local sse_instance = sse.new()
+  sse_instance.on_client_added = function(client)
+    read_content_async(bufnr, function(content)
+      pcall(function()
+        client:write("event: content\ndata: " .. vim.json.encode({ content = content }) .. "\n\n")
+      end)
+    end)
+  end
 
   local theme_css = ""
   if opts.theme.mode == "sync" then

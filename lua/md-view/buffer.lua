@@ -98,6 +98,7 @@ function M.new(deps)
     local filepath = vim_api.nvim_buf_get_name(bufnr)
     local fs_watcher = nil
     local file_content_debounced = nil
+    local watcher_stopped = false
 
     if filepath and filepath ~= "" then
       file_content_debounced = debounce(function()
@@ -129,16 +130,28 @@ function M.new(deps)
         end)
       end, debounce_ms)
 
-      -- Note: rename-based writers (sed -i, rsync, etc.) will silently stop the watcher.
+      -- Rename-based writers (Claude Code, sed -i, rsync, etc.) atomically replace the
+      -- file, which kills the inotify watch on the old inode. Detect the rename event and
+      -- restart the watcher on the new file at the same path so live updates keep working.
       local handle = uv.new_fs_event()
-      local ok = pcall(function()
-        handle:start(filepath, {}, function(ferr, _name, _events)
+      local function start_watching()
+        if watcher_stopped then
+          return
+        end
+        handle:start(filepath, {}, function(ferr, _name, events)
           if ferr then
             return
           end
+          if events and events.rename then
+            handle:stop()
+            vim_api.schedule(function()
+              pcall(start_watching)
+            end)
+          end
           file_content_debounced()
         end)
-      end)
+      end
+      local ok = pcall(start_watching)
       if ok then
         fs_watcher = handle
       else
@@ -152,6 +165,7 @@ function M.new(deps)
       autocmd_ids = ids,
       group = group,
       stop = function()
+        watcher_stopped = true
         content_debounced.stop()
         scroll_debounced.stop()
         vim_api.nvim_del_augroup_by_id(group)
