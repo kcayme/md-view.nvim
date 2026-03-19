@@ -348,7 +348,7 @@ require("md-view").setup({ theme = { mode = "sync" } })
 
 ![Colorscheme sync](docs/demo/colorscheme-sync.png)
 
-Use `theme.highlights` to customize which highlight groups are sampled per CSS variable:
+Use `theme.highlights` to override which highlight groups are sampled per CSS variable. Values can be a single group name or a list — the first group that has the attribute wins:
 
 ```lua
 require("md-view").setup({
@@ -361,6 +361,27 @@ require("md-view").setup({
   },
 })
 ```
+
+Available keys and their defaults (all keys only apply when `theme.mode = "sync"`):
+
+| Key | CSS variable | Controls | Default groups (tried in order) |
+|-----|-------------|----------|---------------------------------|
+| `bg` | `--md-bg` | Page background | `Normal` (bg) |
+| `fg` | `--md-fg` | Body text | `Normal` (fg) |
+| `heading` | `--md-heading` | Headings | `Title`, `@markup.heading`, `Normal` (fg) |
+| `bold` | `--md-bold` | Bold text | `@markup.strong`, `@markup.bold`, `Normal` (fg) |
+| `muted` | `--md-muted` | Muted / secondary text | `Comment` (fg) |
+| `blockquote` | `--md-blockquote` | Blockquote text | `@markup.quote`, `Comment`, `Normal` (fg) |
+| `link` | `--md-link` | Hyperlinks | `@markup.link.url`, `@markup.link`, `Underlined` (fg) |
+| `code` | `--md-code-fg` | Inline code text | `Statement`, `@markup.raw`, `String` (fg) |
+| `code_bg` | `--md-code-bg` | Inline code and code block background | `CursorLine`, `Pmenu` (bg) |
+| `pre_fg` | `--md-pre-fg` | Code block text | `Normal` (fg) |
+| `border` | `--md-border` | Borders and dividers | `WinSeparator`, `VertSplit` (fg) |
+| `checkbox` | `--md-checkbox` | Checkboxes | `DiagnosticInfo`, `Function` (fg) |
+| `table_header_bg` | `--md-table-header-bg` | Table header background | `CursorLine`, `Pmenu` (bg) |
+| `row_alt` | `--md-row-alt` | Alternating row background | `CursorLine` (bg) |
+
+> **Note:** The `bold` key (`--md-bold`) defaults to `inherit` in the built-in `auto`/`dark`/`light` palettes. In `sync` mode it extracts the foreground color from the groups listed above.
 
 `theme.highlights` has no effect when `theme.mode` is not `"sync"`.
 
