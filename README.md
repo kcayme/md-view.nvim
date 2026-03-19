@@ -6,6 +6,7 @@ Opens a browser tab that renders your markdown buffer — including mermaid diag
 
 ![Demo](docs/demo/demo.gif)
 ![Colorscheme Sync](docs/demo/colorscheme-sync.png)
+![Single Page Mode](docs/demo/single-page.png)
 
 ## Why another markdown preview plugin?
 
@@ -41,6 +42,7 @@ installed. I wanted something that's lightweight and just works out of the box �
 - **Zero dependencies** — pure Lua, no Node.js/Deno/external processes (`curl` optional for offline asset fetch)
 - **Multi-buffer** — each buffer gets its own server on an auto-assigned port
 - **Auto-cleanup** — servers shut down when buffers close or Neovim exits
+- **Single Page Mode** — preview all your markdown files in 1 browser tab
 
 ## Requirements
 
