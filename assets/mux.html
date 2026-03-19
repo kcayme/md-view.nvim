@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>md-view</title>
+{{CORE_SCRIPTS}}
+{{MERMAID_TAGS}}
+{{KATEX}}
+{{GRAPHVIZ}}
+{{WAVEDROM}}
+{{NOMNOML}}
+{{ABCJS}}
+{{VEGALITE}}
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --md-mono: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", system-ui, Ubuntu, "Droid Sans", sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--md-fg);
+    background: var(--md-bg);
+    padding: 0;
+    max-width: none;
+    margin: 0;
+    word-wrap: break-word;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  #hub-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--md-border, #30363d);
+    background: var(--md-code-bg, #161b22);
+    overflow-x: auto;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    scrollbar-color: var(--md-border, #30363d) var(--md-code-bg, #161b22);
+    scrollbar-width: thin;
+  }
+  #hub-tabs::-webkit-scrollbar { height: 0.375rem; }
+  #hub-tabs::-webkit-scrollbar-track { background: var(--md-code-bg, #161b22); }
+  #hub-tabs::-webkit-scrollbar-thumb { background: var(--md-border, #30363d); border-radius: 0.25rem; }
+  #hub-tabs::-webkit-scrollbar-thumb:hover { background: var(--md-muted, #8b949e); }
+  .hub-tab-wrap {
+    display: flex;
+    align-items: stretch;
+    max-width: 12rem;
+    flex-shrink: 0;
+    border-bottom: 2px solid transparent;
+  }
+  .hub-tab-wrap.active {
+    border-bottom-color: var(--md-link, #58a6ff);
+    background: var(--md-bg, #0d1117);
+  }
+  .hub-tab {
+    padding: 0.5rem 0.5rem 0.5rem 1rem;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--md-muted, #8b949e);
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    direction: rtl;
+    border-bottom: none;
+  }
+  .hub-tab:hover { color: var(--md-fg, #e6edf3); }
+  .hub-tab-wrap.active .hub-tab { color: var(--md-fg, #e6edf3); }
+  .hub-tab-close {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.375rem;
+    border: none;
+    background: transparent;
+    color: var(--md-muted, #8b949e);
+    cursor: pointer;
+    line-height: 0;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+  }
+  .hub-tab-wrap:hover .hub-tab-close { opacity: 1; }
+  .hub-tab-close:hover { color: var(--md-fg, #e6edf3); }
+  #hub-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    color: var(--md-muted, #8b949e);
+    font-size: 0.875rem;
+    min-height: 8rem;
+  }
+  #hub-panels { flex: 1; display: flex; flex-direction: column; }
+  .hub-panel {
+    display: none;
+    padding: 0 1.625rem;
+    max-width: 882px;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+  .hub-panel.active { display: block; }
+  {{PROSE_CSS}}
+  {{PALETTE_CSS}}
+  {{THEME_CSS}}
+  {{CSS}}
+</style>
+</head>
+<body>
+<nav id="hub-tabs"></nav>
+<div id="hub-panels">
+  <div id="hub-empty">No preview opened.</div>
+</div>
+<script>
+(function() {
+  // BroadcastChannel tab dedup — key "md-view-hub" distinct from per-preview keys
+  var channel = new BroadcastChannel("md-view-hub");
+  var source = new EventSource("/sse");
+  channel.onmessage = function(e) {
+    if (e.data === "takeover") {
+      source.close();
+      channel.close();
+      window.close();
+      document.body.innerHTML = '<p style="text-align:center;margin-top:40vh;color:#888;">Preview moved to new tab</p>';
+    }
+  };
+  channel.postMessage("takeover");
+
+  var tabsEl   = document.getElementById("hub-tabs");
+  var panelsEl = document.getElementById("hub-panels");
+  var panels   = {}; // id -> { container, renderMarkdown, applyTheme, applyPalette, scrollTo }
+  var activeId = null;
+
+  if (typeof mermaid !== 'undefined') {
+    mermaid.initialize({ startOnLoad: false, theme: "{{MERMAID_THEME}}" });
+  }
+
+  {{RENDER_JS}}
+
+  var emptyEl = document.getElementById("hub-empty");
+
+  function activateTab(id) {
+    if (activeId === id) return;
+    activeId = id;
+    tabsEl.querySelectorAll(".hub-tab-wrap").forEach(function(wrap) {
+      wrap.classList.toggle("active", wrap.dataset.id == id);
+    });
+    panelsEl.querySelectorAll(".hub-panel").forEach(function(div) {
+      div.classList.toggle("active", div.dataset.id == id);
+    });
+  }
+
+  var ICON_X = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+
+  function createPanel(id, label) {
+    // Tab wrapper (label button + close button)
+    var wrap = document.createElement("div");
+    wrap.className = "hub-tab-wrap";
+    wrap.dataset.id = id;
+
+    var btn = document.createElement("button");
+    btn.className = "hub-tab";
+    btn.textContent = label;
+    btn.title = label;
+    btn.addEventListener("click", function() { activateTab(id); });
+
+    var closeBtn = document.createElement("button");
+    closeBtn.className = "hub-tab-close";
+    closeBtn.title = "Close preview";
+    closeBtn.innerHTML = ICON_X;
+    closeBtn.addEventListener("click", function(e) {
+      e.stopPropagation();
+      removePanel(id);
+    });
+
+    wrap.appendChild(btn);
+    wrap.appendChild(closeBtn);
+    tabsEl.appendChild(wrap);
+    emptyEl.style.display = "none";
+
+    // Panel div
+    var panel = document.createElement("div");
+    panel.className = "hub-panel";
+    panel.dataset.id = id;
+    var container = document.createElement("div");
+    container.id = "content-" + id;
+    panel.appendChild(container);
+    panelsEl.appendChild(panel);
+
+    var errorUI = makeErrorUI();
+    var renderMarkdown = makeRenderer(container, id, errorUI.notifyError, errorUI.clearErrors);
+
+    function applyTheme(css) {
+      var styleId = "md-view-theme-" + id;
+      var el = document.getElementById(styleId);
+      if (el) el.remove();
+      el = document.createElement("style");
+      el.id = styleId;
+      el.textContent = css;
+      document.head.appendChild(el);
+    }
+
+    function applyPalette(css) {
+      var styleId = "md-view-palette-" + id;
+      var el = document.getElementById(styleId);
+      if (el) el.remove();
+      el = document.createElement("style");
+      el.id = styleId;
+      el.textContent = css;
+      document.head.appendChild(el);
+    }
+
+    function scrollTo(data) {
+      if (!panel.classList.contains("active")) return;
+      scrollToSource(container, data);
+    }
+
+    return { renderMarkdown: renderMarkdown, applyTheme: applyTheme, applyPalette: applyPalette, scrollTo: scrollTo };
+  }
+
+  function removePanel(id) {
+    var wrap = tabsEl.querySelector(".hub-tab-wrap[data-id='" + id + "']");
+    if (wrap) wrap.remove();
+    var panel = panelsEl.querySelector(".hub-panel[data-id='" + id + "']");
+    if (panel) panel.remove();
+    ["md-view-theme-", "md-view-palette-"].forEach(function(prefix) {
+      var el = document.getElementById(prefix + id);
+      if (el) el.remove();
+    });
+    delete panels[id];
+    if (activeId == id) {
+      var firstWrap = tabsEl.querySelector(".hub-tab-wrap");
+      activeId = null;
+      if (firstWrap) activateTab(firstWrap.dataset.id);
+    }
+    if (Object.keys(panels).length === 0) {
+      emptyEl.style.display = "";
+    }
+  }
+
+  source.addEventListener("preview_added", function(e) {
+    var d = safeParse(e.data);
+    if (!d) return;
+    if (panels[d.id]) return; // already registered (SSE reconnect replay)
+    panels[d.id] = createPanel(d.id, d.label);
+    activateTab(d.id);
+    fetch("/content?id=" + d.id)
+      .then(function(r) { return r.json(); })
+      .then(function(data) { if (panels[d.id]) panels[d.id].renderMarkdown(data.content); })
+      .catch(function(err) { console.error("md-view hub: failed to load content for id=" + d.id, err); });
+  });
+
+  source.addEventListener("preview_removed", function(e) {
+    var d = safeParse(e.data);
+    if (d && panels[d.id]) removePanel(d.id);
+  });
+
+  source.addEventListener("focus", function(e) {
+    var d = safeParse(e.data);
+    if (d && panels[d.id]) activateTab(d.id);
+  });
+
+  source.addEventListener("content", function(e) {
+    var d = safeParse(e.data);
+    if (d && panels[d.id]) panels[d.id].renderMarkdown(d.content);
+  });
+
+  source.addEventListener("scroll", function(e) {
+    var d = safeParse(e.data);
+    if (d && panels[d.id]) panels[d.id].scrollTo(d);
+  });
+
+  source.addEventListener("theme", function(e) {
+    var d = safeParse(e.data);
+    if (d && panels[d.id]) panels[d.id].applyTheme(d.css);
+  });
+
+  source.addEventListener("palette", function(e) {
+    var d = safeParse(e.data);
+    if (d && panels[d.id]) panels[d.id].applyPalette(d.css);
+  });
+
+  source.addEventListener("hub_palette", function(e) {
+    var d = safeParse(e.data);
+    if (!d) return;
+    var el = document.getElementById("md-view-hub-palette");
+    if (!el) {
+      el = document.createElement("style");
+      el.id = "md-view-hub-palette";
+      document.head.appendChild(el);
+    }
+    el.textContent = d.css;
+  });
+
+  source.addEventListener("close", function() {
+    source.close();
+    window.close();
+  });
+
+  source.onerror = function() {
+    console.warn("md-view hub: SSE connection lost, waiting to reconnect\u2026");
+  };
+})();
+</script>
+</body>
+</html>

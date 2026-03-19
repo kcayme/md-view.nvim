@@ -6,40 +6,54 @@ local vendor = require("md-view.vendor")
 -- (127.0.0.1) rendering the user's own markdown buffer content. No untrusted
 -- external content is involved. morphdom requires innerHTML for DOM diffing.
 
--- Three states: nil = not yet tried, false = failed, string = loaded
-local TEMPLATE
-
-local function load_template()
-  if type(TEMPLATE) == "string" then
-    return TEMPLATE
+-- Asset cache: nil = not yet tried, false = failed, string = loaded content
+local function load_asset(name, cache)
+  -- cache is a table cell: { value } where value is nil/false/string
+  if type(cache[1]) == "string" then
+    return cache[1]
   end
-  if TEMPLATE == false then
+  if cache[1] == false then
     return nil
   end
-
-  local path = vim.api.nvim_get_runtime_file("assets/template.html", false)[1]
+  local path = vim.api.nvim_get_runtime_file("assets/" .. name, false)[1]
   if not path then
-    vim.notify("md-view.nvim: could not find assets/template.html in runtimepath", vim.log.levels.ERROR)
-    TEMPLATE = false
+    vim.notify("md-view.nvim: could not find assets/" .. name .. " in runtimepath", vim.log.levels.ERROR)
+    cache[1] = false
     return nil
   end
-
-  local fh, err = io.open(path, "rb") -- binary mode: no CRLF translation on Windows
+  local fh, err = io.open(path, "rb")
   if not fh then
     vim.notify("md-view.nvim: could not open " .. path .. ": " .. (err or ""), vim.log.levels.ERROR)
-    TEMPLATE = false
+    cache[1] = false
     return nil
   end
-
   local content = fh:read("*a")
   fh:close()
   if not content or content == "" then
-    vim.notify("md-view.nvim: assets/template.html is empty or unreadable", vim.log.levels.ERROR)
-    TEMPLATE = false
+    vim.notify("md-view.nvim: assets/" .. name .. " is empty or unreadable", vim.log.levels.ERROR)
+    cache[1] = false
     return nil
   end
-  TEMPLATE = content
-  return TEMPLATE
+  cache[1] = content
+  return content
+end
+
+local _template = { nil }
+local _mux = { nil }
+local _prose_css = { nil }
+local _render_js = { nil }
+
+local function load_template()
+  return load_asset("template.html", _template)
+end
+local function load_mux_template()
+  return load_asset("mux.html", _mux)
+end
+local function load_prose_css()
+  return load_asset("common.css", _prose_css)
+end
+local function load_render_js()
+  return load_asset("common.js", _render_js)
 end
 
 local VALID_MERMAID_THEMES = {
@@ -58,29 +72,13 @@ local function sanitize_theme_name(name)
   return name:gsub("[^%w_%-]", "")
 end
 
-function M.render(opts, filename)
-  local tmpl = load_template()
-  if not tmpl then
-    return ""
-  end
-  local css = opts.css or ""
-  local mermaid_theme = opts.mermaid and opts.mermaid.theme or "default"
-  local highlight_theme = opts.highlight_theme or "vs2015"
-  local title = filename and filename ~= "" and filename or "md-view"
-  local theme_css = opts.theme_css or ""
-  local palette_css = opts.palette_css or ""
-
-  if not VALID_MERMAID_THEMES[mermaid_theme] then
-    mermaid_theme = "default"
-  end
-  highlight_theme = sanitize_theme_name(highlight_theme)
-  title = html_escape(title)
-
+local function build_script_tags(opts)
   local use_local = vendor.is_available()
   local function asset_src(local_name, cdn_url)
     return use_local and ("/vendor/" .. local_name) or cdn_url
   end
 
+  local highlight_theme = sanitize_theme_name(opts.highlight_theme or "vs2015")
   local highlight_link = ""
   if opts.theme ~= "sync" then
     highlight_link = '<link rel="stylesheet" href="'
@@ -178,6 +176,37 @@ function M.render(opts, filename)
       .. '"></script>'
   end
 
+  local mermaid_theme = opts.mermaid and opts.mermaid.theme or "default"
+  if not VALID_MERMAID_THEMES[mermaid_theme] then
+    mermaid_theme = "default"
+  end
+
+  return {
+    core_scripts = core_scripts,
+    mermaid_tags = mermaid_tags,
+    katex = katex_tags,
+    graphviz = graphviz_tags,
+    wavedrom = wavedrom_tags,
+    nomnoml = nomnoml_tags,
+    abcjs = abcjs_tag,
+    vegalite = vegalite_tags,
+    mermaid_theme = mermaid_theme,
+  }
+end
+
+function M.render(opts, filename)
+  local tmpl = load_template()
+  if not tmpl then
+    return ""
+  end
+  local css = opts.css or ""
+  local title = filename and filename ~= "" and filename or "md-view"
+  local theme_css = opts.theme_css or ""
+  local palette_css = opts.palette_css or ""
+  title = html_escape(title)
+
+  local tags = build_script_tags(opts)
+
   local html = tmpl
     :gsub("{{PALETTE_CSS}}", function()
       return palette_css
@@ -189,36 +218,98 @@ function M.render(opts, filename)
       return css
     end)
     :gsub("{{MERMAID_THEME}}", function()
-      return mermaid_theme
+      return tags.mermaid_theme
     end)
     :gsub("{{CORE_SCRIPTS}}", function()
-      return core_scripts
+      return tags.core_scripts
     end)
     :gsub("{{MERMAID_TAGS}}", function()
-      return mermaid_tags
+      return tags.mermaid_tags
     end)
     :gsub("{{KATEX}}", function()
-      return katex_tags
+      return tags.katex
     end)
     :gsub("{{GRAPHVIZ}}", function()
-      return graphviz_tags
+      return tags.graphviz
     end)
     :gsub("{{WAVEDROM}}", function()
-      return wavedrom_tags
+      return tags.wavedrom
     end)
     :gsub("{{NOMNOML}}", function()
-      return nomnoml_tags
+      return tags.nomnoml
     end)
     :gsub("{{ABCJS}}", function()
-      return abcjs_tag
+      return tags.abcjs
     end)
     :gsub("{{VEGALITE}}", function()
-      return vegalite_tags
+      return tags.vegalite
     end)
     :gsub("{{TITLE}}", function()
       return title
     end)
+    :gsub("{{PROSE_CSS}}", function()
+      return load_prose_css() or ""
+    end)
+    :gsub("{{RENDER_JS}}", function()
+      return load_render_js() or ""
+    end)
   return html
+end
+
+-- Render the mux shell page. Same CDN scripts as render(); title is "md-view".
+function M.render_mux(opts)
+  local tmpl = load_mux_template()
+  if not tmpl then
+    return ""
+  end
+  opts = opts or {}
+  local tags = build_script_tags(opts)
+  local css = opts.css or ""
+  local theme_css = opts.theme_css or ""
+  local palette_css = opts.palette_css or ""
+  return tmpl
+    :gsub("{{PALETTE_CSS}}", function()
+      return palette_css
+    end)
+    :gsub("{{THEME_CSS}}", function()
+      return theme_css
+    end)
+    :gsub("{{CSS}}", function()
+      return css
+    end)
+    :gsub("{{MERMAID_THEME}}", function()
+      return tags.mermaid_theme
+    end)
+    :gsub("{{CORE_SCRIPTS}}", function()
+      return tags.core_scripts
+    end)
+    :gsub("{{MERMAID_TAGS}}", function()
+      return tags.mermaid_tags
+    end)
+    :gsub("{{KATEX}}", function()
+      return tags.katex
+    end)
+    :gsub("{{GRAPHVIZ}}", function()
+      return tags.graphviz
+    end)
+    :gsub("{{WAVEDROM}}", function()
+      return tags.wavedrom
+    end)
+    :gsub("{{NOMNOML}}", function()
+      return tags.nomnoml
+    end)
+    :gsub("{{ABCJS}}", function()
+      return tags.abcjs
+    end)
+    :gsub("{{VEGALITE}}", function()
+      return tags.vegalite
+    end)
+    :gsub("{{PROSE_CSS}}", function()
+      return load_prose_css() or ""
+    end)
+    :gsub("{{RENDER_JS}}", function()
+      return load_render_js() or ""
+    end)
 end
 
 return M

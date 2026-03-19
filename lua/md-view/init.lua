@@ -31,6 +31,7 @@ local function register_auto_open_augroup()
   })
 end
 
+---@param opts MdViewOptions|nil
 function M.setup(opts)
   current_live_theme = nil
   config.setup(opts)
@@ -45,6 +46,7 @@ function M.setup(opts)
   end
 end
 
+---@param opts { silent?: boolean }|nil
 function M.open(opts)
   opts = opts or {}
   if not config.options then
@@ -81,10 +83,12 @@ function M.open(opts)
   end
 end
 
+---@param bufnr integer|nil
 function M.stop(bufnr)
   preview.destroy(bufnr)
 end
 
+---@return nil
 function M.toggle()
   local bufnr = vim.api.nvim_get_current_buf()
   if preview.get(bufnr) then
@@ -94,14 +98,17 @@ function M.toggle()
   end
 end
 
+---@return table<integer, table>
 function M.get_active_previews()
   return preview.get_active()
 end
 
+---@return nil
 function M.list()
   require("md-view.picker").open()
 end
 
+---@return nil
 function M.toggle_auto_open()
   if not config.options then
     config.setup({})
@@ -117,6 +124,7 @@ function M.toggle_auto_open()
   end
 end
 
+---@param mode MdViewThemeMode|nil
 function M.set_theme(mode)
   -- Validate explicit arg first (before checking active previews)
   if mode and mode ~= "" then
@@ -161,8 +169,16 @@ function M.set_theme(mode)
 
   -- Push to all active previews
   local css = compute_live_css()
-  for _, p in pairs(preview.get_active()) do
+  local h = preview.get_mux and preview.get_mux()
+  for bufnr, p in pairs(preview.get_active()) do
     p.sse:push("palette", { css = css })
+    if h and h.server then
+      h:push("palette", { id = bufnr, css = css })
+    end
+  end
+  -- Push hub-level palette so the chrome (tab bar, body) updates immediately
+  if h and h.server then
+    h:push("hub_palette", { css = css })
   end
 
   vim.notify("[md-view] theme: " .. notified_mode, vim.log.levels.INFO)

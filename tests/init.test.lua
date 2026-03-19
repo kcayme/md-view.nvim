@@ -109,4 +109,40 @@ describe("md-view init", function()
 
     assert.are.equal(0, #notify_calls, "expected no notifications when curl is absent")
   end)
+
+  it("forwards palette to hub SSE when set_theme is called in hub mode", function()
+    local hub_pushed = {}
+    local fake_mux = {
+      server = "mock",
+      push = function(self, et, data)
+        table.insert(hub_pushed, { event_type = et, data = data })
+      end,
+    }
+    -- Re-inject preview mock with hub support (must clear md-view first)
+    package.loaded["md-view"] = nil
+    package.loaded["md-view.preview"] = {
+      create = function() end,
+      get = function()
+        return nil
+      end,
+      destroy = function() end,
+      get_active = function()
+        return { [1] = { sse = { push = function() end } } }
+      end,
+      get_mux = function()
+        return fake_mux
+      end,
+    }
+    M = require("md-view")
+    M.setup({ single_page = { enable = true } })
+    -- Seed a live theme so set_theme has state to push
+    M.set_theme("dark")
+    local found = false
+    for _, ev in ipairs(hub_pushed) do
+      if ev.event_type == "palette" and ev.data.id == 1 then
+        found = true
+      end
+    end
+    assert.is_true(found, "palette not forwarded to hub")
+  end)
 end)

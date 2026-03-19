@@ -142,6 +142,18 @@ require("md-view").setup({
 
 ---
 
+## Custom `prompt`
+
+The picker title defaults to `"Markdown Previews"`. Override it with:
+
+```lua
+require("md-view").setup({
+  picker = { prompt = "My Previews" },
+})
+```
+
+---
+
 ## Custom `format_item` tips
 
 The default format is `"name  http://host:port"`. A few common customisations:

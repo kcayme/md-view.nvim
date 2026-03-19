@@ -1,5 +1,15 @@
 local M = {}
 
+---@class MdViewResolvedTheme
+---@field theme "light"|"dark"
+---@field highlight_theme string
+---@field mermaid_theme string
+
+---@class MdViewThemeMapping
+---@field var string CSS variable name (e.g. "--md-bg")
+---@field groups string[] Neovim highlight groups to try in order
+---@field attr "fg"|"bg" Attribute to extract from the highlight group
+
 local PALETTES = {
   dark = {
     ["--md-bg"] = "#0d1117",
@@ -101,6 +111,8 @@ local KEY_TO_VAR = {
   row_alt = "--md-row-alt",
 }
 
+---@param overrides table<string, string|string[]>|nil
+---@return MdViewThemeMapping[]
 function M.build_mappings(overrides)
   if not overrides or vim.tbl_isempty(overrides) then
     return mappings
@@ -130,6 +142,8 @@ local function int_to_hex(val)
   return string.format("#%06x", val)
 end
 
+---@param custom_mappings MdViewThemeMapping[]|nil
+---@return table<string, string>
 function M.extract(custom_mappings)
   local map = custom_mappings or mappings
   local vars = {}
@@ -153,6 +167,7 @@ function M.extract(custom_mappings)
   return vars
 end
 
+---@return string[]
 function M.extract_hljs()
   local rules = {}
   for _, m in ipairs(hljs_mappings) do
@@ -174,6 +189,8 @@ function M.extract_hljs()
   return rules
 end
 
+---@param vars table<string, string>
+---@return string
 function M.to_css(vars)
   local parts = { ":root {" }
   for var, val in pairs(vars) do
@@ -183,6 +200,8 @@ function M.to_css(vars)
   return table.concat(parts, "\n")
 end
 
+---@param overrides table<string, string|string[]>
+---@return string
 function M.css(overrides)
   local merged = M.build_mappings(overrides)
   local css = M.to_css(M.extract(merged))
@@ -193,10 +212,14 @@ function M.css(overrides)
   return css
 end
 
+---@param theme_name string
+---@return string
 function M.palette_css(theme_name)
   return M.to_css(PALETTES[theme_name] or PALETTES.dark)
 end
 
+---@param opts MdViewOptions
+---@return MdViewResolvedTheme
 function M.resolve(opts)
   local resolved_theme = opts.theme.mode
   if resolved_theme ~= "light" and resolved_theme ~= "dark" then

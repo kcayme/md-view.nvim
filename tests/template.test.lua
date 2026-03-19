@@ -40,7 +40,7 @@ describe("template", function()
       -- Guard variable must be declared and checked at function entry so that
       -- concurrent SSE replay + fetch("/content") arriving with identical text
       -- does not trigger two mermaid.run() calls (which would cause flicker).
-      assert.truthy(html:find("lastRenderedContent"))
+      assert.truthy(html:find("lastContent"))
     end)
 
     it("injects the title", function()
@@ -258,16 +258,18 @@ describe("template", function()
     end)
 
     it("should include error popup markup", function()
-      assert.truthy(html:find('id="notation%-popup"'))
-      assert.truthy(html:find('class="notation%-popup%-header"'))
-      assert.truthy(html:find('id="notation%-popup%-body"'))
-      assert.truthy(html:find('id="notation%-popup%-close"'))
+      -- Popup is built dynamically in JS (makeErrorUI) — check class name strings
+      assert.truthy(html:find('"notation%-popup"'))
+      assert.truthy(html:find('"notation%-popup%-header"'))
+      assert.truthy(html:find('"notation%-popup%-body"'))
+      assert.truthy(html:find("popupClose"))
     end)
 
     it("should include floating action button markup", function()
-      assert.truthy(html:find('id="notation%-fab"'))
-      assert.truthy(html:find('id="notation%-fab%-badge"'))
-      assert.truthy(html:find('style="display:none"'))
+      -- FAB is built dynamically in JS (makeErrorUI) — check class name strings
+      assert.truthy(html:find('"notation%-fab"'))
+      assert.truthy(html:find('"notation%-fab%-badge"'))
+      assert.truthy(html:find('fab%.style%.display = "none"'))
     end)
 
     it("should not include old toast markup", function()
@@ -277,8 +279,8 @@ describe("template", function()
       assert.is_nil(html:find("toastQueue"))
     end)
 
-    it("should define notifyError with notation and source parameters", function()
-      assert.truthy(html:find("function notifyError%(notation, source%)"))
+    it("should define notifyError with notation and src parameters", function()
+      assert.truthy(html:find("function notifyError%(notation, src%)"))
     end)
 
     it("should reset error state at start of renderMarkdown", function()
@@ -287,35 +289,36 @@ describe("template", function()
     end)
 
     it("should pass source to notifyError for Mermaid errors", function()
-      assert.truthy(html:find('notifyError%("Mermaid", mermaidSources'))
+      -- makeRenderer calls onError (the injected notifyError callback)
+      assert.truthy(html:find('onError%("Mermaid", mermaidSources'))
     end)
 
     it("should pass source to notifyError for KaTeX errors", function()
-      assert.truthy(html:find('notifyError%("KaTeX", source%)'))
+      assert.truthy(html:find('onError%("KaTeX", source%)'))
     end)
 
     it("should pass source to notifyError for Graphviz errors", function()
-      assert.truthy(html:find('notifyError%("Graphviz", source%)'))
+      assert.truthy(html:find('onError%("Graphviz", source%)'))
     end)
 
     it("should pass source to notifyError for WaveDrom errors", function()
-      assert.truthy(html:find('notifyError%("WaveDrom", source%)'))
+      assert.truthy(html:find('onError%("WaveDrom", source%)'))
     end)
 
     it("should pass source to notifyError for Nomnoml errors", function()
-      assert.truthy(html:find('notifyError%("Nomnoml", source%)'))
+      assert.truthy(html:find('onError%("Nomnoml", source%)'))
     end)
 
     it("should pass source to notifyError for ABC errors", function()
-      assert.truthy(html:find('notifyError%("ABC", source%)'))
+      assert.truthy(html:find('onError%("ABC", source%)'))
     end)
 
     it("should pass source to notifyError for all Vega-Lite error paths", function()
-      -- Find all notifyError("Vega-Lite" calls and ensure none are missing source
+      -- Find all onError("Vega-Lite" calls and ensure none are missing source
       local pos = 1
       local count = 0
       while true do
-        local s = html:find('notifyError%("Vega%-Lite"', pos)
+        local s = html:find('onError%("Vega%-Lite"', pos)
         if not s then
           break
         end
@@ -498,7 +501,7 @@ describe("template", function()
       io.open = orig_open
     end)
 
-    it("calls io.open only once across two render calls", function()
+    it("reads each asset file once and caches for subsequent renders", function()
       local open_count = 0
       io.open = function(path, mode)
         open_count = open_count + 1
@@ -515,7 +518,35 @@ describe("template", function()
       }
       M.render(opts, "test.md")
       M.render(opts, "test.md")
-      assert.equals(1, open_count)
+      -- render() loads template.html, common.css, common.js (3 assets) on first call;
+      -- all are cached so second render triggers no additional io.open calls.
+      assert.equals(3, open_count)
     end)
+  end)
+end)
+
+describe("render_mux", function()
+  it("returns non-empty HTML", function()
+    local html = template.render_mux({
+      css = "",
+      theme_css = "",
+      palette_css = "",
+      theme = { mode = "dark", syntax = nil },
+      highlight_theme = "vs2015",
+      mermaid = { theme = "default" },
+      notations = {
+        mermaid = { enable = true },
+        katex = { enable = false },
+        graphviz = { enable = false },
+        wavedrom = { enable = false },
+        nomnoml = { enable = false },
+        abc = { enable = false },
+        vegalite = { enable = false },
+      },
+    })
+    assert.is_truthy(html and #html > 0)
+    assert.truthy(html:find("hub%-tabs"))
+    assert.truthy(html:find("hub%-panels"))
+    assert.truthy(html:find("md%-view%-hub"))
   end)
 end)
