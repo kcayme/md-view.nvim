@@ -1,7 +1,7 @@
 local config = require("md-view.config")
 
-describe("preview mux integration", function()
-  local fake_mux
+describe("preview hub integration", function()
+  local fake_hub
   local orig_notify
 
   before_each(function()
@@ -10,9 +10,9 @@ describe("preview mux integration", function()
 
     -- Reset module cache so preview.lua picks up mocked dependencies
     package.loaded["md-view.preview"] = nil
-    package.loaded["md-view.server.mux"] = nil
+    package.loaded["md-view.server.handlers.hub"] = nil
 
-    fake_mux = {
+    fake_hub = {
       registry = {},
       clients = {},
       last = {},
@@ -30,19 +30,14 @@ describe("preview mux integration", function()
       push = function(self, et, data)
         table.insert(self._events, { event_type = et, data = data })
       end,
-      start = function()
-        return true
-      end,
-      stop = function(self)
-        self.server = nil
-      end,
       close_all = function() end,
       add_client = function() end,
     }
-    package.loaded["md-view.server.mux"] = {
+    package.loaded["md-view.server.handlers.hub"] = {
       new = function()
-        return fake_mux
+        return fake_hub
       end,
+      routes = {},
     }
 
     -- Mock TCP, buffer watcher, browser open, router to avoid real side-effects
@@ -98,7 +93,7 @@ describe("preview mux integration", function()
   after_each(function()
     vim.notify = orig_notify
     package.loaded["md-view.preview"] = nil
-    package.loaded["md-view.server.mux"] = nil
+    package.loaded["md-view.server.handlers.hub"] = nil
     package.loaded["md-view.server.tcp"] = nil
     package.loaded["md-view.buffer"] = nil
     package.loaded["md-view.util"] = nil
@@ -111,7 +106,7 @@ describe("preview mux integration", function()
     vim.g.md_view_vimleave_registered = nil
   end)
 
-  it("pushes preview_added to mux when a preview is created", function()
+  it("pushes preview_added to hub when a preview is created", function()
     local preview = require("md-view.preview")
     -- Use the actual current buf so preview.create's nvim_get_current_buf() matches
     local bufnr = vim.api.nvim_get_current_buf()
@@ -119,7 +114,7 @@ describe("preview mux integration", function()
     preview.create(config.options)
 
     local found = false
-    for _, ev in ipairs(fake_mux._events) do
+    for _, ev in ipairs(fake_hub._events) do
       if ev.event_type == "preview_added" and ev.data.id == bufnr then
         found = true
       end
@@ -138,12 +133,12 @@ describe("preview mux integration", function()
     local bufnr = vim.api.nvim_get_current_buf()
 
     preview.create(config.options)
-    fake_mux._events = {} -- clear after create
+    fake_hub._events = {} -- clear after create
 
     preview.destroy(bufnr)
 
     local has_removed, has_close = false, false
-    for _, ev in ipairs(fake_mux._events) do
+    for _, ev in ipairs(fake_hub._events) do
       if ev.event_type == "preview_removed" then
         has_removed = true
       end
@@ -164,12 +159,12 @@ describe("preview mux integration", function()
     local bufnr = vim.api.nvim_get_current_buf()
 
     preview.create(config.options)
-    fake_mux._events = {} -- clear after create
+    fake_hub._events = {} -- clear after create
 
     preview.destroy(bufnr)
 
     local has_close = false
-    for _, ev in ipairs(fake_mux._events) do
+    for _, ev in ipairs(fake_hub._events) do
       if ev.event_type == "close" then
         has_close = true
       end
@@ -186,12 +181,12 @@ describe("preview mux integration", function()
     local bufnr = vim.api.nvim_get_current_buf()
 
     preview.create(config.options)
-    fake_mux._events = {}
+    fake_hub._events = {}
 
     preview.destroy(bufnr)
 
     local has_close = false
-    for _, ev in ipairs(fake_mux._events) do
+    for _, ev in ipairs(fake_hub._events) do
       if ev.event_type == "close" then
         has_close = true
       end
@@ -208,12 +203,12 @@ describe("preview mux integration", function()
     local bufnr = vim.api.nvim_get_current_buf()
 
     preview.create(config.options)
-    fake_mux._events = {}
+    fake_hub._events = {}
 
     preview.destroy(bufnr)
 
     local has_close = false
-    for _, ev in ipairs(fake_mux._events) do
+    for _, ev in ipairs(fake_hub._events) do
       if ev.event_type == "close" then
         has_close = true
       end
@@ -230,12 +225,12 @@ describe("preview mux integration", function()
     local bufnr = vim.api.nvim_get_current_buf()
 
     preview.create(config.options)
-    fake_mux._events = {}
+    fake_hub._events = {}
 
     preview.destroy(bufnr)
 
     local has_close = false
-    for _, ev in ipairs(fake_mux._events) do
+    for _, ev in ipairs(fake_hub._events) do
       if ev.event_type == "close" then
         has_close = true
       end
@@ -254,27 +249,27 @@ describe("preview mux integration", function()
     local preview = require("md-view.preview")
     local bufnr = vim.api.nvim_get_current_buf()
 
-    -- First create: starts mux (clients=0), opens hub URL once
+    -- First create: hub already "running" (server="mock"), opens hub URL once
     preview.create(config.options)
     assert.are.equal(1, #open_calls, "browser should open once for first create")
-    assert.truthy(open_calls[1]:find(":" .. fake_mux.port), "should open hub URL, not per-preview URL")
+    assert.truthy(open_calls[1]:find(":" .. fake_hub.port), "should open hub URL, not per-preview URL")
 
-    -- Second create for same bufnr: mux has no SSE clients yet (headless), should open hub URL again
+    -- Second create for same bufnr: hub has no SSE clients yet (headless), should open hub URL again
     preview.create(config.options)
-    assert.are.equal(2, #open_calls, "browser should open again when mux has no clients")
-    assert.truthy(open_calls[2]:find(":" .. fake_mux.port), "second open should still be hub URL")
+    assert.are.equal(2, #open_calls, "browser should open again when hub has no clients")
+    assert.truthy(open_calls[2]:find(":" .. fake_hub.port), "second open should still be hub URL")
 
     preview.destroy(bufnr)
   end)
 
-  it("registers mux entry before pushing preview_added", function()
+  it("registers hub entry before pushing preview_added", function()
     local preview = require("md-view.preview")
     local bufnr = vim.api.nvim_get_current_buf()
 
     -- Intercept push to verify registry is populated at push time
     local registry_at_push = nil
-    local orig_push = fake_mux.push
-    fake_mux.push = function(self, et, data)
+    local orig_push = fake_hub.push
+    fake_hub.push = function(self, et, data)
       if et == "preview_added" then
         registry_at_push = vim.deepcopy(self.registry)
       end

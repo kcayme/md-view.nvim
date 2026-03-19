@@ -13,7 +13,7 @@ local sse = require("md-view.server.sse")
 local buffer = require("md-view.buffer")
 local theme = require("md-view.theme")
 local util = require("md-view.util")
-local mux_mod = require("md-view.server.mux")
+local hub_mod = require("md-view.server.handlers.hub")
 
 local active_previews = {}
 local _mux = nil
@@ -25,15 +25,17 @@ end
 -- Start hub if not already running. Returns hub instance or nil on failure.
 local function ensure_mux(opts)
   if not _mux then
-    _mux = mux_mod.new()
+    _mux = hub_mod.new()
   end
   if not _mux.server then
-    local ok = _mux:start(opts.host, opts.port)
-    if not ok then
-      -- tcp.lua already called vim.notify on bind failure
+    local handle = router.new(hub_mod.routes, { hub = _mux })
+    local srv, p = server.start(opts.host, opts.port, handle)
+    if not srv then
       _mux = nil
       return nil
     end
+    _mux.server = srv
+    _mux.port = p
     local hub_url = "http://" .. opts.host .. ":" .. _mux.port
     vim.notify("[md-view] Hub serving at " .. hub_url)
     -- VimLeavePre safety net (registered once)
@@ -43,7 +45,10 @@ local function ensure_mux(opts)
         group = vim.api.nvim_create_augroup("md_view_mux_global", { clear = true }),
         callback = function()
           if _mux then
-            _mux:stop()
+            server.stop(_mux.server)
+            _mux.server = nil
+            _mux.port = nil
+            _mux:close_all()
           end
         end,
       })
@@ -262,7 +267,10 @@ function M.destroy(bufnr)
       if should_close_page then
         _mux:push("close", {})
       end
-      _mux:stop()
+      server.stop(_mux.server)
+      _mux.server = nil
+      _mux.port = nil
+      _mux:close_all()
       _mux = nil
     end
     -- Individual `close` event suppressed: hub tab must not close when one preview ends
@@ -289,7 +297,7 @@ function M.get_active()
   return active_previews
 end
 
----@return MdViewMux|nil
+---@return MdViewHub|nil
 function M.get_mux()
   return _mux
 end
