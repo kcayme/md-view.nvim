@@ -2,6 +2,8 @@ local M = {}
 
 local util = require("md-view.util")
 
+---@param deps? table
+---@return table
 function M.new(deps)
   deps = deps or {}
 
@@ -13,10 +15,12 @@ function M.new(deps)
   else
     -- vim.api is the base; bufwinid and schedule are injected on top.
     -- Neither key exists in vim.api today so there is no collision.
-    -- "keep" ensures any future vim.api additions do not shadow our keys.
+    -- "keep" means our custom keys (bufwinid, schedule, split) win if vim.api ever gains
+    -- keys with the same names in a future Neovim version.
     vim_api = vim.tbl_extend("keep", {
       bufwinid = vim.fn.bufwinid,
       schedule = vim.schedule,
+      split = vim.split,
     }, vim.api)
   end
 
@@ -109,7 +113,7 @@ function M.new(deps)
               end
               vim_api.schedule(function()
                 if vim_api.nvim_buf_is_valid(bufnr) then
-                  callbacks.on_content(vim.split(data, "\n", { plain = true }))
+                  callbacks.on_content(vim_api.split(data, "\n", { plain = true }))
                 end
               end)
             end)
@@ -158,6 +162,8 @@ end
 
 -- Convenience alias: forwards to a fresh M.new() instance with production defaults.
 -- Each call is independent — no shared state across invocations.
+-- Creates a fresh M.new() instance per call; the instance itself has no state,
+-- only the returned watcher does.
 function M.watch(bufnr, callbacks, debounce_ms, scroll_method)
   return M.new().watch(bufnr, callbacks, debounce_ms, scroll_method)
 end
