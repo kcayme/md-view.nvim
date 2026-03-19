@@ -25,6 +25,7 @@ jobs:
             | jq -r '.assets[] | select(.name | test("^selene-[0-9].*-linux\\.zip$")) | .browser_download_url')
           curl -fsSL "$url" -o selene.zip
           unzip -q selene.zip selene
+          chmod +x selene
           sudo mv selene /usr/local/bin/
 
       - name: Lint source files (selene)
