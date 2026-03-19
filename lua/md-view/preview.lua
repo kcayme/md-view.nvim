@@ -107,6 +107,18 @@ local function ensure_mux(opts)
         group = vim.api.nvim_create_augroup("md_view_mux_global", { clear = true }),
         callback = function()
           if _mux then
+            local cfg = require("md-view.config")
+            local sp = cfg.options and cfg.options.single_page
+            local close_by = sp and sp.close_by
+            -- Mirror M.destroy: push preview_removed for each registered preview
+            for bufnr, _ in pairs(_mux.registry) do
+              _mux:push("preview_removed", { id = bufnr })
+            end
+            local should_close = close_by == "page"
+              or (close_by == nil and cfg.options and cfg.options.auto_close == true)
+            if should_close then
+              _mux:push("close", {})
+            end
             server.stop(_mux.server)
             _mux.server = nil
             _mux.port = nil
