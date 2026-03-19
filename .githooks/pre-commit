@@ -37,11 +37,18 @@ cleanup() {
   fi
 }
 
+STYLUA_EXPECTED="2.4.0"
+SELENE_EXPECTED="0.30.1"
+
 # --- stylua ---
 if [ -z "$STYLUA" ]; then
   echo "[md-view] stylua not found — install it (Mason: :MasonInstall stylua) or add it to PATH"
   cleanup
   exit 1
+fi
+STYLUA_VERSION=$("$STYLUA" --version 2>/dev/null | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
+if [ -n "$STYLUA_VERSION" ] && [ "$STYLUA_VERSION" != "$STYLUA_EXPECTED" ]; then
+  echo "[md-view] warning: stylua $STYLUA_VERSION (CI expects $STYLUA_EXPECTED) — formatting may differ"
 fi
 if ! echo "$FILES" | xargs "$STYLUA"; then
   cleanup
@@ -58,6 +65,10 @@ if [ -z "$SELENE" ]; then
   echo "[md-view] selene not found — install it (Mason: :MasonInstall selene) or add it to PATH"
   cleanup
   exit 1
+fi
+SELENE_VERSION=$("$SELENE" --version 2>/dev/null | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
+if [ -n "$SELENE_VERSION" ] && [ "$SELENE_VERSION" != "$SELENE_EXPECTED" ]; then
+  echo "[md-view] warning: selene $SELENE_VERSION (CI expects $SELENE_EXPECTED) — lint rules may differ"
 fi
 if [ -n "$LINT_FILES" ]; then
   if ! echo "$LINT_FILES" | xargs "$SELENE"; then
