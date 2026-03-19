@@ -40,6 +40,7 @@ graph TD
     router["server/router.lua"]
     template["server/template.lua"]
     sse["server/sse.lua"]
+    hub["server/handlers/hub.lua"]
     buffer["buffer.lua"]
     util["util.lua"]
     picker["picker.lua"]
@@ -47,6 +48,7 @@ graph TD
     plugin --> init
     init --> config
     init --> preview
+    init --> theme
     init -.->|lazy| picker
     picker --> init
 
@@ -54,12 +56,16 @@ graph TD
     preview --> server
     preview --> router
     preview --> sse
+    preview --> hub
     preview --> buffer
     preview --> util
 
     server -.->|on_request callback| router
     router --> template
     router -.->|reads from ctx| sse
+    hub -.->|lazy| template
+    hub -.->|lazy| config
+    hub -.->|lazy| theme
 
     buffer --> util
 ```
@@ -106,6 +112,7 @@ sequenceDiagram
     participant Browser
     participant router as server/router.lua
     participant template as server/template.lua
+    participant preview as preview.lua
     participant sse as server/sse.lua
 
     Browser->>router: GET /
@@ -113,12 +120,15 @@ sequenceDiagram
     template-->>router: HTML
     router-->>Browser: HTML response
 
-    Browser->>router: GET /content
-    router-->>Browser: JSON {content}
-
     Browser->>router: GET /events
-    router->>sse: add_client(socket)
+    Note over router: sse_upgrade: write SSE headers first,<br/>then add_client
     router-->>Browser: SSE headers (keep-alive)
+    router->>sse: add_client(socket)
+    Note over sse: replay last events (theme, palette)<br/>then call on_client_added hook
+    sse->>preview: on_client_added(client)
+    preview->>preview: read_content_async(bufnr)
+    Note over preview: buffer if modified;<br/>disk read otherwise
+    preview-->>Browser: SSE: content {content}
 
     Note over Browser: markdown-it parse<br/>→ morphdom patch DOM<br/>→ mermaid.run()
 ```
@@ -129,13 +139,15 @@ sequenceDiagram
 sequenceDiagram
     participant Neovim as Neovim Buffer
     participant buffer as buffer.lua
+    participant preview as preview.lua
     participant sse as server/sse.lua
     participant Browser
 
     Neovim->>buffer: TextChanged / TextChangedI / BufWritePost
     Note over buffer: debounce timer resets (300ms)
     buffer->>buffer: timer expires → read buffer lines
-    buffer->>sse: push("content", {content})
+    buffer->>preview: callbacks.on_content(lines)
+    preview->>sse: push("content", {content})
     sse->>Browser: event: content\ndata: {json}
 
     Note over Browser: markdown-it parse<br/>→ morphdom diff/patch<br/>→ mermaid.run()
@@ -147,13 +159,15 @@ sequenceDiagram
 sequenceDiagram
     participant Neovim as Neovim Cursor
     participant buffer as buffer.lua
+    participant preview as preview.lua
     participant sse as server/sse.lua
     participant Browser
 
     Neovim->>buffer: CursorMoved / CursorMovedI
     Note over buffer: debounce timer resets (50ms)
     buffer->>buffer: timer expires → read cursor position
-    buffer->>sse: push("scroll", {line})
+    buffer->>preview: callbacks.on_scroll(data)
+    preview->>sse: push("scroll", data)
     sse->>Browser: event: scroll\ndata: {json}
 
     Note over Browser: find closest<br/>data-source-line element<br/>→ scrollIntoView()
@@ -182,119 +196,75 @@ sequenceDiagram
     preview->>preview: active_previews[bufnr] = nil
 ```
 
-## Module Details
+### 6. Single-Page Mode — Hub Connect
 
-### `config.lua`
-
-Stores default options and the merged user configuration. Uses `vim.tbl_deep_extend("force", {}, defaults, opts)` to merge, matching the pattern from bearded-arc.nvim. The `options` field is `nil` until `setup()` is called; `init.open()` calls `setup({})` as a fallback if the user never called it explicitly.
-
-### `server/tcp.lua`
-
-Creates a TCP server using `vim.uv` (Neovim 0.10+) or `vim.loop` (Neovim 0.8–0.9). Binds to the configured host and port (default port 0 for OS auto-assignment), resolves the actual port via `getsockname()`, and returns both the server handle and port number.
-
-On each incoming connection, it accepts the client socket, accumulates data until a complete HTTP request is received (detected by `\r\n\r\n`), then calls the `on_request` callback on the main thread via `vim.schedule()`.
-
-### `server/router.lua`
-
-Parses raw HTTP requests (extracts method and path from the first line) and dispatches to route handlers:
+When `single_page.enable = true`, all previews share one browser tab served by a central hub server. The hub replays state to new SSE clients in a fixed order so panels exist before content and styles arrive.
 
 ```mermaid
-flowchart LR
-    req["HTTP Request"] --> parse["Parse method + path"]
-    parse --> get_root{"GET /"}
-    parse --> get_content{"GET /content"}
-    parse --> get_events{"GET /events"}
-    parse --> other{"Other"}
+sequenceDiagram
+    actor User
+    participant preview as preview.lua
+    participant hub as hub.lua
+    participant buffer as buffer.lua
+    participant Browser
 
-    get_root -->|yes| html["Render template<br/>→ send HTML<br/>→ close"]
-    get_content -->|yes| json["Read buffer lines<br/>→ send JSON<br/>→ close"]
-    get_events -->|yes| sse["Send SSE headers<br/>→ register client<br/>→ keep alive"]
-    other -->|yes| notfound["404 response"]
+    User->>preview: create(opts) — first preview
+    preview->>preview: ensure_mux() → start hub server (port H)
+    preview->>preview: start per-buffer server (port A)
+    preview->>buffer: watch(bufnr=1, callbacks)
+    preview->>hub: register(bufnr=1, path, tab_label)
+    preview->>hub: push("preview_added", {id=1, label})
+    preview->>hub: push("hub_palette", {css})
+    preview->>Browser: open_browser(hub_url :H)
+
+    Browser->>hub: GET /
+    hub-->>Browser: mux.html
+
+    Browser->>hub: GET /sse
+    Note over hub: add_client replay order:<br/>1. hub_palette (chrome styled first)<br/>2. preview_added (panel created)<br/>3. palette / theme (panel styled)<br/>4. on_client_added → async disk read → content
+    hub-->>Browser: SSE: hub_palette {css}
+    hub-->>Browser: SSE: preview_added {id=1, label}
+    hub-->>Browser: SSE: content {id=1, content}
+
+    Note over Browser: createPanel(1) → activateTab(1)<br/>→ panels[1].renderMarkdown(content)
 ```
 
-Regular responses include `Content-Length` and `Connection: close`. The SSE endpoint sends `Content-Type: text/event-stream` with `Connection: keep-alive` and leaves the socket open for streaming.
-
-### `server/sse.lua`
-
-A simple connection manager that holds a list of open client sockets. There is no hard client cap — cleanup relies on dead-client removal during `push()` and client-side BroadcastChannel tab deduplication. Provides:
-
-- `add_client(client)` — registers a new SSE connection
-- `push(event_type, data)` — writes a named SSE event to all clients; dead clients (write errors caught via `pcall`) are removed and closed
-- `remove_client(client)` — removes and closes a specific client
-- `close_all()` — shuts down all connections
-
-Named SSE events (`content` and `scroll`) allow the browser to handle each type independently via `source.addEventListener(type, ...)`.
-
-### `server/template.lua`
-
-Returns a self-contained HTML string via `string.format()`, injecting custom CSS and the mermaid theme. The HTML page loads three CDN libraries:
-
-| Library      | Version | Purpose                        |
-|--------------|---------|--------------------------------|
-| markdown-it  | 14.x    | Markdown → HTML parsing        |
-| mermaid.js   | 11.x    | Mermaid → SVG rendering        |
-| morphdom     | 2.x     | Efficient DOM diffing/patching |
-
-The embedded JavaScript:
-
-1. Initializes mermaid with `startOnLoad: false` (manual rendering control)
-2. Configures markdown-it with a custom fence rule that wraps mermaid blocks in `<pre class="mermaid">` elements
-3. Hooks block-level renderer rules to add `data-source-line` attributes for scroll sync
-4. Fetches `/content` on initial load to render the current buffer state
-5. Opens an `EventSource` to `/events` with two named listeners:
-   - `content` — re-renders markdown via morphdom DOM patching, then runs mermaid
-   - `scroll` — finds the nearest element by `data-source-line` and calls `scrollIntoView()`
-
-The page uses a dark GitHub-style theme (background `#0d1117`, text `#c9d1d9`).
-
-### `buffer.lua`
-
-Attaches Neovim autocmds to a buffer with two separate debounce timers:
-
-- **Content changes** (`TextChanged`, `TextChangedI`, `BufWritePost`) — debounced at the configured `debounce_ms` (default 300ms). When the timer fires, reads all buffer lines and calls `callbacks.on_content(lines)`.
-- **Cursor movement** (`CursorMoved`, `CursorMovedI`) — debounced at 50ms (fast, since scroll sync should feel responsive). Reads the cursor position via `nvim_win_get_cursor()` and calls `callbacks.on_scroll(line)` with a 0-indexed line number.
-
-Returns a table with a `stop()` function that closes both timers and deletes the augroup.
-
-### `util.lua`
-
-- **`open_browser(url, browser)`** — if `browser` is set, uses it directly. Otherwise auto-detects the platform: `open` (macOS), `wslview` (WSL), `xdg-open` (Linux), `cmd /c start` (Windows). Launches detached via `vim.fn.jobstart`.
-- **`debounce(fn, ms)`** — creates a debounced wrapper using a `uv.new_timer()`. Each call resets the timer; the function fires `ms` milliseconds after the last call, scheduled back to the main thread via `vim.schedule()`. The returned wrapper has a `.stop()` method to close the timer for cleanup.
-
-### `init.lua`
-
-A thin API facade that delegates to `config` and `preview`:
-
-- **`setup(opts)`** — delegates to `config.setup()`
-- **`open()`** — delegates to `preview.create(config.options)`
-- **`stop(bufnr)`** — delegates to `preview.destroy(bufnr)`
-- **`toggle()`** — checks `preview.get(bufnr)` then opens or stops
-- **`list()`** — opens the picker UI
-- **`get_active_previews()`** — returns `preview.get_active()`
-
-### `preview.lua`
-
-The orchestration module. Manages the `active_previews` table (keyed by buffer number) which tracks all running preview instances:
+### 7. Single-Page Mode — Second Preview and Live Updates
 
 ```mermaid
-classDiagram
-    class active_previews {
-        +bufnr : key
-        +server : uv_tcp_t
-        +port : number
-        +sse : SSE instance
-        +watcher : buffer watcher
-    }
+sequenceDiagram
+    actor User
+    participant preview as preview.lua
+    participant hub as hub.lua
+    participant buffer as buffer.lua
+    participant Browser
+
+    User->>preview: create(opts) — second preview (hub tab already open)
+    preview->>preview: start per-buffer server (port B)
+    preview->>buffer: watch(bufnr=2, callbacks)
+    preview->>hub: register(bufnr=2, path, tab_label)
+    preview->>hub: push("preview_added", {id=2, label})
+    hub-->>Browser: SSE: preview_added {id=2, label}
+    Note over Browser: createPanel(2) → activateTab(2)<br/>(panel is empty until first buffer change)
+    Note over preview: on_client_added fires only on NEW SSE connect,<br/>not when a preview is added to an existing hub session
+
+    Note over buffer: TextChanged on bufnr=1 — debounce fires
+    buffer->>preview: on_content(lines)
+    preview->>hub: push("content", {id=1, content})
+    hub-->>Browser: SSE: content {id=1, content}
+    Note over Browser: panels[1].renderMarkdown(content)
+
+    Note over preview: BufEnter autocmd fires for bufnr=1
+    preview->>hub: push("focus", {id=1})
+    hub-->>Browser: SSE: focus {id=1}
+    Note over Browser: activateTab(1)
+
+    Note over preview: BufDelete / :MdViewStop on bufnr=2
+    preview->>hub: push("preview_removed", {id=2})
+    hub-->>Browser: SSE: preview_removed {id=2}
+    Note over Browser: removePanel(2) → activateTab(remaining)
+    preview->>hub: unregister(bufnr=2)
 ```
-
-- **`create(opts)`** — resolves theme via `theme.resolve()`, creates SSE instance, starts server, attaches buffer watcher, opens browser, registers cleanup autocmds for `BufDelete`/`BufWipeout`/`VimLeavePre`
-- **`destroy(bufnr)`** — tears down everything for a buffer: closes SSE clients, stops watcher, stops server, removes from table
-- **`get(bufnr)`** — returns the preview entry for a buffer
-- **`get_active()`** — returns the full active_previews table
-
-### `plugin/md-view.lua`
-
-Registers three user commands (`:MdView`, `:MdViewStop`, `:MdViewToggle`) that lazy-load the plugin via `require("md-view")`.
 
 ## Design Decisions
 
@@ -314,15 +284,40 @@ Registers three user commands (`:MdView`, `:MdViewStop`, `:MdViewToggle`) that l
 
 ## HTTP Protocol
 
-The server implements a minimal subset of HTTP/1.1 — enough for browser communication:
+The server implements a minimal subset of HTTP/1.1. Regular responses use `Connection: close`; the SSE endpoint uses `text/event-stream` with `Connection: keep-alive` and stays open for streaming. No CORS headers — loopback-only binding makes same-origin the only origin.
 
-- Parses the first line of the request for method and path
-- Sends proper status lines, Content-Type, and Content-Length headers
-- SSE connections use `text/event-stream` with `Connection: keep-alive`
-- Regular responses use `Connection: close` and shut down the socket after sending
-- No CORS headers are sent — the browser's same-origin policy prevents cross-origin access to the server
+```mermaid
+flowchart LR
+    req["HTTP Request"] --> parse["Parse method + path"]
+    parse --> get_root{"GET /"}
+    parse --> get_content{"GET /content"}
+    parse --> get_events{"GET /events"}
+    parse --> get_vendor{"GET /vendor/:file"}
+    parse --> get_file{"GET /file"}
+    parse --> other{"Other"}
+
+    get_root    -->|yes| html["Render template → send HTML → close"]
+    get_content -->|yes| json["Read buffer lines → send JSON → close"]
+    get_events  -->|yes| sse["Send SSE headers → register client → keep alive"]
+    get_vendor  -->|yes| vendor["Serve vendor asset → close"]
+    get_file    -->|yes| media["Serve local media file → close"]
+    other       -->|yes| notfound["404 response"]
+```
 
 ## State Lifecycle
+
+Each active preview is tracked in `active_previews` keyed by buffer number:
+
+```mermaid
+classDiagram
+    class active_previews {
+        +bufnr : key
+        +server : uv_tcp_t
+        +port : number
+        +sse : MdViewSse
+        +watcher : buffer watcher
+    }
+```
 
 ```mermaid
 stateDiagram-v2
