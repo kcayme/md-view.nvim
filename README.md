@@ -282,11 +282,17 @@ The page uses CSS custom properties for theming. Override these to restyle any e
 | `--md-bg` | Page background |
 | `--md-fg` | Body text color |
 | `--md-heading` | Heading color |
+| `--md-bold` | Bold text color |
+| `--md-muted` | Muted / secondary text (e.g. `h6`) |
+| `--md-blockquote` | Blockquote text color |
 | `--md-link` | Link color |
 | `--md-code-fg` | Inline code text |
 | `--md-code-bg` | Inline code and code block background |
+| `--md-pre-fg` | Code block text color |
 | `--md-border` | Borders, `<hr>`, table lines |
-| `--md-muted` | Dimmed text (e.g. `h6`) |
+| `--md-checkbox` | Checkbox color |
+| `--md-table-header-bg` | Table header background |
+| `--md-row-alt` | Alternating table row background |
 
 **Wider content area** (default `max-width` is `882px`):
 
