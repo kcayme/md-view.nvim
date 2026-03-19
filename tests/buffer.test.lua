@@ -372,6 +372,7 @@ describe("buffer", function()
       -- 3 debouncers: content, scroll, file_content
       assert.are.equal(3, #m.debouncers)
       w.stop()
+      -- debouncers in creation order: [1]=content, [2]=scroll, [3]=file_content
       assert.is_true(m.debouncers[1]._stop_called())
       assert.is_true(m.debouncers[2]._stop_called())
       assert.is_true(m.debouncers[3]._stop_called())

@@ -2,8 +2,16 @@ local M = {}
 
 local util = require("md-view.util")
 
----@param deps? table
----@return table
+---@class MdViewBufferDeps
+---@field uv? table
+---@field vim_api? table
+---@field debounce? fun(fn: function, ms: integer): table
+
+---@class MdViewBufferInstance
+---@field watch fun(bufnr: integer, callbacks: table, debounce_ms: integer, scroll_method?: string): table
+
+---@param deps? MdViewBufferDeps
+---@return MdViewBufferInstance
 function M.new(deps)
   deps = deps or {}
 
