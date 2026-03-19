@@ -6,40 +6,54 @@ local vendor = require("md-view.vendor")
 -- (127.0.0.1) rendering the user's own markdown buffer content. No untrusted
 -- external content is involved. morphdom requires innerHTML for DOM diffing.
 
--- Three states: nil = not yet tried, false = failed, string = loaded
-local TEMPLATE
-
-local function load_template()
-  if type(TEMPLATE) == "string" then
-    return TEMPLATE
+-- Asset cache: nil = not yet tried, false = failed, string = loaded content
+local function load_asset(name, cache)
+  -- cache is a table cell: { value } where value is nil/false/string
+  if type(cache[1]) == "string" then
+    return cache[1]
   end
-  if TEMPLATE == false then
+  if cache[1] == false then
     return nil
   end
-
-  local path = vim.api.nvim_get_runtime_file("assets/template.html", false)[1]
+  local path = vim.api.nvim_get_runtime_file("assets/" .. name, false)[1]
   if not path then
-    vim.notify("md-view.nvim: could not find assets/template.html in runtimepath", vim.log.levels.ERROR)
-    TEMPLATE = false
+    vim.notify("md-view.nvim: could not find assets/" .. name .. " in runtimepath", vim.log.levels.ERROR)
+    cache[1] = false
     return nil
   end
-
-  local fh, err = io.open(path, "rb") -- binary mode: no CRLF translation on Windows
+  local fh, err = io.open(path, "rb")
   if not fh then
     vim.notify("md-view.nvim: could not open " .. path .. ": " .. (err or ""), vim.log.levels.ERROR)
-    TEMPLATE = false
+    cache[1] = false
     return nil
   end
-
   local content = fh:read("*a")
   fh:close()
   if not content or content == "" then
-    vim.notify("md-view.nvim: assets/template.html is empty or unreadable", vim.log.levels.ERROR)
-    TEMPLATE = false
+    vim.notify("md-view.nvim: assets/" .. name .. " is empty or unreadable", vim.log.levels.ERROR)
+    cache[1] = false
     return nil
   end
-  TEMPLATE = content
-  return TEMPLATE
+  cache[1] = content
+  return content
+end
+
+local _template = { nil }
+local _mux = { nil }
+local _prose_css = { nil }
+local _render_js = { nil }
+
+local function load_template()
+  return load_asset("template.html", _template)
+end
+local function load_mux_template()
+  return load_asset("mux.html", _mux)
+end
+local function load_prose_css()
+  return load_asset("common.css", _prose_css)
+end
+local function load_render_js()
+  return load_asset("common.js", _render_js)
 end
 
 local VALID_MERMAID_THEMES = {
@@ -233,40 +247,13 @@ function M.render(opts, filename)
     :gsub("{{TITLE}}", function()
       return title
     end)
+    :gsub("{{PROSE_CSS}}", function()
+      return load_prose_css() or ""
+    end)
+    :gsub("{{RENDER_JS}}", function()
+      return load_render_js() or ""
+    end)
   return html
-end
-
--- Three states: nil = not yet tried, false = failed, string = loaded
-local MUX_TEMPLATE
-
-local function load_mux_template()
-  if type(MUX_TEMPLATE) == "string" then
-    return MUX_TEMPLATE
-  end
-  if MUX_TEMPLATE == false then
-    return nil
-  end
-  local path = vim.api.nvim_get_runtime_file("assets/mux.html", false)[1]
-  if not path then
-    vim.notify("md-view.nvim: could not find assets/mux.html in runtimepath", vim.log.levels.ERROR)
-    MUX_TEMPLATE = false
-    return nil
-  end
-  local fh, err = io.open(path, "rb")
-  if not fh then
-    vim.notify("md-view.nvim: could not open " .. path .. ": " .. (err or ""), vim.log.levels.ERROR)
-    MUX_TEMPLATE = false
-    return nil
-  end
-  local content = fh:read("*a")
-  fh:close()
-  if not content or content == "" then
-    vim.notify("md-view.nvim: assets/mux.html is empty or unreadable", vim.log.levels.ERROR)
-    MUX_TEMPLATE = false
-    return nil
-  end
-  MUX_TEMPLATE = content
-  return MUX_TEMPLATE
 end
 
 -- Render the mux shell page. Same CDN scripts as render(); title is "md-view".
@@ -316,6 +303,12 @@ function M.render_mux(opts)
     end)
     :gsub("{{VEGALITE}}", function()
       return tags.vegalite
+    end)
+    :gsub("{{PROSE_CSS}}", function()
+      return load_prose_css() or ""
+    end)
+    :gsub("{{RENDER_JS}}", function()
+      return load_render_js() or ""
     end)
 end
 
