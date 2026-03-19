@@ -62,6 +62,13 @@ function M.create(opts)
       -- Single-page mode: route to the mux, not the per-preview server
       local mux_url = "http://" .. opts.host .. ":" .. _mux.port
       if #_mux.clients > 0 and not opts.follow_focus then
+        -- Hub tab is open: re-push preview_added so the panel is recreated if the
+        -- user closed it via the hub close button, then focus it.
+        local entry = _mux.registry[bufnr]
+        if entry then
+          _mux:push("preview_added", { id = bufnr, title = entry.title, label = entry.label })
+          _mux:push("focus", { id = bufnr })
+        end
         if not opts.silent then
           vim.notify("[md-view] Preview already open in hub at " .. mux_url)
         end
