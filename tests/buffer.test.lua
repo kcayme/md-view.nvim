@@ -271,4 +271,255 @@ describe("buffer", function()
       assert.is_false(called)
     end)
   end)
+
+  describe("content events", function()
+    local watcher
+    after_each(function()
+      if watcher then
+        watcher.stop()
+        watcher = nil
+      end
+    end)
+
+    it("TextChanged triggers on_content with buffer lines", function()
+      local m = make_mocks({
+        nvim_buf_get_lines = function(_b, _s, _e, _strict)
+          return { "a", "b" }
+        end,
+      })
+      local got
+      watcher = buffer.new(m).watch(1, {
+        on_content = function(lines)
+          got = lines
+        end,
+        on_scroll = function() end,
+      }, 100, nil)
+      fire_content(m.autocmds, "TextChanged")
+      assert.are.same({ "a", "b" }, got)
+    end)
+
+    it("invalid buffer skips on_content", function()
+      local m = make_mocks({
+        nvim_buf_is_valid = function(_b)
+          return false
+        end,
+      })
+      local called = false
+      watcher = buffer.new(m).watch(1, {
+        on_content = function()
+          called = true
+        end,
+        on_scroll = function() end,
+      }, 100, nil)
+      fire_content(m.autocmds, "TextChanged")
+      assert.is_false(called)
+    end)
+  end)
+
+  describe("wrote_from_nvim suppression", function()
+    local watcher
+    after_each(function()
+      if watcher then
+        watcher.stop()
+        watcher = nil
+      end
+    end)
+
+    local function setup_suppression()
+      local m = make_mocks()
+      local calls = 0
+      watcher = buffer.new(m).watch(1, {
+        on_content = function()
+          calls = calls + 1
+        end,
+        on_scroll = function() end,
+      }, 100, nil)
+      return m, function()
+        return calls
+      end
+    end
+
+    it("BufWritePost then fs event: on_content called once total (fs path suppressed)", function()
+      local m, call_count = setup_suppression()
+      -- BufWritePost sets the flag and fires content_debounced (autocmd path) → 1 call
+      fire_content(m.autocmds, "BufWritePost")
+      assert.are.equal(1, call_count())
+      -- fs event fires → file_content_debounced → flag is true → returns early
+      m.uv.get_handle()._callback(nil, nil, nil)
+      assert.are.equal(1, call_count()) -- still 1
+    end)
+
+    it("fs event without BufWritePost calls on_content once via fs path", function()
+      local m, call_count = setup_suppression()
+      m.uv.get_handle()._callback(nil, nil, nil)
+      assert.are.equal(1, call_count())
+    end)
+
+    it("flag is one-shot: second fs event after suppression fires normally", function()
+      local m, call_count = setup_suppression()
+      fire_content(m.autocmds, "BufWritePost")
+      m.uv.get_handle()._callback(nil, nil, nil) -- suppressed — flag consumed
+      local after_suppress = call_count()
+      m.uv.get_handle()._callback(nil, nil, nil) -- second fs event — flag is false → fires
+      assert.are.equal(after_suppress + 1, call_count())
+    end)
+  end)
+
+  describe("stop() teardown", function()
+    it("calls stop on all three debouncers when fs watcher was started", function()
+      local m = make_mocks()
+      local w = buffer.new(m).watch(1, { on_content = function() end, on_scroll = function() end }, 100, nil)
+      -- 3 debouncers: content, scroll, file_content
+      assert.are.equal(3, #m.debouncers)
+      w.stop()
+      assert.is_true(m.debouncers[1]._stop_called())
+      assert.is_true(m.debouncers[2]._stop_called())
+      assert.is_true(m.debouncers[3]._stop_called())
+    end)
+
+    it("calls nvim_del_augroup_by_id with the correct group id", function()
+      local deleted_id
+      local m = make_mocks({
+        nvim_create_augroup = function(_name, _opts)
+          return 42
+        end,
+        nvim_del_augroup_by_id = function(id)
+          deleted_id = id
+        end,
+      })
+      local w = buffer.new(m).watch(1, { on_content = function() end, on_scroll = function() end }, 100, nil)
+      w.stop()
+      assert.are.equal(42, deleted_id)
+    end)
+
+    it("closes fs_watcher when not closing", function()
+      local m = make_mocks()
+      local w = buffer.new(m).watch(1, { on_content = function() end, on_scroll = function() end }, 100, nil)
+      w.stop()
+      assert.is_true(m.uv.get_handle()._closing)
+    end)
+
+    it("skips fs_watcher:close when already closing", function()
+      local m = make_mocks()
+      local w = buffer.new(m).watch(1, { on_content = function() end, on_scroll = function() end }, 100, nil)
+      local close_calls = 0
+      local h = m.uv.get_handle()
+      h._closing = true
+      local orig = h.close
+      h.close = function(self)
+        close_calls = close_calls + 1
+        orig(self)
+      end
+      w.stop()
+      assert.are.equal(0, close_calls)
+    end)
+
+    it("does not error when file_content_debounced is nil (empty filepath)", function()
+      local m = make_mocks({
+        nvim_buf_get_name = function(_b)
+          return ""
+        end,
+      })
+      local w = buffer.new(m).watch(1, { on_content = function() end, on_scroll = function() end }, 100, nil)
+      assert.are.equal(2, #m.debouncers) -- only content + scroll
+      assert.has_no.errors(function()
+        w.stop()
+      end)
+    end)
+  end)
+
+  describe("fs watcher path", function()
+    local watcher
+    after_each(function()
+      if watcher then
+        watcher.stop()
+        watcher = nil
+      end
+    end)
+
+    it("no watcher created when filepath is empty string", function()
+      local m = make_mocks({
+        nvim_buf_get_name = function(_b)
+          return ""
+        end,
+      })
+      watcher = buffer.new(m).watch(1, { on_content = function() end, on_scroll = function() end }, 100, nil)
+      assert.is_nil(m.uv.get_handle())
+    end)
+
+    it("no watcher created when filepath is nil", function()
+      local m = make_mocks({
+        nvim_buf_get_name = function(_b)
+          return nil
+        end,
+      })
+      watcher = buffer.new(m).watch(1, { on_content = function() end, on_scroll = function() end }, 100, nil)
+      assert.is_nil(m.uv.get_handle())
+    end)
+
+    it("pcall failure: closes handle, calls debounce stop, file_content_debounced becomes nil", function()
+      local m = make_mocks()
+      local handle_closed = false
+      -- Wrap new_fs_event to return a handle whose start() always throws
+      local orig_new_fs_event = m.uv.new_fs_event
+      m.uv.new_fs_event = function()
+        local h = orig_new_fs_event()
+        function h:start(_path, _opts, _cb)
+          error("start failed")
+        end
+        function h:close()
+          handle_closed = true
+          self._closing = true
+        end
+        return h
+      end
+      -- Should not error at watch time
+      assert.has_no.errors(function()
+        watcher = buffer.new(m).watch(1, { on_content = function() end, on_scroll = function() end }, 100, nil)
+      end)
+      -- file_content_debounced (debouncer[3]) was created then immediately stopped
+      assert.is_true(handle_closed)
+      assert.are.equal(3, #m.debouncers)
+      assert.is_true(m.debouncers[3]._stop_called())
+      -- stop() should complete without error (fs_watcher is nil in this branch)
+      assert.has_no.errors(function()
+        watcher.stop()
+      end)
+      watcher = nil
+    end)
+
+    it("fs read result is split on newlines and delivered to on_content", function()
+      local got
+      local m = make_mocks(nil, {
+        fs_read = function(_fd, _size, _off, cb)
+          cb(nil, "alpha\nbeta\ngamma")
+        end,
+      })
+      watcher = buffer.new(m).watch(1, {
+        on_content = function(lines)
+          got = lines
+        end,
+        on_scroll = function() end,
+      }, 100, nil)
+      m.uv.get_handle()._callback(nil, nil, nil)
+      assert.are.same({ "alpha", "beta", "gamma" }, got)
+    end)
+
+    it("fs read error skips on_content", function()
+      local called = false
+      local m = make_mocks(nil, {
+        fs_read = function(_fd, _size, _off, cb)
+          cb("read error", nil)
+        end,
+      })
+      watcher = buffer.new(m).watch(1, {
+        on_content = function()
+          called = true
+        end,
+        on_scroll = function() end,
+      }, 100, nil)
+      m.uv.get_handle()._callback(nil, nil, nil)
+      assert.is_false(called)
+    end)
+  end)
 end)
