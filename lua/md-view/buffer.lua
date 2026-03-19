@@ -1,135 +1,165 @@
 local M = {}
 
 local util = require("md-view.util")
-local uv = vim.uv or vim.loop
 
-function M.watch(bufnr, callbacks, debounce_ms, scroll_method)
-  local content_debounced = util.debounce(function()
-    if not vim.api.nvim_buf_is_valid(bufnr) then
-      return
-    end
-    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-    callbacks.on_content(lines)
-  end, debounce_ms)
+function M.new(deps)
+  deps = deps or {}
 
-  local scroll_debounced = util.debounce(function()
-    if not vim.api.nvim_buf_is_valid(bufnr) then
-      return
-    end
-    local win = vim.fn.bufwinid(bufnr)
-    if win == -1 then
-      return
-    end
-    local cursor = vim.api.nvim_win_get_cursor(win)
-    if scroll_method == "cursor" then
-      callbacks.on_scroll({ line = cursor[1] - 1 })
-    else
-      local total = vim.api.nvim_buf_line_count(bufnr)
-      callbacks.on_scroll({ percent = (cursor[1] - 1) / math.max(total - 1, 1) })
-    end
-  end, 50)
+  local uv = deps.uv or (vim.uv or vim.loop)
 
-  local group = vim.api.nvim_create_augroup("md_view_" .. bufnr, { clear = true })
+  local vim_api
+  if deps.vim_api then
+    vim_api = deps.vim_api
+  else
+    -- vim.api is the base; bufwinid and schedule are injected on top.
+    -- Neither key exists in vim.api today so there is no collision.
+    -- "keep" ensures any future vim.api additions do not shadow our keys.
+    vim_api = vim.tbl_extend("keep", {
+      bufwinid = vim.fn.bufwinid,
+      schedule = vim.schedule,
+    }, vim.api)
+  end
 
-  local ids = {}
+  local debounce = deps.debounce or util.debounce
 
-  -- Tracks whether the last on-disk change was written by Neovim itself (BufWritePost).
-  -- Used to suppress the redundant fs_watch push that would otherwise double-fire on :w.
-  local wrote_from_nvim = false
+  local instance = {}
 
-  ids[#ids + 1] = vim.api.nvim_create_autocmd(
-    { "TextChanged", "TextChangedI", "BufWritePost", "BufReadPost", "FileChangedShellPost" },
-    {
-      group = group,
-      buffer = bufnr,
-      callback = function(ev)
-        if ev.event == "BufWritePost" then
-          wrote_from_nvim = true
-        end
-        content_debounced()
-      end,
-    }
-  )
-
-  ids[#ids + 1] = vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
-    group = group,
-    buffer = bufnr,
-    callback = function()
-      scroll_debounced()
-    end,
-  })
-
-  -- Watch the file on disk for external changes (e.g. an AI agent editing while Neovim is
-  -- unfocused). Reads content directly from disk so the preview stays live without requiring
-  -- a checktime or buffer reload.
-  local filepath = vim.api.nvim_buf_get_name(bufnr)
-  local fs_watcher = nil
-  local file_content_debounced = nil
-
-  if filepath and filepath ~= "" then
-    file_content_debounced = util.debounce(function()
-      if wrote_from_nvim then
-        wrote_from_nvim = false
+  function instance.watch(bufnr, callbacks, debounce_ms, scroll_method)
+    local content_debounced = debounce(function()
+      if not vim_api.nvim_buf_is_valid(bufnr) then
         return
       end
-      uv.fs_open(filepath, "r", 438, function(err, fd)
-        if err or not fd then
+      local lines = vim_api.nvim_buf_get_lines(bufnr, 0, -1, false)
+      callbacks.on_content(lines)
+    end, debounce_ms)
+
+    local scroll_debounced = debounce(function()
+      if not vim_api.nvim_buf_is_valid(bufnr) then
+        return
+      end
+      local win = vim_api.bufwinid(bufnr)
+      if win == -1 then
+        return
+      end
+      local cursor = vim_api.nvim_win_get_cursor(win)
+      if scroll_method == "cursor" then
+        callbacks.on_scroll({ line = cursor[1] - 1 })
+      else
+        local total = vim_api.nvim_buf_line_count(bufnr)
+        callbacks.on_scroll({ percent = (cursor[1] - 1) / math.max(total - 1, 1) })
+      end
+    end, 50)
+
+    local group = vim_api.nvim_create_augroup("md_view_" .. bufnr, { clear = true })
+
+    local ids = {}
+
+    -- Tracks whether the last on-disk change was written by Neovim itself (BufWritePost).
+    -- Used to suppress the redundant fs_watch push that would otherwise double-fire on :w.
+    local wrote_from_nvim = false
+
+    ids[#ids + 1] = vim_api.nvim_create_autocmd(
+      { "TextChanged", "TextChangedI", "BufWritePost", "BufReadPost", "FileChangedShellPost" },
+      {
+        group = group,
+        buffer = bufnr,
+        callback = function(ev)
+          if ev.event == "BufWritePost" then
+            wrote_from_nvim = true
+          end
+          content_debounced()
+        end,
+      }
+    )
+
+    ids[#ids + 1] = vim_api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+      group = group,
+      buffer = bufnr,
+      callback = function()
+        scroll_debounced()
+      end,
+    })
+
+    -- Watch the file on disk for external changes (e.g. an AI agent editing while Neovim is
+    -- unfocused). Reads content directly from disk so the preview stays live without requiring
+    -- a checktime or buffer reload.
+    local filepath = vim_api.nvim_buf_get_name(bufnr)
+    local fs_watcher = nil
+    local file_content_debounced = nil
+
+    if filepath and filepath ~= "" then
+      file_content_debounced = debounce(function()
+        if wrote_from_nvim then
+          wrote_from_nvim = false
           return
         end
-        uv.fs_fstat(fd, function(serr, stat)
-          if serr or not stat then
-            uv.fs_close(fd, function() end)
+        uv.fs_open(filepath, "r", 438, function(err, fd)
+          if err or not fd then
             return
           end
-          uv.fs_read(fd, stat.size, 0, function(rerr, data)
-            uv.fs_close(fd, function() end)
-            if rerr or not data then
+          uv.fs_fstat(fd, function(serr, stat)
+            if serr or not stat then
+              uv.fs_close(fd, function() end)
               return
             end
-            vim.schedule(function()
-              if vim.api.nvim_buf_is_valid(bufnr) then
-                callbacks.on_content(vim.split(data, "\n", { plain = true }))
+            uv.fs_read(fd, stat.size, 0, function(rerr, data)
+              uv.fs_close(fd, function() end)
+              if rerr or not data then
+                return
               end
+              vim_api.schedule(function()
+                if vim_api.nvim_buf_is_valid(bufnr) then
+                  callbacks.on_content(vim.split(data, "\n", { plain = true }))
+                end
+              end)
             end)
           end)
         end)
-      end)
-    end, debounce_ms)
+      end, debounce_ms)
 
-    -- Note: rename-based writers (sed -i, rsync, etc.) will silently stop the watcher.
-    local handle = uv.new_fs_event()
-    local ok = pcall(function()
-      handle:start(filepath, {}, function(ferr, _name, _events)
-        if ferr then
-          return
-        end
-        file_content_debounced()
+      -- Note: rename-based writers (sed -i, rsync, etc.) will silently stop the watcher.
+      local handle = uv.new_fs_event()
+      local ok = pcall(function()
+        handle:start(filepath, {}, function(ferr, _name, _events)
+          if ferr then
+            return
+          end
+          file_content_debounced()
+        end)
       end)
-    end)
-    if ok then
-      fs_watcher = handle
-    else
-      handle:close()
-      file_content_debounced.stop()
-      file_content_debounced = nil
+      if ok then
+        fs_watcher = handle
+      else
+        handle:close()
+        file_content_debounced.stop()
+        file_content_debounced = nil
+      end
     end
+
+    return {
+      autocmd_ids = ids,
+      group = group,
+      stop = function()
+        content_debounced.stop()
+        scroll_debounced.stop()
+        vim_api.nvim_del_augroup_by_id(group)
+        if file_content_debounced then
+          file_content_debounced.stop()
+        end
+        if fs_watcher and not fs_watcher:is_closing() then
+          fs_watcher:close()
+        end
+      end,
+    }
   end
 
-  return {
-    autocmd_ids = ids,
-    group = group,
-    stop = function()
-      content_debounced.stop()
-      scroll_debounced.stop()
-      vim.api.nvim_del_augroup_by_id(group)
-      if file_content_debounced then
-        file_content_debounced.stop()
-      end
-      if fs_watcher and not fs_watcher:is_closing() then
-        fs_watcher:close()
-      end
-    end,
-  }
+  return instance
+end
+
+-- Convenience alias: forwards to a fresh M.new() instance with production defaults.
+-- Each call is independent — no shared state across invocations.
+function M.watch(bufnr, callbacks, debounce_ms, scroll_method)
+  return M.new().watch(bufnr, callbacks, debounce_ms, scroll_method)
 end
 
 return M
