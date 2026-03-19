@@ -24,6 +24,7 @@ jobs:
           test -f README.md
           test -f docs/ARCHITECTURE.md
           test -f docs/recipes/picker-integration.md
+          test -f docs/options.md
 
           # Strip the H1 plugin-name line from README — panvimdoc uses the plugin
           # name as the doc title, so keeping it would produce double-prefix tags
@@ -37,6 +38,8 @@ jobs:
           sed 's/^#/##/' docs/ARCHITECTURE.md >> .doc-source.md
           printf "\n\n" >> .doc-source.md
           sed 's/^#/##/' docs/recipes/picker-integration.md >> .doc-source.md
+          printf "\n\n" >> .doc-source.md
+          sed 's/^#/##/' docs/options.md >> .doc-source.md
 
       - name: Check for duplicate headings
         run: |
