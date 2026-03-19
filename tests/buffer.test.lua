@@ -164,4 +164,111 @@ describe("buffer", function()
       assert.is_function(inst.watch)
     end)
   end)
+
+  describe("scroll calculation", function()
+    local watcher
+    after_each(function()
+      if watcher then
+        watcher.stop()
+        watcher = nil
+      end
+    end)
+
+    it("cursor mode emits line-based position", function()
+      local m = make_mocks({
+        nvim_win_get_cursor = function(_w)
+          return { 3, 0 }
+        end,
+      })
+      local result
+      watcher = buffer.new(m).watch(1, {
+        on_content = function() end,
+        on_scroll = function(p)
+          result = p
+        end,
+      }, 100, "cursor")
+      fire_cursor(m.autocmds)
+      assert.are.same({ line = 2 }, result)
+    end)
+
+    it("percent mode emits fractional position", function()
+      local m = make_mocks({
+        nvim_win_get_cursor = function(_w)
+          return { 2, 0 }
+        end,
+        nvim_buf_line_count = function(_b)
+          return 5
+        end,
+      })
+      local result
+      watcher = buffer.new(m).watch(1, {
+        on_content = function() end,
+        on_scroll = function(p)
+          result = p
+        end,
+      }, 100, "percent")
+      fire_cursor(m.autocmds)
+      -- (2-1) / (5-1) = 0.25
+      assert.are.same({ percent = 0.25 }, result)
+    end)
+
+    it("nil scroll_method falls through to percent path", function()
+      local m = make_mocks({
+        nvim_win_get_cursor = function(_w)
+          return { 1, 0 }
+        end,
+        nvim_buf_line_count = function(_b)
+          return 3
+        end,
+      })
+      local result
+      watcher = buffer.new(m).watch(1, {
+        on_content = function() end,
+        on_scroll = function(p)
+          result = p
+        end,
+      }, 100, nil)
+      fire_cursor(m.autocmds)
+      -- (1-1) / (3-1) = 0
+      assert.are.same({ percent = 0 }, result)
+    end)
+
+    it("single-line buffer gives percent 0 without division error", function()
+      local m = make_mocks({
+        nvim_win_get_cursor = function(_w)
+          return { 1, 0 }
+        end,
+        nvim_buf_line_count = function(_b)
+          return 1
+        end,
+      })
+      local result
+      watcher = buffer.new(m).watch(1, {
+        on_content = function() end,
+        on_scroll = function(p)
+          result = p
+        end,
+      }, 100, "percent")
+      fire_cursor(m.autocmds)
+      -- (1-1) / max(1-1, 1) = 0/1 = 0
+      assert.are.same({ percent = 0 }, result)
+    end)
+
+    it("scroll is no-op when bufwinid returns -1 (buffer not visible)", function()
+      local m = make_mocks({
+        bufwinid = function(_b)
+          return -1
+        end,
+      })
+      local called = false
+      watcher = buffer.new(m).watch(1, {
+        on_content = function() end,
+        on_scroll = function()
+          called = true
+        end,
+      }, 100, "cursor")
+      fire_cursor(m.autocmds)
+      assert.is_false(called)
+    end)
+  end)
 end)
