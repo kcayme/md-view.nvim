@@ -16,7 +16,7 @@ jobs:
         uses: JohnnyMorganz/stylua-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          version: latest
+          version: v2.4.0
           args: --check lua/
 
       - name: Install selene
