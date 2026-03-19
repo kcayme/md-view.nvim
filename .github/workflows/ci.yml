@@ -20,8 +20,11 @@ jobs:
           args: --check lua/
 
       - name: Install selene
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          url=$(curl -fsSL https://api.github.com/repos/Kampfkarren/selene/releases/latest \
+          url=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+            https://api.github.com/repos/Kampfkarren/selene/releases/latest \
             | jq -r '.assets[] | select(.name | test("^selene-[0-9].*-linux\\.zip$")) | .browser_download_url')
           curl -fsSL "$url" -o selene.zip
           unzip -q selene.zip selene
