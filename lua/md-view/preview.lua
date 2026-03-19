@@ -164,6 +164,7 @@ function M.create(opts)
       h:register(bufnr, bufname, sp.tab_label)
       local entry = h.registry[bufnr]
       h:push("preview_added", { id = bufnr, title = entry.title, label = entry.label })
+      h:push("hub_palette", { css = theme.palette_css(resolved.theme) })
     end
   end
 
@@ -196,6 +197,18 @@ function M.create(opts)
         end
       end,
     })
+  elseif opts.theme.mode == "auto" then
+    if sp and sp.enable then
+      vim.api.nvim_create_autocmd("ColorScheme", {
+        group = cleanup_group,
+        callback = function()
+          local h = get_mux()
+          if h and h.server then
+            h:push("hub_palette", { css = theme.palette_css(vim.o.background == "light" and "light" or "dark") })
+          end
+        end,
+      })
+    end
   end
 
   if sp and sp.enable then
