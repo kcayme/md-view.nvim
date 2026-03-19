@@ -40,7 +40,7 @@ describe("template", function()
       -- Guard variable must be declared and checked at function entry so that
       -- concurrent SSE replay + fetch("/content") arriving with identical text
       -- does not trigger two mermaid.run() calls (which would cause flicker).
-      assert.truthy(html:find("lastRenderedContent"))
+      assert.truthy(html:find("lastContent"))
     end)
 
     it("injects the title", function()
