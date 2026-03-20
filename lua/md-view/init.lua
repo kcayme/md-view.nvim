@@ -46,15 +46,20 @@ M.setup = function(opts)
   end
 end
 
----@param opts { silent?: boolean }|nil
+---@param opts { silent?: boolean, follow_focus?: boolean }|nil
 M.open = function(opts)
   opts = opts or {}
+
   if not config.options then
     config.setup({})
   end
+
   local bufnr = vim.api.nvim_get_current_buf()
   local ft = vim.bo[bufnr].filetype
   local filetypes = config.options.filetypes
+  local existing = preview.get_by_buffer(bufnr)
+  local preview_opts = config.options
+
   if filetypes and #filetypes > 0 then
     local allowed = false
     for _, v in ipairs(filetypes) do
@@ -70,14 +75,21 @@ M.open = function(opts)
       return
     end
   end
-  local existing = preview.get_by_buffer(bufnr)
-  local preview_opts = config.options
+
   if current_live_theme then
     preview_opts = vim.tbl_extend("force", preview_opts, {
       theme = vim.tbl_extend("force", preview_opts.theme, { mode = current_live_theme }),
     })
   end
-  preview.create(vim.tbl_extend("force", preview_opts, { silent = opts.silent }))
+
+  local call_opts = { silent = opts.silent }
+
+  if opts.follow_focus ~= nil and existing then
+    call_opts.follow_focus = opts.follow_focus
+  end
+
+  preview.create(vim.tbl_extend("force", preview_opts, call_opts))
+
   if current_live_theme and existing then
     existing.sse:push("palette", { css = compute_live_css() })
   end
@@ -91,6 +103,7 @@ end
 ---@return nil
 M.toggle = function()
   local bufnr = vim.api.nvim_get_current_buf()
+
   if preview.get_by_buffer(bufnr) then
     M.stop(bufnr)
   else
@@ -113,11 +126,16 @@ M.toggle_auto_open = function()
   if not config.options then
     config.setup({})
   end
+
   local enabled = not config.options.auto_open.enable
+
   config.options.auto_open.enable = enabled
+
   pcall(vim.api.nvim_del_augroup_by_name, "md_view_auto_open")
+
   if enabled then
     vim.notify("[md-view] auto-open enabled")
+
     register_auto_open_augroup()
   else
     vim.notify("[md-view] auto-open disabled")
@@ -140,6 +158,7 @@ M.set_theme = function(mode)
   end
 
   local notified_mode
+
   if mode and mode ~= "" then
     -- Explicit arg path
     current_live_theme = mode
@@ -157,12 +176,14 @@ M.set_theme = function(mode)
     end
     -- Advance to next in cycle
     local idx = 1
+
     for i, v in ipairs(THEME_CYCLE) do
       if v == current_live_theme then
         idx = i
         break
       end
     end
+
     current_live_theme = THEME_CYCLE[(idx % #THEME_CYCLE) + 1]
     notified_mode = current_live_theme
   end
@@ -170,12 +191,14 @@ M.set_theme = function(mode)
   -- Push to all active previews
   local css = compute_live_css()
   local h = preview.get_mux and preview.get_mux()
+
   for bufnr, p in pairs(preview.get_active_previews()) do
     p.sse:push("palette", { css = css })
     if h and h.server then
       h:push("palette", { id = bufnr, css = css })
     end
   end
+
   -- Push hub-level palette so the chrome (tab bar, body) updates immediately
   if h and h.server then
     h:push("hub_palette", { css = css })

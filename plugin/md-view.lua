@@ -1,5 +1,5 @@
 vim.api.nvim_create_user_command("MdView", function()
-  require("md-view").open()
+  require("md-view").open({ follow_focus = true })
 end, { desc = "Open markdown preview in browser" })
 
 vim.api.nvim_create_user_command("MdViewStop", function()

@@ -148,12 +148,17 @@ local function handle_preview(bufnr, opts, sp)
   if sp and sp.enable and _mux and _mux.server then
     local url = "http://" .. opts.host .. ":" .. _mux.port
 
-    if #_mux.clients > 0 and not opts.follow_focus then
-      local entry = _mux.registry[bufnr]
+    if #_mux.clients > 0 then
+      if opts.follow_focus then
+        local entry = _mux.registry[bufnr]
 
-      if entry then
-        _mux:push("preview_added", { id = bufnr, title = entry.title, label = entry.label })
-        _mux:push("focus", { id = bufnr })
+        if entry then
+          _mux:push("preview_added", { id = bufnr, title = entry.title, label = entry.label })
+          _mux:push("focus", { id = bufnr })
+        end
+
+        util.notify(opts, "[md-view] Focused preview in hub at " .. url)
+        return
       end
 
       util.notify(opts, "[md-view] Preview already open in hub at " .. url)
@@ -322,7 +327,7 @@ local function register_autocmds(bufnr, opts, sse_instance)
     })
   end
 
-  if sp and sp.enable then
+  if sp and sp.enable and opts.follow_focus then
     vim.api.nvim_create_autocmd("BufEnter", {
       group = cleanup_group,
       buffer = bufnr,
