@@ -2,57 +2,61 @@ local M = {}
 
 local util = require("md-view.util")
 
+local function default_format(item, max_name_len, cfg)
+  local url = "http://" .. (cfg.host or "127.0.0.1") .. ":" .. item.port
+
+  return string.format("%-" .. max_name_len .. "s  %s", item.name, url)
+end
+
 M.open = function()
   local previews = require("md-view").get_active_previews()
+  local config = require("md-view.config").options or {}
   local items = {}
+  local picker_config = config.picker or {}
+  local max_name_len = 0
 
+  -- collate list of previews
   for bufnr, preview in pairs(previews) do
+    local item_name = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t")
+
     items[#items + 1] = {
       bufnr = bufnr,
       port = preview.port,
-      name = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t"),
+      name = item_name,
     }
-  end
 
-  local cfg = require("md-view.config").options or {}
-
-  if #items == 0 then
-    util.notify(cfg, "[md-view] No active previews", vim.log.levels.INFO)
-    return
-  end
-  local pcfg = cfg.picker or {}
-
-  local max_name_len = 0
-  for _, it in ipairs(items) do
-    if #it.name > max_name_len then
-      max_name_len = #it.name
+    if #item_name > max_name_len then
+      max_name_len = #item_name
     end
   end
 
-  local function default_format(item)
-    local url = "http://" .. (cfg.host or "127.0.0.1") .. ":" .. item.port
-    return string.format("%-" .. max_name_len .. "s  %s", item.name, url)
+  if #items == 0 then
+    util.notify(config, "[md-view] No active previews", vim.log.levels.INFO)
+    return
   end
 
   local select_opts = {
-    prompt = pcfg.prompt or "Markdown Previews",
-    format_item = pcfg.format_item or default_format,
+    prompt = picker_config.prompt or "Markdown Previews",
+    format_item = picker_config.format_item or function(item)
+      return default_format(item, max_name_len, config)
+    end,
+    kind = (picker_config.kind and picker_config.kind),
   }
-  if pcfg.kind then
-    select_opts.kind = pcfg.kind
-  end
 
   vim.ui.select(items, select_opts, function(item)
     if not item then
       return
     end
+
     vim.api.nvim_set_current_buf(item.bufnr)
-    local url = "http://" .. (cfg.host or "127.0.0.1") .. ":" .. item.port
+
+    local url = "http://" .. (config.host or "127.0.0.1") .. ":" .. item.port
     local preview = previews[item.bufnr]
+
     if preview and #preview.sse.clients > 0 then
-      util.notify(cfg, "[md-view] Preview already open at " .. url, vim.log.levels.INFO)
+      util.notify(config, "[md-view] Preview already open at " .. url, vim.log.levels.INFO)
     else
-      require("md-view.util").open_browser(url, cfg.browser)
+      util.open_browser(url, config.browser)
     end
   end)
 end
