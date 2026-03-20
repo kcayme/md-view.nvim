@@ -248,6 +248,98 @@ describe("preview hub integration", function()
     assert.is_false(has_close, "single_page.close_by=false must suppress window close")
   end)
 
+  it("single_page follow_focus=false: does not push focus or reopen browser when hub has clients", function()
+    local open_calls = {}
+    package.loaded["md-view.util"] = {
+      open_browser = function(url)
+        table.insert(open_calls, url)
+      end,
+      notify = function() end,
+      table_len = function(t)
+        local n = 0
+        for _ in pairs(t) do
+          n = n + 1
+        end
+        return n
+      end,
+    }
+    config.setup({
+      single_page = { enable = true, tab_label = "filename" },
+      follow_focus = false,
+    })
+    local preview = require("md-view.preview")
+    local bufnr = vim.api.nvim_get_current_buf()
+
+    preview.create(config.options)
+    assert.are.equal(1, #open_calls, "browser should open once on first create")
+
+    -- Simulate a connected client
+    fake_hub.clients = { "fake_client" }
+    fake_hub._events = {}
+    open_calls = {}
+
+    -- Second open: hub has clients, follow_focus=false — should not push focus or reopen browser
+    preview.create(config.options)
+
+    assert.are.equal(0, #open_calls, "browser must not reopen when follow_focus=false and hub has clients")
+
+    local has_focus = false
+    for _, ev in ipairs(fake_hub._events) do
+      if ev.event_type == "focus" and ev.data.id == bufnr then
+        has_focus = true
+      end
+    end
+    assert.is_false(has_focus, "focus event must not be pushed when follow_focus=false")
+
+    preview.destroy(bufnr)
+  end)
+
+  it("single_page follow_focus=true: pushes focus event without reopening browser when hub has clients", function()
+    local open_calls = {}
+    package.loaded["md-view.util"] = {
+      open_browser = function(url)
+        table.insert(open_calls, url)
+      end,
+      notify = function() end,
+      table_len = function(t)
+        local n = 0
+        for _ in pairs(t) do
+          n = n + 1
+        end
+        return n
+      end,
+    }
+    config.setup({
+      single_page = { enable = true, tab_label = "filename" },
+      follow_focus = true,
+    })
+    local preview = require("md-view.preview")
+    local bufnr = vim.api.nvim_get_current_buf()
+
+    preview.create(config.options)
+    assert.are.equal(1, #open_calls, "browser should open once on first create")
+
+    -- Simulate a connected client
+    fake_hub.clients = { "fake_client" }
+    fake_hub._events = {}
+    open_calls = {}
+
+    -- Second open: hub has clients, follow_focus=true — should push focus but NOT open new browser tab
+    preview.create(config.options)
+
+    assert.are.equal(0, #open_calls, "browser must not reopen when follow_focus=true and hub already has clients")
+
+    local has_focus = false
+    for _, ev in ipairs(fake_hub._events) do
+      if ev.event_type == "focus" and ev.data.id == bufnr then
+        has_focus = true
+      end
+    end
+    assert.is_true(has_focus, "focus event must be pushed when follow_focus=true and hub has clients")
+
+    preview.destroy(bufnr)
+  end)
+
   it("does not open per-preview URL when preview already active in single_page mode", function()
     local open_calls = {}
     -- Must replace before requiring preview so preview.lua captures the tracking mock
