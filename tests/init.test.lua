@@ -16,11 +16,11 @@ describe("md-view init", function()
       create = function()
         create_called = true
       end,
-      get = function()
+      get_by_buffer = function()
         return nil
       end,
       destroy = function() end,
-      get_active = function()
+      get_active_previews = function()
         return {}
       end,
     }
@@ -70,11 +70,11 @@ describe("md-view init", function()
     package.loaded["md-view"] = nil
     package.loaded["md-view.preview"] = {
       create = function() end,
-      get = function()
+      get_by_buffer = function()
         return nil
       end,
       destroy = function() end,
-      get_active = function()
+      get_active_previews = function()
         return {}
       end,
     }
@@ -122,11 +122,11 @@ describe("md-view init", function()
     package.loaded["md-view"] = nil
     package.loaded["md-view.preview"] = {
       create = function() end,
-      get = function()
+      get_by_buffer = function()
         return nil
       end,
       destroy = function() end,
-      get_active = function()
+      get_active_previews = function()
         return { [1] = { sse = { push = function() end } } }
       end,
       get_mux = function()

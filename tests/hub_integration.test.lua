@@ -58,7 +58,17 @@ describe("preview hub integration", function()
         return { stop = function() end }
       end,
     }
-    package.loaded["md-view.util"] = { open_browser = function() end }
+    package.loaded["md-view.util"] = {
+      open_browser = function() end,
+      notify = function() end,
+      table_len = function(t)
+        local n = 0
+        for _ in pairs(t) do
+          n = n + 1
+        end
+        return n
+      end,
+    }
     package.loaded["md-view.server.router"] = {
       new = function()
         return function() end
@@ -244,6 +254,14 @@ describe("preview hub integration", function()
     package.loaded["md-view.util"] = {
       open_browser = function(url)
         table.insert(open_calls, url)
+      end,
+      notify = function() end,
+      table_len = function(t)
+        local n = 0
+        for _ in pairs(t) do
+          n = n + 1
+        end
+        return n
       end,
     }
     local preview = require("md-view.preview")

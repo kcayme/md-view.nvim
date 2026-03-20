@@ -27,8 +27,11 @@ local function load_module(config_opts)
     get = function()
       return nil
     end,
+    get_by_buffer = function()
+      return nil
+    end,
     destroy = function() end,
-    get_active = function()
+    get_active_previews = function()
       return active_previews
     end,
   }
@@ -448,7 +451,7 @@ describe("theme_switch", function()
       reopen_sse_events = {}
       orig_filetype = vim.bo.filetype
       vim.bo.filetype = "markdown"
-      package.loaded["md-view.preview"].get = function()
+      package.loaded["md-view.preview"].get_by_buffer = function()
         return existing_preview
       end
       package.loaded["md-view.preview"].create = function() end

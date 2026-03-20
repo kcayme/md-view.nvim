@@ -70,7 +70,7 @@ M.open = function(opts)
       return
     end
   end
-  local existing = preview.get(bufnr)
+  local existing = preview.get_by_buffer(bufnr)
   local preview_opts = config.options
   if current_live_theme then
     preview_opts = vim.tbl_extend("force", preview_opts, {
@@ -91,7 +91,7 @@ end
 ---@return nil
 M.toggle = function()
   local bufnr = vim.api.nvim_get_current_buf()
-  if preview.get(bufnr) then
+  if preview.get_by_buffer(bufnr) then
     M.stop(bufnr)
   else
     M.open()
@@ -100,7 +100,7 @@ end
 
 ---@return table<integer, table>
 M.get_active_previews = function()
-  return preview.get_active()
+  return preview.get_active_previews()
 end
 
 ---@return nil
@@ -135,7 +135,7 @@ M.set_theme = function(mode)
   end
 
   -- Early exit if no active previews (no state mutation)
-  if vim.tbl_isempty(preview.get_active()) then
+  if vim.tbl_isempty(preview.get_active_previews()) then
     return
   end
 
@@ -170,7 +170,7 @@ M.set_theme = function(mode)
   -- Push to all active previews
   local css = compute_live_css()
   local h = preview.get_mux and preview.get_mux()
-  for bufnr, p in pairs(preview.get_active()) do
+  for bufnr, p in pairs(preview.get_active_previews()) do
     p.sse:push("palette", { css = css })
     if h and h.server then
       h:push("palette", { id = bufnr, css = css })

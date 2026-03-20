@@ -49,4 +49,20 @@ M.debounce = function(fn, ms)
   return wrapped
 end
 
+M.table_len = function(input)
+  local length = 0
+
+  for _ in pairs(input) do
+    length = length + 1
+  end
+
+  return length
+end
+
+M.notify = function(opts, msg, level)
+  if not opts.silent then
+    vim.notify(msg, level)
+  end
+end
+
 return M
