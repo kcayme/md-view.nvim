@@ -125,6 +125,19 @@ local function make_vim_api(autocmds, overrides)
   return api
 end
 
+--- Convenience: merges mocks with watcher params into a single M.new() call.
+local function make_watcher(m, bufnr, callbacks, debounce_ms, scroll_method)
+  return buffer.new({
+    bufnr = bufnr,
+    callbacks = callbacks,
+    debounce_ms = debounce_ms,
+    scroll_method = scroll_method,
+    vim_api = m.vim_api,
+    uv = m.uv,
+    debounce = m.debounce,
+  })
+end
+
 --- Convenience: builds all three mocks in one call.
 --- Returns { vim_api, uv, debounce, autocmds, debouncers }
 local function make_mocks(vim_api_overrides, uv_overrides)
@@ -158,10 +171,12 @@ end
 
 describe("buffer", function()
   describe("M.new", function()
-    it("returns an instance with a watch method", function()
-      local inst = buffer.new({})
+    it("returns a watcher with a stop function", function()
+      local m = make_mocks()
+      local inst = make_watcher(m, 1, { on_content = function() end, on_scroll = function() end }, 100, nil)
       assert.is_not_nil(inst)
-      assert.is_function(inst.watch)
+      assert.is_function(inst.stop)
+      inst.stop()
     end)
   end)
 
@@ -181,7 +196,7 @@ describe("buffer", function()
         end,
       })
       local result
-      watcher = buffer.new(m).watch(1, {
+      watcher = make_watcher(m, 1, {
         on_content = function() end,
         on_scroll = function(p)
           result = p
@@ -201,7 +216,7 @@ describe("buffer", function()
         end,
       })
       local result
-      watcher = buffer.new(m).watch(1, {
+      watcher = make_watcher(m, 1, {
         on_content = function() end,
         on_scroll = function(p)
           result = p
@@ -222,7 +237,7 @@ describe("buffer", function()
         end,
       })
       local result
-      watcher = buffer.new(m).watch(1, {
+      watcher = make_watcher(m, 1, {
         on_content = function() end,
         on_scroll = function(p)
           result = p
@@ -243,7 +258,7 @@ describe("buffer", function()
         end,
       })
       local result
-      watcher = buffer.new(m).watch(1, {
+      watcher = make_watcher(m, 1, {
         on_content = function() end,
         on_scroll = function(p)
           result = p
@@ -261,7 +276,7 @@ describe("buffer", function()
         end,
       })
       local called = false
-      watcher = buffer.new(m).watch(1, {
+      watcher = make_watcher(m, 1, {
         on_content = function() end,
         on_scroll = function()
           called = true
@@ -288,7 +303,7 @@ describe("buffer", function()
         end,
       })
       local got
-      watcher = buffer.new(m).watch(1, {
+      watcher = make_watcher(m, 1, {
         on_content = function(lines)
           got = lines
         end,
@@ -305,7 +320,7 @@ describe("buffer", function()
         end,
       })
       local called = false
-      watcher = buffer.new(m).watch(1, {
+      watcher = make_watcher(m, 1, {
         on_content = function()
           called = true
         end,
@@ -328,7 +343,7 @@ describe("buffer", function()
     local function setup_suppression()
       local m = make_mocks()
       local calls = 0
-      watcher = buffer.new(m).watch(1, {
+      watcher = make_watcher(m, 1, {
         on_content = function()
           calls = calls + 1
         end,
@@ -368,7 +383,7 @@ describe("buffer", function()
   describe("stop() teardown", function()
     it("calls stop on all three debouncers when fs watcher was started", function()
       local m = make_mocks()
-      local w = buffer.new(m).watch(1, { on_content = function() end, on_scroll = function() end }, 100, nil)
+      local w = make_watcher(m, 1, { on_content = function() end, on_scroll = function() end }, 100, nil)
       -- 3 debouncers: content, scroll, file_content
       assert.are.equal(3, #m.debouncers)
       w.stop()
@@ -388,21 +403,21 @@ describe("buffer", function()
           deleted_id = id
         end,
       })
-      local w = buffer.new(m).watch(1, { on_content = function() end, on_scroll = function() end }, 100, nil)
+      local w = make_watcher(m, 1, { on_content = function() end, on_scroll = function() end }, 100, nil)
       w.stop()
       assert.are.equal(42, deleted_id)
     end)
 
     it("closes fs_watcher when not closing", function()
       local m = make_mocks()
-      local w = buffer.new(m).watch(1, { on_content = function() end, on_scroll = function() end }, 100, nil)
+      local w = make_watcher(m, 1, { on_content = function() end, on_scroll = function() end }, 100, nil)
       w.stop()
       assert.is_true(m.uv.get_handle()._closing)
     end)
 
     it("skips fs_watcher:close when already closing", function()
       local m = make_mocks()
-      local w = buffer.new(m).watch(1, { on_content = function() end, on_scroll = function() end }, 100, nil)
+      local w = make_watcher(m, 1, { on_content = function() end, on_scroll = function() end }, 100, nil)
       local close_calls = 0
       local h = m.uv.get_handle()
       h._closing = true
@@ -421,7 +436,7 @@ describe("buffer", function()
           return ""
         end,
       })
-      local w = buffer.new(m).watch(1, { on_content = function() end, on_scroll = function() end }, 100, nil)
+      local w = make_watcher(m, 1, { on_content = function() end, on_scroll = function() end }, 100, nil)
       assert.are.equal(2, #m.debouncers) -- only content + scroll
       assert.has_no.errors(function()
         w.stop()
@@ -444,7 +459,7 @@ describe("buffer", function()
           return ""
         end,
       })
-      watcher = buffer.new(m).watch(1, { on_content = function() end, on_scroll = function() end }, 100, nil)
+      watcher = make_watcher(m, 1, { on_content = function() end, on_scroll = function() end }, 100, nil)
       assert.is_nil(m.uv.get_handle())
     end)
 
@@ -454,7 +469,7 @@ describe("buffer", function()
           return nil
         end,
       })
-      watcher = buffer.new(m).watch(1, { on_content = function() end, on_scroll = function() end }, 100, nil)
+      watcher = make_watcher(m, 1, { on_content = function() end, on_scroll = function() end }, 100, nil)
       assert.is_nil(m.uv.get_handle())
     end)
 
@@ -476,7 +491,7 @@ describe("buffer", function()
       end
       -- Should not error at watch time
       assert.has_no.errors(function()
-        watcher = buffer.new(m).watch(1, { on_content = function() end, on_scroll = function() end }, 100, nil)
+        watcher = make_watcher(m, 1, { on_content = function() end, on_scroll = function() end }, 100, nil)
       end)
       -- file_content_debounced (debouncer[3]) was created then immediately stopped
       assert.is_true(handle_closed)
@@ -496,7 +511,7 @@ describe("buffer", function()
           cb(nil, "alpha\nbeta\ngamma")
         end,
       })
-      watcher = buffer.new(m).watch(1, {
+      watcher = make_watcher(m, 1, {
         on_content = function(lines)
           got = lines
         end,
@@ -513,7 +528,7 @@ describe("buffer", function()
           cb("read error", nil)
         end,
       })
-      watcher = buffer.new(m).watch(1, {
+      watcher = make_watcher(m, 1, {
         on_content = function()
           called = true
         end,
