@@ -110,7 +110,7 @@ M.options = nil
 local LOOPBACK = { ["127.0.0.1"] = true, ["::1"] = true, ["localhost"] = true }
 
 ---@param opts MdViewOptions|nil
-function M.setup(opts)
+M.setup = function(opts)
   -- Deprecated: theme_sync = true → theme = { mode = "sync" }
   if opts and opts.theme_sync == true then
     vim.notify('[md-view] `theme_sync` is deprecated; use `theme = { mode = "sync" }` instead', vim.log.levels.WARN)

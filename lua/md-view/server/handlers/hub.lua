@@ -15,7 +15,7 @@ local REPLAY_EVENTS = { palette = true, theme = true, preview_added = true }
 local REPLAY_ORDER = { "preview_added", "palette", "theme" }
 
 ---@return MdViewHub
-function M.new()
+M.new = function()
   return setmetatable({
     registry = {}, -- bufnr -> { title, label }
     clients = {}, -- SSE client list (shared across all previews)
@@ -158,7 +158,7 @@ end
 
 -- ── Route handlers ──────────────────────────────────────────────────────
 
-function M.serve_root(_req, res, _ctx)
+M.serve_root = function(_req, res, _ctx)
   local template = require("md-view.server.template")
   local config = require("md-view.config")
   local theme_mod = require("md-view.theme")
@@ -176,11 +176,11 @@ function M.serve_root(_req, res, _ctx)
   res.send("200 OK", "text/html", template.render_mux(render_opts))
 end
 
-function M.serve_sse(_req, res, ctx)
+M.serve_sse = function(_req, res, ctx)
   res.sse_upgrade(ctx.hub)
 end
 
-function M.serve_content(req, res, ctx)
+M.serve_content = function(req, res, ctx)
   local bufnr = req.query.id and tonumber(req.query.id)
   if not bufnr or not ctx.hub.registry[bufnr] then
     res.send("400 Bad Request", "text/plain", "Bad Request")
@@ -190,7 +190,7 @@ function M.serve_content(req, res, ctx)
   res.json("200 OK", { content = table.concat(lines, "\n") })
 end
 
-function M.serve_vendor(req, res, _ctx)
+M.serve_vendor = function(req, res, _ctx)
   local vendor = require("md-view.vendor")
   local filename = req.params.file
   if not filename or not filename:match("^[%w%.%-_]+$") then
@@ -202,7 +202,7 @@ function M.serve_vendor(req, res, _ctx)
   res.send_file(vendor.vendor_dir() .. "/" .. filename, content_type)
 end
 
-function M.serve_file(req, res, ctx)
+M.serve_file = function(req, res, ctx)
   local router = require("md-view.server.router")
   local bufnr = req.query.id and tonumber(req.query.id)
   local raw = req.query.path

@@ -194,7 +194,7 @@ local function build_script_tags(opts)
   }
 end
 
-function M.render(opts, filename)
+M.render = function(opts, filename)
   local tmpl = load_template()
   if not tmpl then
     return ""
@@ -257,7 +257,7 @@ function M.render(opts, filename)
 end
 
 -- Render the mux shell page. Same CDN scripts as render(); title is "md-view".
-function M.render_mux(opts)
+M.render_mux = function(opts)
   local tmpl = load_mux_template()
   if not tmpl then
     return ""

@@ -4,23 +4,23 @@ local template = require("md-view.server.template")
 local vendor = require("md-view.vendor")
 local router = require("md-view.server.router")
 
-function M.serve_shell(_req, res, ctx)
+M.serve_shell = function(_req, res, ctx)
   local bufname = vim.api.nvim_buf_get_name(ctx.bufnr)
   local filename = vim.fn.fnamemodify(bufname, ":t")
   local html = template.render(ctx.config, filename)
   res.send("200 OK", "text/html", html)
 end
 
-function M.serve_content(_req, res, ctx)
+M.serve_content = function(_req, res, ctx)
   local lines = vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
   res.json("200 OK", { content = table.concat(lines, "\n") })
 end
 
-function M.serve_sse(_req, res, ctx)
+M.serve_sse = function(_req, res, ctx)
   res.sse_upgrade(ctx.sse)
 end
 
-function M.serve_vendor(req, res, _ctx)
+M.serve_vendor = function(req, res, _ctx)
   local filename = req.params.file
   if not filename or not filename:match("^[%w%.%-_]+$") then
     res.send("404 Not Found", "text/plain", "Not Found")
@@ -31,7 +31,7 @@ function M.serve_vendor(req, res, _ctx)
   res.send_file(vendor.vendor_dir() .. "/" .. filename, content_type)
 end
 
-function M.serve_file(req, res, ctx)
+M.serve_file = function(req, res, ctx)
   local raw = req.query.path
   local bufname = vim.api.nvim_buf_get_name(ctx.bufnr)
   local bufdir = vim.fn.fnamemodify(bufname, ":p:h")

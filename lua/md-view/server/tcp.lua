@@ -11,7 +11,7 @@ local function close_client(client)
   end
 end
 
-function M.start(host, port, on_request)
+M.start = function(host, port, on_request)
   local server = uv.new_tcp()
   local ok, bind_err = server:bind(host, port)
   if not ok then
@@ -76,7 +76,7 @@ function M.start(host, port, on_request)
   return server, addr.port
 end
 
-function M.stop(server)
+M.stop = function(server)
   if server and not server:is_closing() then
     server:close()
   end

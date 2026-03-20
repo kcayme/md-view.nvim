@@ -40,11 +40,11 @@ local MANIFEST = {
   },
 }
 
-function M.vendor_dir()
+M.vendor_dir = function()
   return vim.fn.stdpath("data") .. "/md-view.nvim/vendor"
 end
 
-function M.is_available()
+M.is_available = function()
   local dir = M.vendor_dir()
   -- Check the 17 static files from MANIFEST
   for _, entry in ipairs(MANIFEST) do
@@ -61,7 +61,7 @@ function M.is_available()
   return true
 end
 
-function M.fetch(opts)
+M.fetch = function(opts)
   opts = opts or {}
   if fetching then
     vim.notify("md-view.nvim: asset fetch already in progress", vim.log.levels.WARN)

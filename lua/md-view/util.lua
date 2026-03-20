@@ -2,7 +2,7 @@ local M = {}
 
 local uv = vim.uv or vim.loop
 
-function M.open_browser(url, browser)
+M.open_browser = function(url, browser)
   if browser then
     vim.fn.jobstart({ browser, url }, { detach = true })
     return
@@ -26,7 +26,7 @@ function M.open_browser(url, browser)
   end
 end
 
-function M.debounce(fn, ms)
+M.debounce = function(fn, ms)
   local timer = uv.new_timer()
   local wrapped = setmetatable({}, {
     __call = function(_, ...)

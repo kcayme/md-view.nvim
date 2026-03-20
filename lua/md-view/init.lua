@@ -32,7 +32,7 @@ local function register_auto_open_augroup()
 end
 
 ---@param opts MdViewOptions|nil
-function M.setup(opts)
+M.setup = function(opts)
   current_live_theme = nil
   config.setup(opts)
   pcall(vim.api.nvim_del_augroup_by_name, "md_view_auto_open")
@@ -47,7 +47,7 @@ function M.setup(opts)
 end
 
 ---@param opts { silent?: boolean }|nil
-function M.open(opts)
+M.open = function(opts)
   opts = opts or {}
   if not config.options then
     config.setup({})
@@ -84,12 +84,12 @@ function M.open(opts)
 end
 
 ---@param bufnr integer|nil
-function M.stop(bufnr)
+M.stop = function(bufnr)
   preview.destroy(bufnr)
 end
 
 ---@return nil
-function M.toggle()
+M.toggle = function()
   local bufnr = vim.api.nvim_get_current_buf()
   if preview.get(bufnr) then
     M.stop(bufnr)
@@ -99,17 +99,17 @@ function M.toggle()
 end
 
 ---@return table<integer, table>
-function M.get_active_previews()
+M.get_active_previews = function()
   return preview.get_active()
 end
 
 ---@return nil
-function M.list()
+M.list = function()
   require("md-view.picker").open()
 end
 
 ---@return nil
-function M.toggle_auto_open()
+M.toggle_auto_open = function()
   if not config.options then
     config.setup({})
   end
@@ -125,7 +125,7 @@ function M.toggle_auto_open()
 end
 
 ---@param mode MdViewThemeMode|nil
-function M.set_theme(mode)
+M.set_theme = function(mode)
   -- Validate explicit arg first (before checking active previews)
   if mode and mode ~= "" then
     if not VALID_THEME_MODES[mode] then

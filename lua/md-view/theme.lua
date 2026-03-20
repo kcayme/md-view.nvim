@@ -113,7 +113,7 @@ local KEY_TO_VAR = {
 
 ---@param overrides table<string, string|string[]>|nil
 ---@return MdViewThemeMapping[]
-function M.build_mappings(overrides)
+M.build_mappings = function(overrides)
   if not overrides or vim.tbl_isempty(overrides) then
     return mappings
   end
@@ -144,7 +144,7 @@ end
 
 ---@param custom_mappings MdViewThemeMapping[]|nil
 ---@return table<string, string>
-function M.extract(custom_mappings)
+M.extract = function(custom_mappings)
   local map = custom_mappings or mappings
   local vars = {}
   for _, m in ipairs(map) do
@@ -168,7 +168,7 @@ function M.extract(custom_mappings)
 end
 
 ---@return string[]
-function M.extract_hljs()
+M.extract_hljs = function()
   local rules = {}
   for _, m in ipairs(hljs_mappings) do
     for _, group in ipairs(m.groups) do
@@ -191,7 +191,7 @@ end
 
 ---@param vars table<string, string>
 ---@return string
-function M.to_css(vars)
+M.to_css = function(vars)
   local parts = { ":root {" }
   for var, val in pairs(vars) do
     parts[#parts + 1] = "  " .. var .. ": " .. val .. ";"
@@ -202,7 +202,7 @@ end
 
 ---@param overrides table<string, string|string[]>
 ---@return string
-function M.css(overrides)
+M.css = function(overrides)
   local merged = M.build_mappings(overrides)
   local css = M.to_css(M.extract(merged))
   local hljs_rules = M.extract_hljs()
@@ -214,20 +214,22 @@ end
 
 ---@param theme_name string
 ---@return string
-function M.palette_css(theme_name)
+M.palette_css = function(theme_name)
   return M.to_css(PALETTES[theme_name] or PALETTES.dark)
 end
 
 ---@param opts MdViewOptions
 ---@return MdViewResolvedTheme
-function M.resolve(opts)
+M.resolve = function(opts)
   local resolved_theme = opts.theme.mode
+
   if resolved_theme ~= "light" and resolved_theme ~= "dark" then
     resolved_theme = vim.o.background
   end
 
   local defs = THEME_DEFAULTS[resolved_theme] or THEME_DEFAULTS.dark
   local m = opts.notations and opts.notations.mermaid
+
   return {
     theme = resolved_theme,
     highlight_theme = opts.theme.syntax or defs.highlight_theme,

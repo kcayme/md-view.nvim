@@ -1,6 +1,6 @@
 local M = {}
 
-function M.open()
+M.open = function()
   local previews = require("md-view").get_active_previews()
   local items = {}
 

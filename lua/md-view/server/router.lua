@@ -68,7 +68,7 @@ end
 ---@param bufdir string
 ---@param raw string|nil
 ---@return string|nil
-function M.resolve_media_path(bufdir, raw)
+M.resolve_media_path = function(bufdir, raw)
   if not raw or raw == "" then
     return nil
   end
@@ -137,7 +137,7 @@ end
 -- Handlers call res methods; the client handle never leaves router.lua.
 ---@param client table
 ---@return MdViewResponse
-function M.build_res(client)
+M.build_res = function(client)
   return {
     -- Send a plain HTTP response and close the connection.
     send = function(status, content_type, body)
@@ -177,7 +177,7 @@ end
 -- Populates: method, path, query, params (empty — filled by dispatch), body, headers.
 ---@param buf string
 ---@return MdViewRequest|nil
-function M.parse(buf)
+M.parse = function(buf)
   local method, path_and_query = buf:match("^(%u+)%s+(%S+)")
   if not method then
     return nil
@@ -245,7 +245,7 @@ end
 ---@param req MdViewRequest
 ---@param res MdViewResponse
 ---@param ctx table
-function M.dispatch(routes, req, res, ctx)
+M.dispatch = function(routes, req, res, ctx)
   for _, route in ipairs(routes) do
     if route.method == req.method then
       local params = match_path(route.path, req.path)
@@ -264,7 +264,7 @@ end
 ---@param routes MdViewRoute[]
 ---@param ctx table
 ---@return fun(client: table, buf: string)
-function M.new(routes, ctx)
+M.new = function(routes, ctx)
   return function(client, buf)
     local req = M.parse(buf)
     local res = M.build_res(client)

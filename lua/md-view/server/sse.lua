@@ -12,7 +12,7 @@ M.__index = M
 local REPLAY_EVENTS = { palette = true, theme = true }
 
 ---@return MdViewSse
-function M.new()
+M.new = function()
   return setmetatable({ clients = {}, last = {}, on_client_added = nil }, M)
 end
 

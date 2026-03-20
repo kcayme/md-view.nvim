@@ -27,17 +27,21 @@ end
 -- callback(content_string) is always called from the main Neovim thread.
 local function read_content_async(bufnr, callback)
   local modified = vim.api.nvim_get_option_value("modified", { buf = bufnr })
+
   if modified then
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
     callback(table.concat(lines, "\n"))
     return
   end
+
   local filepath = vim.api.nvim_buf_get_name(bufnr)
+
   if filepath == "" then
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
     callback(table.concat(lines, "\n"))
     return
   end
+
   uv.fs_open(filepath, "r", 438, function(err, fd)
     if err or not fd then
       vim.schedule(function()
@@ -89,6 +93,7 @@ local function ensure_mux(opts)
       end
     end
   end
+
   if not _mux.server then
     local handle = router.new(hub_mod.routes, { hub = _mux })
     local srv, p = server.start(opts.host, opts.port, handle)
@@ -104,6 +109,7 @@ local function ensure_mux(opts)
     -- VimLeavePre safety net (registered once)
     if not vim.g.md_view_mux_vimleave_registered then
       vim.g.md_view_mux_vimleave_registered = true
+
       vim.api.nvim_create_autocmd("VimLeavePre", {
         group = vim.api.nvim_create_augroup("md_view_mux_global", { clear = true }),
         callback = function()
@@ -111,15 +117,18 @@ local function ensure_mux(opts)
             local cfg = require("md-view.config")
             local sp = cfg.options and cfg.options.single_page
             local close_by = sp and sp.close_by
+            local should_close = close_by == "page"
+              or (close_by == nil and cfg.options and cfg.options.auto_close == true)
+
             -- Mirror M.destroy: push preview_removed for each registered preview
             for bufnr, _ in pairs(_mux.registry) do
               _mux:push("preview_removed", { id = bufnr })
             end
-            local should_close = close_by == "page"
-              or (close_by == nil and cfg.options and cfg.options.auto_close == true)
+
             if should_close then
               _mux:push("close", {})
             end
+
             server.stop(_mux.server)
             _mux.server = nil
             _mux.port = nil
@@ -133,11 +142,14 @@ local function ensure_mux(opts)
 end
 
 ---@param opts MdViewOptions
-function M.create(opts)
+M.create = function(opts)
   local bufnr = vim.api.nvim_get_current_buf()
+  local sp = opts.single_page
 
   if active_previews[bufnr] then
-    local sp = opts.single_page
+    local preview = active_previews[bufnr]
+    local url = "http://" .. opts.host .. ":" .. preview.port
+
     if sp and sp.enable and _mux and _mux.server then
       -- Single-page mode: route to the mux, not the per-preview server
       local mux_url = "http://" .. opts.host .. ":" .. _mux.port
@@ -160,8 +172,7 @@ function M.create(opts)
       end
       return
     end
-    local preview = active_previews[bufnr]
-    local url = "http://" .. opts.host .. ":" .. preview.port
+
     if #preview.sse.clients > 0 and not opts.follow_focus then
       -- Tab is open: do not open a new tab. Opening a new tab would trigger the
       -- BroadcastChannel "takeover" and close the existing tab, breaking any
@@ -189,11 +200,11 @@ function M.create(opts)
   end
 
   local theme_css = ""
+  local resolved = theme.resolve(opts)
+
   if opts.theme.mode == "sync" then
     theme_css = theme.css(opts.theme.highlights)
   end
-
-  local resolved = theme.resolve(opts)
 
   local ctx = {
     bufnr = bufnr,
@@ -238,7 +249,6 @@ function M.create(opts)
     watcher = watcher,
   }
 
-  local sp = opts.single_page
   if sp and sp.enable then
     local h = ensure_mux(opts)
     if h then
@@ -333,7 +343,7 @@ function M.create(opts)
 end
 
 ---@param bufnr integer|nil
-function M.destroy(bufnr)
+M.destroy = function(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local preview = active_previews[bufnr]
   if not preview then
@@ -388,17 +398,17 @@ end
 
 ---@param bufnr integer
 ---@return MdViewPreview|nil
-function M.get(bufnr)
+M.get = function(bufnr)
   return active_previews[bufnr]
 end
 
 ---@return table<integer, MdViewPreview>
-function M.get_active()
+M.get_active = function()
   return active_previews
 end
 
 ---@return MdViewHub|nil
-function M.get_mux()
+M.get_mux = function()
   return _mux
 end
 
