@@ -220,6 +220,7 @@ Full [LuaLS / EmmyLua](https://luals.github.io/wiki/annotations/) types for the 
 ---@field debounce_ms integer
 ---@field css string|nil
 ---@field auto_close boolean
+---@field verbose boolean
 ---@field follow_focus boolean
 ---@field scroll MdViewScrollOptions
 ---@field theme MdViewThemeOptions
@@ -458,7 +459,7 @@ To specify a custom highlight.js theme for the cached CSS:
 
 | Command                  | Description                                      |
 |--------------------------|--------------------------------------------------|
-| `:MdView`                | Open preview for the current buffer              |
+| `:MdView [browser]`      | Open preview for the current buffer. Optional `browser` arg overrides the configured browser for this call (e.g. `:MdView firefox`). |
 | `:MdViewStop`            | Stop the preview                                 |
 | `:MdViewToggle`          | Toggle the preview on/off                        |
 | `:MdViewList`            | Pick from all active previews                    |

@@ -6,10 +6,11 @@ Full reference for all options accepted by `require("md-view").setup()`. All opt
 |--------|------|---------|-------------|
 | `port` | `integer` | `0` | Port for the local preview server. `0` lets the OS auto-assign a free port. |
 | `host` | `string` | `"127.0.0.1"` | Bind address for the preview server. Must be a loopback address (`127.0.0.1`, `::1`, `localhost`). |
-| `browser` | `string\|nil` | `nil` | Path to a browser executable. `nil` auto-detects (`open` on macOS, `xdg-open` on Linux, `cmd /c start` on Windows). |
+| `browser` | `string\|nil` | `nil` | Browser executable to open previews with. The value is passed directly as an executable (not a shell string), so it must be a command on `$PATH` or an absolute path. `nil` auto-detects: `open` (macOS), `wslview` (WSL), `xdg-open` (Linux), `cmd /c start` (Windows). Can also be overridden per-invocation with `:MdView {browser}`. See [browser values by platform](#browser-values-by-platform) below. |
 | `debounce_ms` | `integer` | `300` | Milliseconds to wait after the last edit before pushing an update to the browser. |
 | `css` | `string\|nil` | `nil` | Raw CSS string injected into the preview page's `<style>` block, after all built-in styles — so it always wins specificity. Use it to override layout, typography, or colors. The page exposes CSS custom properties for theming; see [CSS custom properties](#css-custom-properties) below. |
 | `auto_close` | `boolean` | `true` | Auto-close the browser tab when the preview is stopped. |
+| `verbose` | `boolean` | `true` | When `false`, suppresses routine status notifications (e.g. "Serving at…", "Preview already open"). Errors and deprecation warnings are always shown. `auto_open` passes `verbose = false` internally so background opens are silent by default. |
 | `follow_focus` | `boolean` | `false` | When `true`, always opens a new browser tab when revisiting a buffer that already has an active preview (via `:MdView` or `auto_open`). Ensures the browser always shows the preview for the current buffer. **Note:** opens a new tab each time, closing the existing one via the tab-dedup mechanism — any split-tab arrangement in the browser will break. |
 | `scroll.method` | `MdViewScrollMethod` | `"percentage"` | Scroll sync algorithm. `"percentage"` keeps the browser at the same proportional offset as the cursor. `"cursor"` anchors the browser to the nearest source line in the rendered DOM. |
 | `theme.mode` | `MdViewThemeMode` | `"auto"` | Color theme for the preview page. `"auto"` follows Neovim's `background` setting; `"dark"` / `"light"` force a palette; `"sync"` mirrors your current colorscheme live. |
@@ -80,3 +81,44 @@ Valid keys for `theme.highlights` and their defaults. Only applies when `theme.m
 | `checkbox` | `--md-checkbox` | Checkboxes | `DiagnosticInfo`, `Function` (fg) |
 | `table_header_bg` | `--md-table-header-bg` | Table header background | `CursorLine`, `Pmenu` (bg) |
 | `row_alt` | `--md-row-alt` | Alternating row background | `CursorLine` (bg) |
+
+---
+
+#### Browser values by platform
+
+The `browser` option (and the `:MdView {browser}` override) must be a command name on `$PATH` or an absolute path — it is passed directly as an executable, not interpreted by a shell.
+
+**Linux**
+
+| Browser | Value |
+|---------|-------|
+| Firefox | `"firefox"` |
+| Chrome | `"google-chrome"` or `"google-chrome-stable"` |
+| Chromium | `"chromium"` or `"chromium-browser"` |
+| Edge | `"microsoft-edge"` or `"microsoft-edge-stable"` |
+| Brave | `"brave-browser"` or `"brave"` |
+| Opera | `"opera"` |
+| Zen | `"zen-browser"` or `"zen"` |
+
+**macOS**
+
+The auto-detected default (`open`) uses the system default browser. To target a specific browser, provide the binary path inside the `.app` bundle:
+
+| Browser | Value |
+|---------|-------|
+| Firefox | `"/Applications/Firefox.app/Contents/MacOS/firefox"` |
+| Chrome | `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"` |
+| Edge | `"/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"` |
+| Brave | `"/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"` |
+| Opera | `"/Applications/Opera.app/Contents/MacOS/Opera"` |
+| Zen | `"/Applications/Zen Browser.app/Contents/MacOS/zen"` |
+
+**Windows**
+
+| Browser | Value |
+|---------|-------|
+| Chrome | `"chrome"` |
+| Firefox | `"firefox"` |
+| Edge | `"msedge"` |
+| Brave | `"brave"` |
+| Opera | `"opera"` |
