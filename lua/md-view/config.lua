@@ -109,10 +109,126 @@ M.defaults = {
 ---@type MdViewOptions|nil
 M.options = nil
 
-local LOOPBACK = { ["127.0.0.1"] = true, ["::1"] = true, ["localhost"] = true }
+local LOOPBACK = {
+  ["127.0.0.1"] = true,
+  ["::1"] = true,
+  ["localhost"] = true,
+}
+
+local SCHEMA = {
+  fields = {
+    port = { type = "number" },
+    host = { type = "string" },
+    browser = { type = "string" },
+    debounce_ms = { type = "number" },
+    css = { type = "string" },
+    auto_close = { type = "boolean" },
+    verbose = { type = "boolean" },
+    follow_focus = { type = "boolean" },
+    scroll = {
+      fields = {
+        method = { type = "string", enum = { "percentage", "cursor" } },
+      },
+    },
+    theme = {
+      type = "string",
+      fields = {
+        mode = { type = "string", enum = { "auto", "dark", "light", "sync" } },
+        syntax = { type = "string" },
+        highlights = { type = "table" },
+      },
+    },
+    notations = {
+      fields = {
+        mermaid = {
+          fields = {
+            enable = { type = "boolean" },
+            theme = { type = "string" },
+          },
+        },
+        katex = { fields = { enable = { type = "boolean" } } },
+        graphviz = { fields = { enable = { type = "boolean" } } },
+        wavedrom = { fields = { enable = { type = "boolean" } } },
+        nomnoml = { fields = { enable = { type = "boolean" } } },
+        abc = { fields = { enable = { type = "boolean" } } },
+        vegalite = { fields = { enable = { type = "boolean" } } },
+      },
+    },
+    filetypes = { type = "table" },
+    auto_open = {
+      fields = {
+        enable = { type = "boolean" },
+        events = { type = "table" },
+      },
+    },
+    picker = {
+      fields = {
+        prompt = { type = "string" },
+        format_item = { type = "function" },
+        kind = { type = "string" },
+      },
+    },
+    single_page = {
+      fields = {
+        enable = { type = "boolean" },
+        tab_label = { type = { "string", "function" }, enum = { "filename", "relative", "parent" } },
+        close_by = { type = { "string", "boolean" }, enum = { "page", "tab" } },
+      },
+    },
+  },
+}
+
+local function validate(schema, value, path)
+  if value == nil then
+    return
+  end
+  if schema.fields then
+    if type(value) ~= "table" then
+      -- If a non-table type is also explicitly listed on the schema, it is an accepted
+      -- (typically deprecated) alternative form — skip field validation silently.
+      if schema.type ~= nil then
+        return
+      end
+      error("[md-view] option '" .. path .. "' must be a table, got " .. type(value))
+    end
+    for k in pairs(value) do
+      if schema.fields[k] == nil then
+        vim.notify("[md-view] unknown option '" .. path .. "." .. k .. "'", vim.log.levels.WARN)
+      end
+    end
+    for k, child in pairs(schema.fields) do
+      validate(child, value[k], path .. "." .. k)
+    end
+  else
+    local expected = schema.type
+    local actual = type(value)
+    local type_ok
+    if type(expected) == "table" then
+      type_ok = vim.tbl_contains(expected, actual)
+    else
+      type_ok = actual == expected
+    end
+    if not type_ok then
+      local expected_str = type(expected) == "table" and table.concat(expected, "|") or expected
+      error("[md-view] option '" .. path .. "' must be " .. expected_str .. ", got " .. actual)
+    end
+    if schema.enum and actual == "string" then
+      if not vim.tbl_contains(schema.enum, value) then
+        vim.notify(
+          "[md-view] option '" .. path .. "' has unrecognized value: " .. vim.inspect(value),
+          vim.log.levels.WARN
+        )
+      end
+    end
+  end
+end
 
 ---@param opts MdViewOptions|nil
 M.setup = function(opts)
+  if opts then
+    validate(SCHEMA, opts, "opts")
+  end
+
   -- Deprecated: theme_sync = true → theme = { mode = "sync" }
   if opts and opts.theme_sync == true then
     vim.notify('[md-view] `theme_sync` is deprecated; use `theme = { mode = "sync" }` instead', vim.log.levels.WARN)
@@ -121,11 +237,13 @@ M.setup = function(opts)
     opts = vim.tbl_extend("force", opts, { theme = new_theme })
     opts.theme_sync = nil
   end
+
   -- Deprecated: theme as a plain string → theme = { mode = <value> }
   if opts and type(opts.theme) == "string" then
     vim.notify("[md-view] `theme` as a string is deprecated; use `theme = { mode = ... }` instead", vim.log.levels.WARN)
     opts = vim.tbl_extend("force", opts, { theme = { mode = opts.theme } })
   end
+
   -- Deprecated: scroll_sync → scroll.method
   if opts and opts.scroll_sync ~= nil then
     vim.notify("[md-view] `scroll_sync` is deprecated; use `scroll = { method = ... }` instead", vim.log.levels.WARN)
@@ -139,6 +257,7 @@ M.setup = function(opts)
     opts = vim.tbl_extend("force", opts, { scroll = new_scroll })
     opts.scroll_sync = nil
   end
+
   -- Deprecated: highlight_theme → theme.syntax
   if opts and opts.highlight_theme ~= nil then
     vim.notify("[md-view] `highlight_theme` is deprecated; use `theme = { syntax = ... }` instead", vim.log.levels.WARN)
@@ -149,6 +268,7 @@ M.setup = function(opts)
     end
     opts.highlight_theme = nil
   end
+
   -- Deprecated: highlights → theme.highlights
   if opts and opts.highlights ~= nil then
     vim.notify("[md-view] `highlights` is deprecated; use `theme = { highlights = ... }` instead", vim.log.levels.WARN)
@@ -159,15 +279,18 @@ M.setup = function(opts)
     end
     opts.highlights = nil
   end
+
   M.options = vim.tbl_deep_extend("force", {}, M.defaults, opts or {})
   -- filetypes is an array; deep-extend cannot clear it with {}, so override directly
   if opts and opts.filetypes ~= nil then
     M.options.filetypes = opts.filetypes
   end
+
   -- auto_open.events is an array; deep-extend cannot clear it with {}, so override directly
   if opts and opts.auto_open ~= nil and opts.auto_open.events ~= nil then
     M.options.auto_open.events = opts.auto_open.events
   end
+
   if not LOOPBACK[M.options.host] then
     vim.notify(
       "[md-view] WARNING: host '"

@@ -370,5 +370,135 @@ describe("config", function()
       config.setup({ single_page = { tab_label = fn } })
       assert.are.equal(fn, config.options.single_page.tab_label)
     end)
+
+    describe("validation", function()
+      it("raises error when port is wrong type", function()
+        assert.has_error(function()
+          config.setup({ port = "not-a-number" })
+        end)
+      end)
+
+      it("raises error when nested field is wrong type", function()
+        assert.has_error(function()
+          config.setup({ theme = { mode = 123 } })
+        end)
+      end)
+
+      it("raises error when table-typed option is given a scalar", function()
+        assert.has_error(function()
+          config.setup({ scroll = "fast" })
+        end)
+      end)
+
+      it("raises error when function-typed field receives a non-function", function()
+        assert.has_error(function()
+          config.setup({ picker = { format_item = "not-a-function" } })
+        end)
+      end)
+
+      it("warns on unknown top-level key", function()
+        local warned = false
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+          if level == vim.log.levels.WARN and msg:find("unknown option") then
+            warned = true
+          end
+        end
+        config.setup({ thme = "dark" })
+        vim.notify = orig
+        assert.is_true(warned)
+      end)
+
+      it("warns on unknown nested key", function()
+        local warned = false
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+          if level == vim.log.levels.WARN and msg:find("unknown option") then
+            warned = true
+          end
+        end
+        config.setup({ theme = { mde = "dark" } })
+        vim.notify = orig
+        assert.is_true(warned)
+      end)
+
+      it("warns on invalid enum value for scroll.method", function()
+        local warned = false
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+          if level == vim.log.levels.WARN and msg:find("unrecognized value") then
+            warned = true
+          end
+        end
+        config.setup({ scroll = { method = "pct" } })
+        vim.notify = orig
+        assert.is_true(warned)
+      end)
+
+      it("warns on invalid enum value for theme.mode", function()
+        local warned = false
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+          if level == vim.log.levels.WARN and msg:find("unrecognized value") then
+            warned = true
+          end
+        end
+        config.setup({ theme = { mode = "invalid" } })
+        vim.notify = orig
+        assert.is_true(warned)
+      end)
+
+      it("does not warn or error when tab_label is a function", function()
+        local warned = false
+        local orig = vim.notify
+        vim.notify = function(_, level)
+          if level == vim.log.levels.WARN then
+            warned = true
+          end
+        end
+        config.setup({ single_page = { tab_label = function() end } })
+        vim.notify = orig
+        assert.is_false(warned)
+      end)
+
+      it("does not warn or error when tab_label is a valid enum string", function()
+        local warned = false
+        local orig = vim.notify
+        vim.notify = function(_, level)
+          if level == vim.log.levels.WARN then
+            warned = true
+          end
+        end
+        config.setup({ single_page = { tab_label = "filename" } })
+        vim.notify = orig
+        assert.is_false(warned)
+      end)
+
+      it("does not warn or error when close_by is false", function()
+        local warned = false
+        local orig = vim.notify
+        vim.notify = function(_, level)
+          if level == vim.log.levels.WARN then
+            warned = true
+          end
+        end
+        config.setup({ single_page = { close_by = false } })
+        vim.notify = orig
+        assert.is_false(warned)
+      end)
+
+      it("warns when close_by is an invalid string", function()
+        local warned = false
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+          if level == vim.log.levels.WARN and msg:find("unrecognized value") then
+            warned = true
+          end
+        end
+        config.setup({ single_page = { close_by = "never" } })
+        vim.notify = orig
+        assert.is_true(warned)
+      end)
+    end)
   end)
 end)
