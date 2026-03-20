@@ -60,7 +60,7 @@ M.open = function(opts)
   local filetypes = config.options.filetypes
   local existing = preview.get_by_buffer(bufnr)
   local preview_opts = config.options
-  local verbose = opts.verbose or config.options.verbose
+  local verbose = opts.verbose == nil and config.options.verbose or opts.verbose
 
   if filetypes and #filetypes > 0 then
     local allowed = false

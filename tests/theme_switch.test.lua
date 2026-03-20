@@ -52,7 +52,7 @@ describe("theme_switch", function()
     vim.notify = function(msg, level)
       table.insert(notify_calls, { msg = msg, level = level })
     end
-    load_module({})
+    load_module({ verbose = true })
   end)
 
   after_each(function()

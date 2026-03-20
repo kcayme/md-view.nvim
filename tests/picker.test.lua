@@ -66,6 +66,7 @@ describe("picker", function()
   describe("open", function()
     it("notifies and returns early when no active previews", function()
       stub_previews({})
+      config.setup({ verbose = true })
       local notified = false
       vim.notify = function(_, level)
         if level == vim.log.levels.INFO then
