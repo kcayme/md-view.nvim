@@ -4,15 +4,26 @@ TEST_FILES := $(wildcard $(TESTS_DIR)/*.test.lua)
 
 .PHONY: test
 test:
-	@failed=0; \
+	@passed=0; failed=0; failed_files=""; \
 	for f in $(TEST_FILES); do \
-		nvim --headless -u $(INIT) \
+		if nvim --headless -u $(INIT) \
 			-c "set rtp+=." \
 			-c "runtime plugin/plenary.vim" \
 			-c "lua require('plenary.busted').run('$$f')" \
-		|| failed=1; \
+			2>&1; then \
+			passed=$$((passed + 1)); \
+		else \
+			failed=$$((failed + 1)); \
+			failed_files="$$failed_files\n  $$f"; \
+		fi; \
 	done; \
-	exit $$failed
+	total=$$((passed + failed)); \
+	echo ""; \
+	echo "=== Test Summary: $$passed/$$total files passed ==="; \
+	if [ $$failed -gt 0 ]; then \
+		printf "Failed:\n$$failed_files\n"; \
+		exit 1; \
+	fi
 
 .PHONY: test-file
 test-file:
