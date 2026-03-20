@@ -245,6 +245,7 @@ Expand type definitions ~
     ---@field debounce_ms integer
     ---@field css string|nil
     ---@field auto_close boolean
+    ---@field verbose boolean
     ---@field follow_focus boolean
     ---@field scroll MdViewScrollOptions
     ---@field theme MdViewThemeOptions
@@ -538,7 +539,9 @@ COMMANDS ~
   -----------------------------------------------------------------------
   Command                  Description
   ------------------------ ----------------------------------------------
-  :MdView                  Open preview for the current buffer
+  :MdView [browser]        Open preview for the current buffer. Optional
+                           browser arg overrides the configured browser
+                           for this call (e.g. :MdView firefox).
 
   :MdViewStop              Stop the preview
 
@@ -1350,11 +1353,22 @@ options are optional — omitted keys fall back to the defaults shown below.
                                                                                                           (127.0.0.1, ::1,
                                                                                                           localhost).
 
-  browser                     string\|nil                                           nil                   Path to a browser
-                                                                                                          executable. nil
-                                                                                                          auto-detects (open on
-                                                                                                          macOS, xdg-open on Linux,
-                                                                                                          cmd /c start on Windows).
+  browser                     string\|nil                                           nil                   Browser executable to open
+                                                                                                          previews with. The value
+                                                                                                          is passed directly as an
+                                                                                                          executable (not a shell
+                                                                                                          string), so it must be a
+                                                                                                          command on $PATH or an
+                                                                                                          absolute path. nil
+                                                                                                          auto-detects: open
+                                                                                                          (macOS), wslview (WSL),
+                                                                                                          xdg-open (Linux),
+                                                                                                          cmd /c start (Windows).
+                                                                                                          Can also be overridden
+                                                                                                          per-invocation with
+                                                                                                          :MdView {browser}. See
+                                                                                                          browser values by platform
+                                                                                                          below.
 
   debounce_ms                 integer                                               300                   Milliseconds to wait after
                                                                                                           the last edit before
@@ -1376,6 +1390,18 @@ options are optional — omitted keys fall back to the defaults shown below.
   auto_close                  boolean                                               true                  Auto-close the browser tab
                                                                                                           when the preview is
                                                                                                           stopped.
+
+  verbose                     boolean                                               true                  When false, suppresses
+                                                                                                          routine status
+                                                                                                          notifications
+                                                                                                          (e.g. “Serving at…”,
+                                                                                                          “Preview already open”).
+                                                                                                          Errors and deprecation
+                                                                                                          warnings are always shown.
+                                                                                                          auto_open passes
+                                                                                                          verbose = false internally
+                                                                                                          so background opens are
+                                                                                                          silent by default.
 
   follow_focus                boolean                                               false                 When true, always opens a
                                                                                                           new browser tab when
@@ -1605,6 +1631,54 @@ Valid keys for `theme.highlights` and their defaults. Only applies when
                                            row           
                                            background    
   ---------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+
+BROWSER VALUES BY PLATFORM
+
+The `browser` option (and the `:MdView {browser}` override) must be a command
+name on `$PATH` or an absolute path — it is passed directly as an executable,
+not interpreted by a shell.
+
+**Linux**
+
+  Browser    Value
+  ---------- ---------------------------------------------
+  Firefox    "firefox"
+  Chrome     "google-chrome" or "google-chrome-stable"
+  Chromium   "chromium" or "chromium-browser"
+  Edge       "microsoft-edge" or "microsoft-edge-stable"
+  Brave      "brave-browser" or "brave"
+  Opera      "opera"
+  Zen        "zen-browser" or "zen"
+**macOS**
+
+The auto-detected default (`open`) uses the system default browser. To target a
+specific browser, provide the binary path inside the `.app` bundle:
+
+  ----------------------------------------------------------------------------------------------------------
+  Browser                                 Value
+  --------------------------------------- ------------------------------------------------------------------
+  Firefox                                 "/Applications/Firefox.app/Contents/MacOS/firefox"
+
+  Chrome                                  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+
+  Edge                                    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
+
+  Brave                                   "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
+
+  Opera                                   "/Applications/Opera.app/Contents/MacOS/Opera"
+
+  Zen                                     "/Applications/Zen Browser.app/Contents/MacOS/zen"
+  ----------------------------------------------------------------------------------------------------------
+**Windows**
+
+  Browser   Value
+  --------- -----------
+  Chrome    "chrome"
+  Firefox   "firefox"
+  Edge      "msedge"
+  Brave     "brave"
+  Opera     "opera"
 ==============================================================================
 1. Links                                                  *md-view.nvim-links*
 
