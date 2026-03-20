@@ -51,6 +51,7 @@ end
 
 local function normalize_abs(path)
   local parts = {}
+
   for seg in path:gmatch("[^/]+") do
     if seg == ".." then
       table.remove(parts)
@@ -58,6 +59,7 @@ local function normalize_abs(path)
       table.insert(parts, seg)
     end
   end
+
   return "/" .. table.concat(parts, "/")
 end
 
@@ -72,11 +74,12 @@ M.resolve_media_path = function(bufdir, raw)
   if not raw or raw == "" then
     return nil
   end
+
   if raw:sub(1, 1) == "/" then
     return normalize_abs(raw)
-  else
-    return normalize_abs(bufdir .. "/" .. raw)
   end
+
+  return normalize_abs(bufdir .. "/" .. raw)
 end
 
 -- ── Internal write helpers ──────────────────────────────────────────────
@@ -90,6 +93,7 @@ local function raw_respond(client, status, content_type, body)
     .. #body
     .. "\r\nConnection: close\r\n\r\n"
     .. body
+
   client:write(msg, function()
     if not client:is_closing() then
       client:shutdown(function()

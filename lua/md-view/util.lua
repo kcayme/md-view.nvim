@@ -60,7 +60,7 @@ M.table_len = function(input)
 end
 
 M.notify = function(opts, msg, level)
-  if not opts.silent then
+  if opts.verbose then
     vim.notify(msg, level)
   end
 end

@@ -54,6 +54,7 @@ local M = {}
 ---@field debounce_ms integer
 ---@field css string|nil
 ---@field auto_close boolean
+---@field verbose boolean
 ---@field follow_focus boolean
 ---@field scroll MdViewScrollOptions
 ---@field theme MdViewThemeOptions
@@ -70,6 +71,7 @@ M.defaults = {
   debounce_ms = 300,
   css = nil,
   auto_close = true,
+  verbose = true,
   follow_focus = false,
   scroll = {
     method = "percentage", -- "percentage" | "cursor"

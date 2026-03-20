@@ -3,6 +3,7 @@ local M = {}
 local config = require("md-view.config")
 local preview = require("md-view.preview")
 local theme = require("md-view.theme")
+local util = require("md-view.util")
 
 local VALID_THEME_MODES = { dark = true, light = true, auto = true, sync = true }
 local THEME_CYCLE = { "dark", "light", "auto", "sync" }
@@ -26,7 +27,7 @@ local function register_auto_open_augroup()
     group = group,
     pattern = "*",
     callback = function()
-      M.open({ silent = true })
+      M.open({ verbose = false })
     end,
   })
 end
@@ -46,7 +47,7 @@ M.setup = function(opts)
   end
 end
 
----@param opts { silent?: boolean, follow_focus?: boolean }|nil
+---@param opts { verbose?: boolean, follow_focus?: boolean, browser?: string }|nil
 M.open = function(opts)
   opts = opts or {}
 
@@ -59,19 +60,24 @@ M.open = function(opts)
   local filetypes = config.options.filetypes
   local existing = preview.get_by_buffer(bufnr)
   local preview_opts = config.options
+  local verbose = opts.verbose or config.options.verbose
 
   if filetypes and #filetypes > 0 then
     local allowed = false
+
     for _, v in ipairs(filetypes) do
       if v == ft then
         allowed = true
         break
       end
     end
+
     if not allowed then
-      if not opts.silent then
-        vim.notify("[md-view] filetype '" .. ft .. "' is not in filetypes list", vim.log.levels.WARN)
-      end
+      util.notify(
+        { verbose = verbose },
+        "[md-view] filetype '" .. ft .. "' is not in filetypes list",
+        vim.log.levels.WARN
+      )
       return
     end
   end
@@ -82,10 +88,14 @@ M.open = function(opts)
     })
   end
 
-  local call_opts = { silent = opts.silent }
+  local call_opts = { verbose = verbose }
 
   if opts.follow_focus ~= nil and existing then
     call_opts.follow_focus = opts.follow_focus
+  end
+
+  if opts.browser ~= nil then
+    call_opts.browser = opts.browser
   end
 
   preview.create(vim.tbl_extend("force", preview_opts, call_opts))

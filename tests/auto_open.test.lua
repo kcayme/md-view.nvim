@@ -37,8 +37,8 @@ describe("auto_open", function()
     end)
   end)
 
-  describe("M.open silent param", function()
-    it("does not notify when filetype not in list and silent = true", function()
+  describe("M.open verbose param", function()
+    it("does not notify when filetype not in list and verbose = false", function()
       local md_view = require("md-view")
       config.setup({ filetypes = { "markdown" } })
       vim.bo[vim.api.nvim_get_current_buf()].filetype = "lua"
@@ -49,14 +49,14 @@ describe("auto_open", function()
           notified = true
         end
       end
-      md_view.open({ silent = true })
+      md_view.open({ verbose = false })
       vim.notify = orig_notify
       assert.is_false(notified)
     end)
 
-    it("notifies when filetype not in list and no opts", function()
+    it("notifies when filetype not in list and verbose defaults to config value", function()
       local md_view = require("md-view")
-      config.setup({ filetypes = { "markdown" } })
+      config.setup({ filetypes = { "markdown" }, verbose = true })
       vim.bo[vim.api.nvim_get_current_buf()].filetype = "lua"
       local notified = false
       local orig_notify = vim.notify
