@@ -42,7 +42,7 @@ M.setup = function(opts)
   end
   local vendor = require("md-view.vendor")
   if not vendor.is_available() and vim.fn.executable("curl") == 1 then
-    vim.notify("[md-view] Caching vendor assets...", vim.log.levels.INFO)
+    util.notify(config.options, "[md-view] Caching vendor assets...", vim.log.levels.INFO)
     vendor.fetch()
   end
 end
@@ -144,11 +144,11 @@ M.toggle_auto_open = function()
   pcall(vim.api.nvim_del_augroup_by_name, "md_view_auto_open")
 
   if enabled then
-    vim.notify("[md-view] auto-open enabled")
+    util.notify(config.options, "[md-view] auto-open enabled", vim.log.levels.INFO)
 
     register_auto_open_augroup()
   else
-    vim.notify("[md-view] auto-open disabled")
+    util.notify(config.options, "[md-view] auto-open disabled", vim.log.levels.INFO)
   end
 end
 
@@ -157,7 +157,7 @@ M.set_theme = function(mode)
   -- Validate explicit arg first (before checking active previews)
   if mode and mode ~= "" then
     if not VALID_THEME_MODES[mode] then
-      vim.notify("[md-view] invalid theme mode: '" .. mode .. "'", vim.log.levels.WARN)
+      util.notify(config.options, "[md-view] invalid theme mode: '" .. mode .. "'", vim.log.levels.WARN)
       return
     end
   end
@@ -214,7 +214,7 @@ M.set_theme = function(mode)
     h:push("hub_palette", { css = css })
   end
 
-  vim.notify("[md-view] theme: " .. notified_mode, vim.log.levels.INFO)
+  util.notify(config.options, "[md-view] theme: " .. notified_mode, vim.log.levels.INFO)
 end
 
 return M

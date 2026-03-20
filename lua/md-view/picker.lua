@@ -1,5 +1,7 @@
 local M = {}
 
+local util = require("md-view.util")
+
 M.open = function()
   local previews = require("md-view").get_active_previews()
   local items = {}
@@ -12,12 +14,12 @@ M.open = function()
     }
   end
 
+  local cfg = require("md-view.config").options or {}
+
   if #items == 0 then
-    vim.notify("[md-view] No active previews", vim.log.levels.INFO)
+    util.notify(cfg, "[md-view] No active previews", vim.log.levels.INFO)
     return
   end
-
-  local cfg = require("md-view.config").options or {}
   local pcfg = cfg.picker or {}
 
   local max_name_len = 0
@@ -48,7 +50,7 @@ M.open = function()
     local url = "http://" .. (cfg.host or "127.0.0.1") .. ":" .. item.port
     local preview = previews[item.bufnr]
     if preview and #preview.sse.clients > 0 then
-      vim.notify("[md-view] Preview already open at " .. url)
+      util.notify(cfg, "[md-view] Preview already open at " .. url, vim.log.levels.INFO)
     else
       require("md-view.util").open_browser(url, cfg.browser)
     end
