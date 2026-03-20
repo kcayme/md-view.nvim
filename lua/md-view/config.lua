@@ -131,7 +131,6 @@ local SCHEMA = {
       },
     },
     theme = {
-      type = "string",
       fields = {
         mode = { type = "string", enum = { "auto", "dark", "light", "sync" } },
         syntax = { type = "string" },
@@ -184,11 +183,6 @@ local function validate(schema, value, path)
   end
   if schema.fields then
     if type(value) ~= "table" then
-      -- If a non-table type is also explicitly listed on the schema, it is an accepted
-      -- (typically deprecated) alternative form — skip field validation silently.
-      if schema.type ~= nil then
-        return
-      end
       error("[md-view] option '" .. path .. "' must be a table, got " .. type(value))
     end
     for k in pairs(value) do
@@ -227,57 +221,6 @@ end
 M.setup = function(opts)
   if opts then
     validate(SCHEMA, opts, "opts")
-  end
-
-  -- Deprecated: theme_sync = true → theme = { mode = "sync" }
-  if opts and opts.theme_sync == true then
-    vim.notify('[md-view] `theme_sync` is deprecated; use `theme = { mode = "sync" }` instead', vim.log.levels.WARN)
-    local existing = type(opts.theme) == "table" and opts.theme or {}
-    local new_theme = (existing.mode == nil) and vim.tbl_extend("force", existing, { mode = "sync" }) or existing
-    opts = vim.tbl_extend("force", opts, { theme = new_theme })
-    opts.theme_sync = nil
-  end
-
-  -- Deprecated: theme as a plain string → theme = { mode = <value> }
-  if opts and type(opts.theme) == "string" then
-    vim.notify("[md-view] `theme` as a string is deprecated; use `theme = { mode = ... }` instead", vim.log.levels.WARN)
-    opts = vim.tbl_extend("force", opts, { theme = { mode = opts.theme } })
-  end
-
-  -- Deprecated: scroll_sync → scroll.method
-  if opts and opts.scroll_sync ~= nil then
-    vim.notify("[md-view] `scroll_sync` is deprecated; use `scroll = { method = ... }` instead", vim.log.levels.WARN)
-    local new_scroll
-    if type(opts.scroll) == "table" and opts.scroll.method ~= nil then
-      new_scroll = opts.scroll
-    else
-      local method = (opts.scroll_sync == "percentage") and "percentage" or "cursor"
-      new_scroll = vim.tbl_extend("force", type(opts.scroll) == "table" and opts.scroll or {}, { method = method })
-    end
-    opts = vim.tbl_extend("force", opts, { scroll = new_scroll })
-    opts.scroll_sync = nil
-  end
-
-  -- Deprecated: highlight_theme → theme.syntax
-  if opts and opts.highlight_theme ~= nil then
-    vim.notify("[md-view] `highlight_theme` is deprecated; use `theme = { syntax = ... }` instead", vim.log.levels.WARN)
-    local theme_tbl = type(opts.theme) == "table" and opts.theme or {}
-    if theme_tbl.syntax == nil then
-      opts =
-        vim.tbl_extend("force", opts, { theme = vim.tbl_extend("force", theme_tbl, { syntax = opts.highlight_theme }) })
-    end
-    opts.highlight_theme = nil
-  end
-
-  -- Deprecated: highlights → theme.highlights
-  if opts and opts.highlights ~= nil then
-    vim.notify("[md-view] `highlights` is deprecated; use `theme = { highlights = ... }` instead", vim.log.levels.WARN)
-    local theme_tbl = type(opts.theme) == "table" and opts.theme or {}
-    if theme_tbl.highlights == nil then
-      opts =
-        vim.tbl_extend("force", opts, { theme = vim.tbl_extend("force", theme_tbl, { highlights = opts.highlights }) })
-    end
-    opts.highlights = nil
   end
 
   M.options = vim.tbl_deep_extend("force", {}, M.defaults, opts or {})
