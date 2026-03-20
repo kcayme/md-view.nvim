@@ -181,15 +181,18 @@ local function validate(schema, value, path)
   if value == nil then
     return
   end
+
   if schema.fields then
     if type(value) ~= "table" then
       error("[md-view] option '" .. path .. "' must be a table, got " .. type(value))
     end
+
     for k in pairs(value) do
       if schema.fields[k] == nil then
         vim.notify("[md-view] unknown option '" .. path .. "." .. k .. "'", vim.log.levels.WARN)
       end
     end
+
     for k, child in pairs(schema.fields) do
       validate(child, value[k], path .. "." .. k)
     end
@@ -197,15 +200,18 @@ local function validate(schema, value, path)
     local expected = schema.type
     local actual = type(value)
     local type_ok
+
     if type(expected) == "table" then
       type_ok = vim.tbl_contains(expected, actual)
     else
       type_ok = actual == expected
     end
+
     if not type_ok then
       local expected_str = type(expected) == "table" and table.concat(expected, "|") or expected
       error("[md-view] option '" .. path .. "' must be " .. expected_str .. ", got " .. actual)
     end
+
     if schema.enum and actual == "string" then
       if not vim.tbl_contains(schema.enum, value) then
         vim.notify(
@@ -220,7 +226,13 @@ end
 ---@param opts MdViewOptions|nil
 M.setup = function(opts)
   if opts then
-    validate(SCHEMA, opts, "opts")
+    local ok, err = pcall(validate, SCHEMA, opts, "config")
+
+    if not ok then
+      vim.notify(err, vim.log.levels.ERROR)
+
+      return
+    end
   end
 
   M.options = vim.tbl_deep_extend("force", {}, M.defaults, opts or {})

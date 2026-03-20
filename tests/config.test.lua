@@ -231,28 +231,60 @@ describe("config", function()
     end)
 
     describe("validation", function()
-      it("raises error when port is wrong type", function()
-        assert.has_error(function()
-          config.setup({ port = "not-a-number" })
-        end)
+      it("notifies error and aborts setup when port is wrong type", function()
+        local errored = false
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+          if level == vim.log.levels.ERROR then
+            errored = true
+          end
+        end
+        config.setup({ port = "not-a-number" })
+        vim.notify = orig
+        assert.is_true(errored)
+        assert.is_nil(config.options)
       end)
 
-      it("raises error when nested field is wrong type", function()
-        assert.has_error(function()
-          config.setup({ theme = { mode = 123 } })
-        end)
+      it("notifies error and aborts setup when nested field is wrong type", function()
+        local errored = false
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+          if level == vim.log.levels.ERROR then
+            errored = true
+          end
+        end
+        config.setup({ theme = { mode = 123 } })
+        vim.notify = orig
+        assert.is_true(errored)
+        assert.is_nil(config.options)
       end)
 
-      it("raises error when table-typed option is given a scalar", function()
-        assert.has_error(function()
-          config.setup({ scroll = "fast" })
-        end)
+      it("notifies error and aborts setup when table-typed option is given a scalar", function()
+        local errored = false
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+          if level == vim.log.levels.ERROR then
+            errored = true
+          end
+        end
+        config.setup({ scroll = "fast" })
+        vim.notify = orig
+        assert.is_true(errored)
+        assert.is_nil(config.options)
       end)
 
-      it("raises error when function-typed field receives a non-function", function()
-        assert.has_error(function()
-          config.setup({ picker = { format_item = "not-a-function" } })
-        end)
+      it("notifies error and aborts setup when function-typed field receives a non-function", function()
+        local errored = false
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+          if level == vim.log.levels.ERROR then
+            errored = true
+          end
+        end
+        config.setup({ picker = { format_item = "not-a-function" } })
+        vim.notify = orig
+        assert.is_true(errored)
+        assert.is_nil(config.options)
       end)
 
       it("warns on unknown top-level key", function()
