@@ -79,6 +79,11 @@ fi
 
 cleanup
 
+# --- tests ---
+if ! make test; then
+  exit 1
+fi
+
 # --- vimdoc duplicate-heading check ---
 staged=$(git diff --cached --name-only)
 for f in README.md docs/ARCHITECTURE.md docs/recipes/*.md; do
