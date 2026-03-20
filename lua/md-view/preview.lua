@@ -257,6 +257,14 @@ local function register_with_hub(bufnr, opts, resolved)
 
   hub:push("preview_added", { id = bufnr, title = entry.title, label = entry.label })
   hub:push("hub_palette", { css = hub_pal_css })
+
+  -- on_client_added only fires for new SSE connections; if the hub already has
+  -- connected clients, push initial content directly so the new panel is not blank.
+  if #hub.clients > 0 then
+    read_content_async(bufnr, function(content)
+      hub:push("content", { id = bufnr, content = content })
+    end)
+  end
 end
 
 -- Pick the URL to open, notify the user, and launch the browser.
