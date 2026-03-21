@@ -113,10 +113,23 @@ describe("md-view init", function()
 
   it("close delegates to preview.close for current buffer", function()
     local closed_buf = nil
-    package.loaded["md-view.preview"].close = function(bufnr)
-      closed_buf = bufnr
-    end
-    M.close(42)
+    package.loaded["md-view.preview"] = {
+      create = function() end,
+      get_by_buffer = function()
+        return nil
+      end,
+      destroy = function() end,
+      close = function(bufnr)
+        closed_buf = bufnr
+      end,
+      get_active_previews = function()
+        return {}
+      end,
+    }
+    package.loaded["md-view"] = nil
+    local fresh_M = require("md-view")
+    fresh_M.setup({ filetypes = { "markdown" } })
+    fresh_M.close(42)
     assert.are.equal(42, closed_buf)
   end)
 
