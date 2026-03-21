@@ -53,17 +53,18 @@ end
 local function create_scroll_debounced(vim_api, debounce, bufnr, callbacks, scroll_method)
   return debounce(function()
     local win = vim_api.bufwinid(bufnr)
-    local cursor = vim_api.nvim_win_get_cursor(win)
-    local scroll_opts = {}
-
     if not vim_api.nvim_buf_is_valid(bufnr) or win == -1 then
       return
     end
+
+    local cursor = vim_api.nvim_win_get_cursor(win)
+    local scroll_opts = {}
 
     if scroll_method == "cursor" then
       scroll_opts.line = cursor[1] - 1
     else
       local total = vim_api.nvim_buf_line_count(bufnr)
+
       scroll_opts.percent = (cursor[1] - 1) / math.max(total - 1, 1)
     end
 
