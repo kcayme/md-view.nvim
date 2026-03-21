@@ -159,5 +159,63 @@ describe("picker", function()
       assert.are.equal("mdview", captured_opts.kind)
       restore_previews()
     end)
+
+    it("does not crash when preview has nil port and nil sse (hub mode)", function()
+      -- Simulate a hub-mode preview entry
+      stub_previews({
+        [1] = { port = nil, sse = nil },
+      })
+      vim.api.nvim_buf_get_name = function()
+        return "/path/to/doc.md"
+      end
+      vim.fn.fnamemodify = function(_, _)
+        return "doc.md"
+      end
+
+      -- Stub get_mux to return a hub with a port
+      local preview_mod = require("md-view.preview")
+      local orig_get_mux = preview_mod.get_mux
+      preview_mod.get_mux = function()
+        return { port = 4999, clients = {} }
+      end
+
+      config.setup({ host = "127.0.0.1" })
+
+      assert.has_no.errors(function()
+        picker.open()
+      end)
+
+      preview_mod.get_mux = orig_get_mux
+      restore_previews()
+    end)
+
+    it("uses hub port in collated item when preview.port is nil", function()
+      stub_previews({
+        [1] = { port = nil, sse = nil },
+      })
+      vim.api.nvim_buf_get_name = function()
+        return "/path/to/doc.md"
+      end
+      vim.fn.fnamemodify = function(_, _)
+        return "doc.md"
+      end
+
+      local preview_mod = require("md-view.preview")
+      local orig_get_mux = preview_mod.get_mux
+      preview_mod.get_mux = function()
+        return { port = 4999, clients = {} }
+      end
+
+      config.setup({ host = "127.0.0.1" })
+
+      picker.open()
+
+      -- captured_items is populated by the vim.ui.select stub — verify collation used hub port
+      assert.is_not_nil(captured_items, "vim.ui.select should have been called")
+      assert.are.equal(4999, captured_items[1].port, "collated item port must come from hub when preview.port is nil")
+
+      preview_mod.get_mux = orig_get_mux
+      restore_previews()
+    end)
   end)
 end)

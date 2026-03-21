@@ -10,18 +10,20 @@ end
 
 M.open = function()
   local previews = require("md-view").get_active_previews()
+  local preview_mod = require("md-view.preview")
+  local hub = preview_mod.get_mux()
   local config = require("md-view.config").options or {}
   local items = {}
   local picker_config = config.picker or {}
   local max_name_len = 0
 
-  -- collate list of previews
   for bufnr, preview in pairs(previews) do
     local item_name = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t")
+    local port = preview.port or (hub and hub.port)
 
     items[#items + 1] = {
       bufnr = bufnr,
-      port = preview.port,
+      port = port,
       name = item_name,
     }
 
@@ -52,8 +54,9 @@ M.open = function()
 
     local url = "http://" .. (config.host or "127.0.0.1") .. ":" .. item.port
     local preview = previews[item.bufnr]
+    local has_clients = (preview and preview.sse and #preview.sse.clients > 0) or (hub and #hub.clients > 0)
 
-    if preview and #preview.sse.clients > 0 then
+    if has_clients then
       util.notify(config, "[md-view] Preview already open at " .. url, vim.log.levels.INFO)
     else
       util.open_browser(url, config.browser)
