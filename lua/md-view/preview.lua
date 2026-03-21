@@ -1,9 +1,9 @@
 local M = {}
 
 ---@class MdViewPreview
----@field server userdata TCP server handle
----@field port integer
----@field sse MdViewSse
+---@field server userdata|nil TCP server handle; nil in hub mode
+---@field port integer|nil nil in hub mode
+---@field sse MdViewSse|nil nil in hub mode
 ---@field watcher table
 
 local uv = vim.uv or vim.loop
@@ -229,15 +229,24 @@ local function start_buffer_watcher(bufnr, opts, sse_instance)
   return buffer.watch(bufnr, {
     on_content = function(lines)
       local content = table.concat(lines, "\n")
-      sse_instance:push("content", { content = content })
+
+      if sse_instance then
+        sse_instance:push("content", { content = content })
+      end
+
       local h = get_mux()
+
       if h and h.server then
         h:push("content", { id = bufnr, content = content })
       end
     end,
     on_scroll = function(data)
-      sse_instance:push("scroll", data)
+      if sse_instance then
+        sse_instance:push("scroll", data)
+      end
+
       local h = get_mux()
+
       if h and h.server then
         h:push("scroll", vim.tbl_extend("force", data, { id = bufnr }))
       end
@@ -247,14 +256,10 @@ end
 
 -- Ensure the hub is running and register this preview with it.
 local function register_with_hub(bufnr, opts, resolved)
-  local hub = init_hub(opts)
+  local hub = _mux
   local bufname = vim.api.nvim_buf_get_name(bufnr)
   local hub_pal_css = opts.theme.mode == "sync" and theme.css(opts.theme.highlights)
     or theme.palette_css(resolved.theme)
-
-  if not hub then
-    return
-  end
 
   hub:register(bufnr, bufname, opts.single_page.tab_label)
 
@@ -274,7 +279,7 @@ end
 
 -- Pick the URL to open, notify the user, and launch the browser.
 local function open_browser_for_preview(opts, port)
-  local url = "http://" .. opts.host .. ":" .. port
+  local url = port and ("http://" .. opts.host .. ":" .. port) or ""
 
   if opts.single_page and opts.single_page.enable and _mux and _mux.server then
     url = "http://" .. opts.host .. ":" .. _mux.port
@@ -300,7 +305,9 @@ local function register_autocmds(bufnr, opts, sse_instance)
       local css = theme.css(opts.theme.highlights)
       local h = get_mux()
 
-      sse_instance:push("theme", { css = css })
+      if sse_instance then
+        sse_instance:push("theme", { css = css })
+      end
 
       if h and h.server then
         h:push("theme", { id = bufnr, css = css })
@@ -366,34 +373,48 @@ M.create = function(opts)
   local bufnr = vim.api.nvim_get_current_buf()
   local sp = opts.single_page
 
-  -- handle existing preview
   if active_previews[bufnr] then
     handle_preview(bufnr, opts, sp)
     return
   end
 
-  local sse_instance = build_sse(bufnr)
-  local ctx, resolved = build_render_ctx(bufnr, opts, sse_instance)
-  local watcher = start_buffer_watcher(bufnr, opts, sse_instance)
-  local srv, port = start_preview_server(opts, ctx)
-
-  if not srv then
-    return
-  end
-
-  active_previews[bufnr] = {
-    server = srv,
-    port = port,
-    sse = sse_instance,
-    watcher = watcher,
-  }
-
   if sp and sp.enable then
+    local resolved = theme.resolve(opts)
+    local hub = init_hub(opts)
+
+    if not hub then
+      return
+    end
+
     register_with_hub(bufnr, opts, resolved)
+
+    local watcher = start_buffer_watcher(bufnr, opts, nil)
+
+    active_previews[bufnr] = { watcher = watcher }
+
+    open_browser_for_preview(opts, nil)
+    register_autocmds(bufnr, opts, nil)
+  else
+    local sse_instance = build_sse(bufnr)
+    local ctx, _ = build_render_ctx(bufnr, opts, sse_instance)
+    local watcher = start_buffer_watcher(bufnr, opts, sse_instance)
+    local srv, port = start_preview_server(opts, ctx)
+
+    if not srv then
+      return
+    end
+
+    active_previews[bufnr] = {
+      server = srv,
+      port = port,
+      sse = sse_instance,
+      watcher = watcher,
+    }
+
+    open_browser_for_preview(opts, port)
+    register_autocmds(bufnr, opts, sse_instance)
   end
 
-  open_browser_for_preview(opts, port)
-  register_autocmds(bufnr, opts, sse_instance)
   register_global_autocmds()
 end
 
@@ -428,12 +449,20 @@ M.destroy = function(buffer_id)
       _mux = nil
     end
   elseif config.options and config.options.auto_close then
-    preview.sse:push("close", {})
+    if preview.sse then
+      preview.sse:push("close", {})
+    end
   end
 
-  preview.sse:close_all()
+  if preview.sse then
+    preview.sse:close_all()
+  end
+
   preview.watcher.stop()
-  server.stop(preview.server)
+
+  if preview.server then
+    server.stop(preview.server)
+  end
 
   pcall(vim.api.nvim_del_augroup_by_name, "md_view_cleanup_" .. buffer_id)
 end

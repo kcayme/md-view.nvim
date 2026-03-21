@@ -394,4 +394,60 @@ describe("preview hub integration", function()
 
     preview.destroy(bufnr)
   end)
+
+  it("server.start is called exactly once per create in hub mode", function()
+    local start_calls = 0
+    package.loaded["md-view.server.tcp"] = {
+      start = function()
+        start_calls = start_calls + 1
+        local srv = {
+          is_closing = function()
+            return false
+          end,
+          close = function() end,
+        }
+        return srv, 8000
+      end,
+      stop = function() end,
+    }
+
+    -- before_each pre-populates fake_hub.server = "mock", which causes init_hub to
+    -- skip server.start entirely. Clear it so init_hub calls server.start this test.
+    fake_hub.server = nil
+
+    local preview = require("md-view.preview")
+    local bufnr = vim.api.nvim_get_current_buf()
+
+    preview.create(config.options)
+
+    assert.are.equal(1, start_calls, "server.start must be called exactly once in hub mode (hub server only)")
+
+    preview.destroy(bufnr)
+  end)
+
+  it("watcher on_content and on_scroll do not crash in hub mode (nil sse)", function()
+    local captured_callbacks = {}
+
+    package.loaded["md-view.buffer"] = {
+      watch = function(_, callbacks)
+        captured_callbacks = callbacks
+        return { stop = function() end }
+      end,
+    }
+
+    local preview = require("md-view.preview")
+    local bufnr = vim.api.nvim_get_current_buf()
+
+    preview.create(config.options)
+
+    assert.has_no.errors(function()
+      captured_callbacks.on_content({ "# Hello" })
+    end)
+
+    assert.has_no.errors(function()
+      captured_callbacks.on_scroll({ top = 0, bufnr = bufnr })
+    end)
+
+    preview.destroy(bufnr)
+  end)
 end)
