@@ -20,6 +20,7 @@ describe("md-view init", function()
         return nil
       end,
       destroy = function() end,
+      close = function() end,
       get_active_previews = function()
         return {}
       end,
@@ -74,6 +75,7 @@ describe("md-view init", function()
         return nil
       end,
       destroy = function() end,
+      close = function() end,
       get_active_previews = function()
         return {}
       end,
@@ -108,6 +110,52 @@ describe("md-view init", function()
     package.loaded["md-view.vendor"] = nil
 
     assert.are.equal(0, #notify_calls, "expected no notifications when curl is absent")
+  end)
+
+  it("close delegates to preview.close for current buffer", function()
+    local closed_buf = nil
+    package.loaded["md-view.preview"] = {
+      create = function() end,
+      get_by_buffer = function()
+        return nil
+      end,
+      destroy = function() end,
+      close = function(bufnr)
+        closed_buf = bufnr
+      end,
+      get_active_previews = function()
+        return {}
+      end,
+    }
+    package.loaded["md-view"] = nil
+    local fresh_M = require("md-view")
+    fresh_M.setup({ filetypes = { "markdown" } })
+    fresh_M.close(42)
+    assert.are.equal(42, closed_buf)
+  end)
+
+  it("close_all calls preview.close for every active preview", function()
+    local closed_bufs = {}
+    package.loaded["md-view.preview"] = {
+      create = function() end,
+      get_by_buffer = function()
+        return nil
+      end,
+      destroy = function() end,
+      close = function(bufnr)
+        table.insert(closed_bufs, bufnr)
+      end,
+      get_active_previews = function()
+        return { [1] = {}, [7] = {} }
+      end,
+    }
+    -- reload M so it picks up the new preview stub
+    package.loaded["md-view"] = nil
+    local fresh_M = require("md-view")
+    fresh_M.setup({ filetypes = { "markdown" } })
+    fresh_M.close_all()
+    table.sort(closed_bufs)
+    assert.are.same({ 1, 7 }, closed_bufs)
   end)
 
   it("forwards palette to hub SSE when set_theme is called in hub mode", function()

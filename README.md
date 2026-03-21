@@ -461,6 +461,7 @@ To specify a custom highlight.js theme for the cached CSS:
 |--------------------------|--------------------------------------------------|
 | `:MdView [browser]`      | Open preview for the current buffer. Optional `browser` arg overrides the configured browser for this call (e.g. `:MdView firefox`). |
 | `:MdViewStop`            | Stop the preview                                 |
+| `:MdViewClose [all]`     | Close preview panel(s) without stopping the server |
 | `:MdViewToggle`          | Toggle the preview on/off                        |
 | `:MdViewList`            | Pick from all active previews                    |
 | `:MdViewAutoOpen`        | Toggle automatic preview on buffer enter on/off  |

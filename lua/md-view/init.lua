@@ -124,6 +124,18 @@ M.stop = function(bufnr)
   preview.destroy(bufnr)
 end
 
+---@param bufnr integer|nil
+M.close = function(bufnr)
+  preview.close(bufnr)
+end
+
+---@return nil
+M.close_all = function()
+  for bufnr, _ in pairs(preview.get_active_previews()) do
+    preview.close(bufnr)
+  end
+end
+
 ---@return nil
 M.toggle = function()
   local bufnr = vim.api.nvim_get_current_buf()

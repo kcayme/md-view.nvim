@@ -480,6 +480,38 @@ M.destroy = function(buffer_id)
   pcall(vim.api.nvim_del_augroup_by_name, "md_view_cleanup_" .. buffer_id)
 end
 
+---@param buffer_id integer|nil
+M.close = function(buffer_id)
+  buffer_id = buffer_id or vim.api.nvim_get_current_buf()
+
+  local preview = active_previews[buffer_id]
+  local config = require("md-view.config")
+  local sp = config.options and config.options.single_page
+  local hub_active = sp and sp.enable and _mux and _mux.server
+
+  if not preview then
+    return
+  end
+
+  active_previews[buffer_id] = nil
+
+  if hub_active then
+    _mux:push("preview_removed", { id = buffer_id })
+    _mux:unregister(buffer_id)
+  elseif preview.sse then
+    preview.sse:push("close", {})
+  end
+
+  if preview.sse then
+    preview.sse:close_all()
+  end
+
+  preview.watcher.stop()
+
+  pcall(vim.api.nvim_del_augroup_by_name, "md_view_cleanup_" .. buffer_id)
+  -- TCP server intentionally not stopped
+end
+
 ---@param bufnr integer
 ---@return MdViewPreview|nil
 M.get_by_buffer = function(bufnr)
