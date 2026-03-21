@@ -61,4 +61,44 @@ describe("util", function()
       assert.is_nil(notify_calls[1].level)
     end)
   end)
+
+  describe("safe_call", function()
+    local orig_notify
+    local notify_calls
+
+    before_each(function()
+      orig_notify = vim.notify
+      notify_calls = {}
+      vim.notify = function(msg, level)
+        table.insert(notify_calls, { msg = msg, level = level })
+      end
+    end)
+
+    after_each(function()
+      vim.notify = orig_notify
+    end)
+
+    it("does not notify when fn succeeds", function()
+      util.safe_call("MdView", function() end)
+      assert.are.equal(0, #notify_calls)
+    end)
+
+    it("calls vim.notify with ERROR level when fn throws", function()
+      util.safe_call("MdView", function()
+        error("boom")
+      end)
+      assert.are.equal(1, #notify_calls)
+      assert.are.equal(vim.log.levels.ERROR, notify_calls[1].level)
+    end)
+
+    it("includes command name and error in notification message", function()
+      util.safe_call("MdViewStop", function()
+        error("something broke")
+      end)
+      assert.are.equal(1, #notify_calls)
+      assert.are.equal(vim.log.levels.ERROR, notify_calls[1].level)
+      assert.truthy(notify_calls[1].msg:find("MdViewStop"))
+      assert.truthy(notify_calls[1].msg:find("something broke"))
+    end)
+  end)
 end)

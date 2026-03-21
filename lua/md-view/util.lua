@@ -68,4 +68,14 @@ M.notify = function(opts, msg, level)
   end
 end
 
+---@param cmd_name string
+---@param fn fun()
+M.safe_call = function(cmd_name, fn)
+  local ok, err = pcall(fn)
+
+  if not ok then
+    M.notify(nil, "[md-view] " .. cmd_name .. " failed: " .. tostring(err), vim.log.levels.ERROR)
+  end
+end
+
 return M
