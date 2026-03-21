@@ -54,6 +54,7 @@ local M = {}
 ---@field port integer
 ---@field host string
 ---@field browser string|nil
+---@field bufnr integer|nil
 ---@field debounce_ms integer
 ---@field css string|nil
 ---@field auto_close boolean
