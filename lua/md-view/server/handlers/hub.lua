@@ -39,9 +39,9 @@ function M:resolve_label(ctx, tab_label)
   elseif tab_label == "parent" then
     local parent = vim.fn.fnamemodify(ctx.path, ":h:t")
     return parent .. "/" .. ctx.filename
-  else
-    return ctx.filename
   end
+
+  return ctx.filename
 end
 
 -- Register a preview. Registry entry is inserted synchronously so that
@@ -54,6 +54,7 @@ function M:register(bufnr, path, tab_label_cfg)
   local filename = vim.fn.fnamemodify(path, ":t")
   local ctx = { bufnr = bufnr, filename = filename, path = path }
   local label = self:resolve_label(ctx, tab_label_cfg)
+
   self.registry[bufnr] = { title = filename, label = label }
 end
 
@@ -70,10 +71,12 @@ function M:add_client(client)
   -- Replay hub-level palette first so the chrome is styled before panels appear
   if self.last_hub_palette then
     local payload = "event: hub_palette\ndata: " .. vim.json.encode(self.last_hub_palette) .. "\n\n"
+
     pcall(function()
       client:write(payload)
     end)
   end
+
   -- Replay per-preview state in fixed order: preview_added first (creates panel),
   -- then palette/theme (style the panel). Arbitrary table iteration would apply
   -- palette before the panel exists, losing the style.
@@ -84,6 +87,7 @@ function M:add_client(client)
         local data = per_preview[event_type]
         if data then
           local payload = "event: " .. event_type .. "\ndata: " .. vim.json.encode(data) .. "\n\n"
+
           pcall(function()
             client:write(payload)
           end)
@@ -91,6 +95,7 @@ function M:add_client(client)
       end
     end
   end
+
   -- Push initial content after preview_added replay so panels exist in the browser
   -- when the content events arrive.
   if self.on_client_added then
@@ -102,9 +107,11 @@ function M:remove_client(client)
   for i, c in ipairs(self.clients) do
     if c == client then
       table.remove(self.clients, i)
+
       if not client:is_closing() then
         client:close()
       end
+
       return
     end
   end
@@ -117,18 +124,23 @@ function M:push(event_type, data)
   if event_type == "hub_palette" then
     self.last_hub_palette = data
   end
+
   -- Store per-preview replay state for allowlisted event types
   if REPLAY_EVENTS[event_type] and data.id then
     local bufnr = data.id
+
     if self.registry[bufnr] then
       if not self.last[bufnr] then
         self.last[bufnr] = {}
       end
+
       self.last[bufnr][event_type] = data
     end
   end
+
   local payload = "event: " .. event_type .. "\ndata: " .. vim.json.encode(data) .. "\n\n"
   local dead = {}
+
   for i, c in ipairs(self.clients) do
     local ok = pcall(function()
       c:write(payload)
@@ -137,9 +149,12 @@ function M:push(event_type, data)
       dead[#dead + 1] = i
     end
   end
+
   for i = #dead, 1, -1 do
     local c = self.clients[dead[i]]
+
     table.remove(self.clients, dead[i])
+
     if not c:is_closing() then
       c:close()
     end
@@ -153,6 +168,7 @@ function M:close_all()
       client:close()
     end
   end
+
   self.clients = {}
 end
 
@@ -173,6 +189,7 @@ M.serve_root = function(_req, res, _ctx)
     highlight_theme = resolved.highlight_theme,
     mermaid = { theme = resolved.mermaid_theme },
   })
+
   res.send("200 OK", "text/html", template.render_mux(render_opts))
 end
 
@@ -186,37 +203,47 @@ M.serve_content = function(req, res, ctx)
     res.send("400 Bad Request", "text/plain", "Bad Request")
     return
   end
+
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+
   res.json("200 OK", { content = table.concat(lines, "\n") })
 end
 
 M.serve_vendor = function(req, res, _ctx)
   local vendor = require("md-view.vendor")
+
   local filename = req.params.file
   if not filename or not filename:match("^[%w%.%-_]+$") then
     res.send("404 Not Found", "text/plain", "Not Found")
     return
   end
+
   local ext = filename:match("%.([^%.]+)$")
   local content_type = ext == "css" and "text/css" or "application/javascript"
+
   res.send_file(vendor.vendor_dir() .. "/" .. filename, content_type)
 end
 
 M.serve_file = function(req, res, ctx)
   local router = require("md-view.server.router")
   local bufnr = req.query.id and tonumber(req.query.id)
+
   local raw = req.query.path
   if not bufnr or not ctx.hub.registry[bufnr] or not raw or raw == "" then
     res.send("400 Bad Request", "text/plain", "Bad Request")
     return
   end
+
   local bufdir = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":p:h")
+
   local abs = router.resolve_media_path(bufdir, raw)
   if not abs then
     res.send("400 Bad Request", "text/plain", "Bad Request")
     return
   end
+
   local ext = (abs:match("%.([^%.]+)$") or ""):lower()
+
   res.send_file(abs, router.MEDIA_TYPES[ext] or "application/octet-stream")
 end
 

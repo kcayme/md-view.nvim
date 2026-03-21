@@ -114,7 +114,7 @@ M.open = function(opts)
 
   preview.create(vim.tbl_extend("force", preview_opts, call_opts))
 
-  if current_live_theme and existing_preview then
+  if current_live_theme and existing_preview and existing_preview.sse then
     existing_preview.sse:push("palette", { css = get_live_css() })
   end
 end
@@ -218,7 +218,9 @@ M.set_theme = function(mode)
   local hub = preview.get_mux and preview.get_mux()
 
   for bufnr, pview in pairs(preview.get_active_previews()) do
-    pview.sse:push("palette", { css = css })
+    if pview.sse then
+      pview.sse:push("palette", { css = css })
+    end
 
     if hub and hub.server then
       hub:push("palette", { id = bufnr, css = css })

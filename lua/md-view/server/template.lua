@@ -12,29 +12,36 @@ local function load_asset(name, cache)
   if type(cache[1]) == "string" then
     return cache[1]
   end
+
   if cache[1] == false then
     return nil
   end
+
   local path = vim.api.nvim_get_runtime_file("assets/" .. name, false)[1]
   if not path then
     vim.notify("md-view.nvim: could not find assets/" .. name .. " in runtimepath", vim.log.levels.ERROR)
     cache[1] = false
     return nil
   end
+
   local fh, err = io.open(path, "rb")
   if not fh then
     vim.notify("md-view.nvim: could not open " .. path .. ": " .. (err or ""), vim.log.levels.ERROR)
     cache[1] = false
     return nil
   end
+
   local content = fh:read("*a")
   fh:close()
+
   if not content or content == "" then
     vim.notify("md-view.nvim: assets/" .. name .. " is empty or unreadable", vim.log.levels.ERROR)
     cache[1] = false
     return nil
   end
+
   cache[1] = content
+
   return content
 end
 
@@ -46,12 +53,15 @@ local _render_js = { nil }
 local function load_template()
   return load_asset("template.html", _template)
 end
+
 local function load_mux_template()
   return load_asset("mux.html", _mux)
 end
+
 local function load_prose_css()
   return load_asset("common.css", _prose_css)
 end
+
 local function load_render_js()
   return load_asset("common.js", _render_js)
 end
@@ -199,14 +209,15 @@ M.render = function(opts, filename)
   if not tmpl then
     return ""
   end
+
   local css = opts.css or ""
   local title = filename and filename ~= "" and filename or "md-view"
   local theme_css = opts.theme_css or ""
   local palette_css = opts.palette_css or ""
+
   title = html_escape(title)
 
   local tags = build_script_tags(opts)
-
   local html = tmpl
     :gsub("{{PALETTE_CSS}}", function()
       return palette_css
@@ -253,6 +264,7 @@ M.render = function(opts, filename)
     :gsub("{{RENDER_JS}}", function()
       return load_render_js() or ""
     end)
+
   return html
 end
 
@@ -267,6 +279,7 @@ M.render_mux = function(opts)
   local css = opts.css or ""
   local theme_css = opts.theme_css or ""
   local palette_css = opts.palette_css or ""
+
   return tmpl
     :gsub("{{PALETTE_CSS}}", function()
       return palette_css

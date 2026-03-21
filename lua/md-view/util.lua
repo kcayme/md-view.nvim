@@ -5,6 +5,7 @@ local uv = vim.uv or vim.loop
 M.open_browser = function(url, browser)
   if browser then
     vim.fn.jobstart({ browser, url }, { detach = true })
+
     return
   end
 
@@ -40,12 +41,14 @@ M.debounce = function(fn, ms)
       end)
     end,
   })
+
   function wrapped.stop()
     timer:stop()
     if not timer:is_closing() then
       timer:close()
     end
   end
+
   return wrapped
 end
 

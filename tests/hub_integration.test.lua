@@ -425,6 +425,29 @@ describe("preview hub integration", function()
     preview.destroy(bufnr)
   end)
 
+  it("set_theme does not crash in hub mode (nil pview.sse)", function()
+    -- Must load init.lua after mocks are in place
+    package.loaded["md-view"] = nil
+    package.loaded["md-view.init"] = nil
+
+    local preview = require("md-view.preview")
+    local bufnr = vim.api.nvim_get_current_buf()
+
+    preview.create(config.options)
+
+    local md_view = require("md-view")
+    md_view.setup(config.options)
+
+    assert.has_no.errors(function()
+      md_view.set_theme("dark")
+    end)
+
+    preview.destroy(bufnr)
+
+    package.loaded["md-view"] = nil
+    package.loaded["md-view.init"] = nil
+  end)
+
   it("watcher on_content and on_scroll do not crash in hub mode (nil sse)", function()
     local captured_callbacks = {}
 

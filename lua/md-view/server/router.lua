@@ -162,6 +162,7 @@ M.build_res = function(client)
         .. "Content-Type: text/event-stream\r\n"
         .. "Cache-Control: no-cache\r\n"
         .. "Connection: keep-alive\r\n\r\n"
+
       client:write(headers)
       sse_instance:add_client(client)
       -- tcp.lua calls read_stop() before routing; restart reading so we detect
@@ -182,6 +183,9 @@ end
 ---@param buf string
 ---@return MdViewRequest|nil
 M.parse = function(buf)
+  local query = {}
+  local headers = {}
+
   local method, path_and_query = buf:match("^(%u+)%s+(%S+)")
   if not method then
     return nil
@@ -193,12 +197,10 @@ M.parse = function(buf)
     qs = ""
   end
 
-  local query = {}
   for key, val in qs:gmatch("([^&=]+)=([^&]*)") do
     query[url_decode(key)] = url_decode(val)
   end
 
-  local headers = {}
   local header_section = buf:match("^[^\r\n]+\r\n(.-)\r\n\r\n")
   if header_section then
     for line in header_section:gmatch("[^\r\n]+") do
@@ -224,15 +226,19 @@ end
 local function match_path(pattern, path)
   local params = {}
   local pat_segs, path_segs = {}, {}
+
   for seg in pattern:gmatch("[^/]+") do
     table.insert(pat_segs, seg)
   end
+
   for seg in path:gmatch("[^/]+") do
     table.insert(path_segs, seg)
   end
+
   if #pat_segs ~= #path_segs then
     return nil
   end
+
   for i, pseg in ipairs(pat_segs) do
     if pseg:sub(1, 1) == ":" then
       params[pseg:sub(2)] = path_segs[i]
@@ -240,6 +246,7 @@ local function match_path(pattern, path)
       return nil
     end
   end
+
   return params
 end
 
@@ -253,6 +260,7 @@ M.dispatch = function(routes, req, res, ctx)
   for _, route in ipairs(routes) do
     if route.method == req.method then
       local params = match_path(route.path, req.path)
+
       if params then
         req.params = params
         route.handler(req, res, ctx)
@@ -260,6 +268,7 @@ M.dispatch = function(routes, req, res, ctx)
       end
     end
   end
+
   res.send("404 Not Found", "text/plain", "Not Found")
 end
 
@@ -272,14 +281,19 @@ M.new = function(routes, ctx)
   return function(client, buf)
     local req = M.parse(buf)
     local res = M.build_res(client)
+
     if not req then
       res.send("400 Bad Request", "text/plain", "Bad Request")
+
       return
     end
+
     if req.method ~= "GET" then
       res.send("405 Method Not Allowed", "text/plain", "Method Not Allowed")
+
       return
     end
+
     M.dispatch(routes, req, res, ctx)
   end
 end

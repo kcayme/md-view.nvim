@@ -117,19 +117,25 @@ M.build_mappings = function(overrides)
   if not overrides or vim.tbl_isempty(overrides) then
     return mappings
   end
+
   local result = {}
+
   for _, m in ipairs(mappings) do
     result[#result + 1] = vim.deepcopy(m)
   end
+
   for key, groups in pairs(overrides) do
     local var = KEY_TO_VAR[key]
+
     if var then
       if type(groups) == "string" then
         groups = { groups }
       end
+
       for i, m in ipairs(result) do
         if m.var == var then
           result[i].groups = groups
+
           break
         end
       end
@@ -147,19 +153,23 @@ end
 M.extract = function(custom_mappings)
   local map = custom_mappings or mappings
   local vars = {}
+
   for _, m in ipairs(map) do
     for _, group in ipairs(m.groups) do
       local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = group, link = false })
       if ok and hl and hl[m.attr] then
         vars[m.var] = int_to_hex(hl[m.attr])
+
         break
       end
     end
   end
+
   -- Fallback: if Normal bg/fg weren't found, use vim.o.background
   if not vars["--md-bg"] then
     vars["--md-bg"] = vim.o.background == "light" and "#ffffff" or "#0d1117"
   end
+
   if not vars["--md-fg"] then
     vars["--md-fg"] = vim.o.background == "light" and "#1e1e1e" or "#cccccc"
   end
@@ -170,22 +180,28 @@ end
 ---@return string[]
 M.extract_hljs = function()
   local rules = {}
+
   for _, m in ipairs(hljs_mappings) do
     for _, group in ipairs(m.groups) do
       local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = group, link = false })
       if ok and hl and hl[m.attr] then
         local props = { "color: " .. int_to_hex(hl[m.attr]) }
+
         if hl.bold then
           props[#props + 1] = "font-weight: bold"
         end
+
         if hl.italic then
           props[#props + 1] = "font-style: italic"
         end
+
         rules[#rules + 1] = m.selector .. " { " .. table.concat(props, "; ") .. "; }"
+
         break
       end
     end
   end
+
   return rules
 end
 
@@ -193,10 +209,13 @@ end
 ---@return string
 M.to_css = function(vars)
   local parts = { ":root {" }
+
   for var, val in pairs(vars) do
     parts[#parts + 1] = "  " .. var .. ": " .. val .. ";"
   end
+
   parts[#parts + 1] = "}"
+
   return table.concat(parts, "\n")
 end
 
@@ -206,9 +225,11 @@ M.css = function(overrides)
   local merged = M.build_mappings(overrides)
   local css = M.to_css(M.extract(merged))
   local hljs_rules = M.extract_hljs()
+
   if #hljs_rules > 0 then
     css = css .. "\n" .. table.concat(hljs_rules, "\n")
   end
+
   return css
 end
 
