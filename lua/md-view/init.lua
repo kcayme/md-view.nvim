@@ -137,6 +137,31 @@ M.close_all = function()
 end
 
 ---@return nil
+M.restart = function()
+  local bufs = vim.tbl_keys(preview.get_active_previews())
+
+  if #bufs == 0 then
+    return
+  end
+
+  for _, bufnr in ipairs(bufs) do
+    preview.destroy(bufnr)
+  end
+
+  local preview_opts = config.options
+
+  if current_live_theme then
+    preview_opts = vim.tbl_extend("force", preview_opts, {
+      theme = vim.tbl_extend("force", preview_opts.theme, { mode = current_live_theme }),
+    })
+  end
+
+  for _, bufnr in ipairs(bufs) do
+    preview.create(vim.tbl_extend("force", preview_opts, { bufnr = bufnr }))
+  end
+end
+
+---@return nil
 M.toggle = function()
   local bufnr = vim.api.nvim_get_current_buf()
 

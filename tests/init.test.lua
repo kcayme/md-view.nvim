@@ -158,6 +158,90 @@ describe("md-view init", function()
     assert.are.same({ 1, 7 }, closed_bufs)
   end)
 
+  it("restart is no-op when no active previews", function()
+    local destroyed = {}
+    local created = {}
+    package.loaded["md-view.preview"] = {
+      create = function(opts)
+        table.insert(created, opts)
+      end,
+      get_by_buffer = function()
+        return nil
+      end,
+      destroy = function(bufnr)
+        table.insert(destroyed, bufnr)
+      end,
+      close = function() end,
+      get_active_previews = function()
+        return {}
+      end,
+    }
+    package.loaded["md-view"] = nil
+    local fresh_M = require("md-view")
+    fresh_M.setup({})
+    fresh_M.restart()
+    assert.are.same({}, destroyed)
+    assert.are.same({}, created)
+  end)
+
+  it("restart destroys all active previews then re-creates each with bufnr", function()
+    local destroyed = {}
+    local created_opts = {}
+    package.loaded["md-view.preview"] = {
+      create = function(opts)
+        table.insert(created_opts, opts)
+      end,
+      get_by_buffer = function()
+        return nil
+      end,
+      destroy = function(bufnr)
+        table.insert(destroyed, bufnr)
+      end,
+      close = function() end,
+      get_active_previews = function()
+        return { [3] = {}, [9] = {} }
+      end,
+    }
+    package.loaded["md-view"] = nil
+    local fresh_M = require("md-view")
+    fresh_M.setup({})
+    fresh_M.restart()
+    table.sort(destroyed)
+    assert.are.same({ 3, 9 }, destroyed)
+    assert.are.equal(2, #created_opts)
+    local bufs_created = {}
+    for _, opts in ipairs(created_opts) do
+      table.insert(bufs_created, opts.bufnr)
+    end
+    table.sort(bufs_created)
+    assert.are.same({ 3, 9 }, bufs_created)
+  end)
+
+  it("restart applies live theme to re-created previews", function()
+    local created_opts = {}
+    package.loaded["md-view.preview"] = {
+      create = function(opts)
+        table.insert(created_opts, opts)
+      end,
+      get_by_buffer = function()
+        return nil
+      end,
+      destroy = function() end,
+      close = function() end,
+      get_active_previews = function()
+        return { [1] = {} }
+      end,
+    }
+    package.loaded["md-view"] = nil
+    local fresh_M = require("md-view")
+    fresh_M.setup({})
+    -- seed a live theme (set_theme requires at least one active preview)
+    fresh_M.set_theme("dark")
+    fresh_M.restart()
+    assert.are.equal(1, #created_opts)
+    assert.are.equal("dark", created_opts[1].theme.mode)
+  end)
+
   it("forwards palette to hub SSE when set_theme is called in hub mode", function()
     local hub_pushed = {}
     local fake_mux = {
