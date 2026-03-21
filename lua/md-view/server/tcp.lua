@@ -22,16 +22,16 @@ M.start = function(host, port, on_request)
   local server = uv.new_tcp()
 
   if not server then
-    util.notify("[md-view] Failed to create TCP server", vim.log.levels.ERROR)
+    util.notify(nil, "[md-view] Failed to create TCP server", vim.log.levels.ERROR)
 
     return nil, 0
   end
 
-  local addr = server:getsockname()
   local ok, bind_err = server:bind(host, port)
 
   if not ok then
     util.notify(
+      nil,
       "[md-view] Failed to bind server to " .. host .. ":" .. port .. ": " .. tostring(bind_err),
       vim.log.levels.ERROR
     )
@@ -39,10 +39,12 @@ M.start = function(host, port, on_request)
     return nil, 0
   end
 
+  local addr = server:getsockname()
+
   server:listen(128, function(err)
     if err then
       vim.schedule(function()
-        util.notify("[md-view] Server error: " .. err, vim.log.levels.ERROR)
+        util.notify(nil, "[md-view] Server error: " .. err, vim.log.levels.ERROR)
       end)
 
       return
