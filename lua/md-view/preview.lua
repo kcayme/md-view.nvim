@@ -372,13 +372,18 @@ end
 M.create = function(opts)
   local bufnr = vim.api.nvim_get_current_buf()
   local sp = opts.single_page
+  local preview_ctx = {}
+  local port = nil
+  local sse_instance = nil
 
   if active_previews[bufnr] then
     handle_preview(bufnr, opts, sp)
+
     return
   end
 
   if sp and sp.enable then
+    -- setup single_page mode (hub)
     local resolved = theme.resolve(opts)
     local hub = init_hub(opts)
 
@@ -390,31 +395,31 @@ M.create = function(opts)
 
     local watcher = start_buffer_watcher(bufnr, opts, nil)
 
-    active_previews[bufnr] = { watcher = watcher }
-
-    open_browser_for_preview(opts, nil)
-    register_autocmds(bufnr, opts, nil)
+    preview_ctx = { watcher = watcher }
   else
-    local sse_instance = build_sse(bufnr)
+    -- setup multi_page mode (direct)
+    sse_instance = build_sse(bufnr)
     local ctx, _ = build_render_ctx(bufnr, opts, sse_instance)
     local watcher = start_buffer_watcher(bufnr, opts, sse_instance)
-    local srv, port = start_preview_server(opts, ctx)
+    local srv, preview_port = start_preview_server(opts, ctx)
 
     if not srv then
       return
     end
 
-    active_previews[bufnr] = {
+    preview_ctx = {
       server = srv,
-      port = port,
+      port = preview_port,
       sse = sse_instance,
       watcher = watcher,
     }
 
-    open_browser_for_preview(opts, port)
-    register_autocmds(bufnr, opts, sse_instance)
+    port = preview_port
   end
 
+  active_previews[bufnr] = preview_ctx
+  open_browser_for_preview(opts, port)
+  register_autocmds(bufnr, opts, sse_instance)
   register_global_autocmds()
 end
 
