@@ -75,6 +75,7 @@ describe("md-view init", function()
         return nil
       end,
       destroy = function() end,
+      close = function() end,
       get_active_previews = function()
         return {}
       end,
