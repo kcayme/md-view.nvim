@@ -25,10 +25,14 @@ function M:add_client(client)
 
   for event_type, data in pairs(self.last) do
     local payload = "event: " .. event_type .. "\ndata: " .. vim.json.encode(data) .. "\n\n"
-
-    pcall(function()
+    local ok = pcall(function()
       client:write(payload)
     end)
+
+    if not ok then
+      self:remove_client(client)
+      return
+    end
   end
 
   if self.on_client_added then

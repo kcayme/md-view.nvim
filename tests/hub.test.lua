@@ -164,6 +164,45 @@ describe("hub SSE", function()
       h:add_client(c)
       assert.are.equal(0, #c._writes)
     end)
+
+    it("removes dead client when hub_palette replay write fails during add_client", function()
+      local h = hub.new()
+      h.last_hub_palette = { css = "body{}" }
+
+      local good = mock_client()
+      h:add_client(good)
+
+      local dead = mock_client()
+      function dead:write()
+        error("broken pipe")
+      end
+
+      h:add_client(dead)
+
+      assert.are.equal(1, #h.clients)
+      assert.are.equal(good, h.clients[1])
+      assert.is_true(dead._closing)
+    end)
+
+    it("removes dead client when per-preview replay write fails during add_client", function()
+      local h = hub.new()
+      h:register(3, "/a/a.md", "filename")
+      h:push("preview_added", { id = 3, title = "a.md", label = "a.md" })
+
+      local good = mock_client()
+      h:add_client(good)
+
+      local dead = mock_client()
+      function dead:write()
+        error("broken pipe")
+      end
+
+      h:add_client(dead)
+
+      assert.are.equal(1, #h.clients)
+      assert.are.equal(good, h.clients[1])
+      assert.is_true(dead._closing)
+    end)
   end)
 
   describe("remove_client", function()

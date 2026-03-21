@@ -68,13 +68,18 @@ end
 
 function M:add_client(client)
   table.insert(self.clients, client)
+
   -- Replay hub-level palette first so the chrome is styled before panels appear
   if self.last_hub_palette then
     local payload = "event: hub_palette\ndata: " .. vim.json.encode(self.last_hub_palette) .. "\n\n"
-
-    pcall(function()
+    local ok = pcall(function()
       client:write(payload)
     end)
+
+    if not ok then
+      self:remove_client(client)
+      return
+    end
   end
 
   -- Replay per-preview state in fixed order: preview_added first (creates panel),
@@ -82,16 +87,29 @@ function M:add_client(client)
   -- palette before the panel exists, losing the style.
   for bufnr, _ in pairs(self.registry) do
     local per_preview = self.last[bufnr]
+
     if per_preview then
+      local client_dead = false
+
       for _, event_type in ipairs(REPLAY_ORDER) do
         local data = per_preview[event_type]
+
         if data then
           local payload = "event: " .. event_type .. "\ndata: " .. vim.json.encode(data) .. "\n\n"
-
-          pcall(function()
+          local ok = pcall(function()
             client:write(payload)
           end)
+
+          if not ok then
+            client_dead = true
+            break
+          end
         end
+      end
+
+      if client_dead then
+        self:remove_client(client)
+        return
       end
     end
   end
