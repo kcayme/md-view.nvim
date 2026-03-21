@@ -78,7 +78,7 @@ M.defaults = {
   verbose = true,
   follow_focus = false,
   scroll = {
-    method = "percentage", -- "percentage" | "cursor"
+    method = "cursor", -- "percentage" | "cursor"
   },
   theme = {
     mode = "auto", -- "auto" | "dark" | "light" | "sync"
