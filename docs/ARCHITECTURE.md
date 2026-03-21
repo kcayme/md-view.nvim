@@ -121,16 +121,16 @@ sequenceDiagram
     router-->>Browser: HTML response
 
     Browser->>router: GET /events
-    Note over router: sse_upgrade: write SSE headers first,<br/>then add_client
+    Note over router: sse_upgrade writes SSE headers, then add_client
     router-->>Browser: SSE headers (keep-alive)
     router->>sse: add_client(socket)
-    Note over sse: replay last events (theme, palette)<br/>then call on_client_added hook
+    Note over sse: replays last events, then calls on_client_added
     sse->>preview: on_client_added(client)
     preview->>preview: read_content_async(bufnr)
-    Note over preview: buffer if modified;<br/>disk read otherwise
-    preview-->>Browser: SSE: content {content}
+    Note over preview: buffer if modified, disk read otherwise
+    preview-->>Browser: SSE event — content
 
-    Note over Browser: markdown-it parse<br/>→ morphdom patch DOM<br/>→ mermaid.run()
+    Note over Browser: parse, patch DOM, run mermaid
 ```
 
 ### 3. Live Update — Content

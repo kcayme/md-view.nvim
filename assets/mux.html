@@ -142,7 +142,7 @@
   var activeId = null;
 
   if (typeof mermaid !== 'undefined') {
-    mermaid.initialize({ startOnLoad: false, theme: "{{MERMAID_THEME}}" });
+    mermaid.initialize({ startOnLoad: false, theme: "{{MERMAID_THEME}}", securityLevel: "{{MERMAID_SECURITY_LEVEL}}" });
   }
 
   {{RENDER_JS}}

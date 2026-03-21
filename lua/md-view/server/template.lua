@@ -74,6 +74,13 @@ local VALID_MERMAID_THEMES = {
   base = true,
 }
 
+local VALID_MERMAID_SECURITY_LEVELS = {
+  strict = true,
+  antiscript = true,
+  loose = true,
+  sandbox = true,
+}
+
 local function html_escape(str)
   return str:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"):gsub("'", "&#39;")
 end
@@ -191,6 +198,12 @@ local function build_script_tags(opts)
     mermaid_theme = "default"
   end
 
+  local mermaid_security_level = opts.notations and opts.notations.mermaid and opts.notations.mermaid.security_level
+    or "strict"
+  if not VALID_MERMAID_SECURITY_LEVELS[mermaid_security_level] then
+    mermaid_security_level = "strict"
+  end
+
   return {
     core_scripts = core_scripts,
     mermaid_tags = mermaid_tags,
@@ -201,6 +214,7 @@ local function build_script_tags(opts)
     abcjs = abcjs_tag,
     vegalite = vegalite_tags,
     mermaid_theme = mermaid_theme,
+    mermaid_security_level = mermaid_security_level,
   }
 end
 
@@ -230,6 +244,9 @@ M.render = function(opts, filename)
     end)
     :gsub("{{MERMAID_THEME}}", function()
       return tags.mermaid_theme
+    end)
+    :gsub("{{MERMAID_SECURITY_LEVEL}}", function()
+      return tags.mermaid_security_level
     end)
     :gsub("{{CORE_SCRIPTS}}", function()
       return tags.core_scripts
@@ -292,6 +309,9 @@ M.render_mux = function(opts)
     end)
     :gsub("{{MERMAID_THEME}}", function()
       return tags.mermaid_theme
+    end)
+    :gsub("{{MERMAID_SECURITY_LEVEL}}", function()
+      return tags.mermaid_security_level
     end)
     :gsub("{{CORE_SCRIPTS}}", function()
       return tags.core_scripts

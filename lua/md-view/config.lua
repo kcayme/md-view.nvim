@@ -21,8 +21,11 @@ local M = {}
 ---@class MdViewNotationOptions
 ---@field enable boolean
 
+---@alias MdViewMermaidSecurityLevel "strict"|"antiscript"|"loose"|"sandbox"
+
 ---@class MdViewMermaidNotationOptions : MdViewNotationOptions
 ---@field theme string|nil
+---@field security_level MdViewMermaidSecurityLevel
 
 ---@class MdViewNotationsOptions
 ---@field mermaid MdViewMermaidNotationOptions
@@ -82,7 +85,7 @@ M.defaults = {
     highlights = {}, -- highlight group overrides (only used when mode = "sync")
   },
   notations = {
-    mermaid = { enable = true, theme = nil },
+    mermaid = { enable = true, theme = nil, security_level = "strict" },
     katex = { enable = true },
     graphviz = { enable = true },
     wavedrom = { enable = true },

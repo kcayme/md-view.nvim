@@ -18,6 +18,7 @@ Full reference for all options accepted by `require("md-view").setup()`. All opt
 | `theme.highlights` | `table<string, string\|string[]>` | `{}` | Highlight group overrides for CSS variable extraction, used when `theme.mode = "sync"`. Keys map to CSS variables; values are a highlight group name or a list tried in order (first group with the attribute wins). Has no effect for other theme modes. See [theme.highlights keys](#themehighlights-keys) below. |
 | `notations.mermaid.enable` | `boolean` | `true` | Load the Mermaid CDN library. Set `false` to skip (saves bandwidth). |
 | `notations.mermaid.theme` | `string\|nil` | `nil` | Mermaid diagram theme. One of `"default"`, `"dark"`, `"forest"`, `"neutral"`, or `"base"`. `nil` auto-chooses based on `theme.mode`. |
+| `notations.mermaid.security_level` | `string` | `"strict"` | Mermaid [securityLevel](https://mermaid.js.org/config/usage.html#securitylevel). `"strict"` strips all HTML from diagram text (safest). `"antiscript"` allows HTML tags but blocks `<script>` and event handlers — use this if you need `<br/>` in notes. `"loose"` allows all HTML. `"sandbox"` renders in an isolated iframe. |
 | `notations.katex.enable` | `boolean` | `true` | Load KaTeX for math fences and `$...$` / `$$...$$` inline math. |
 | `notations.graphviz.enable` | `boolean` | `true` | Load Graphviz (viz.js) for `dot` fences. |
 | `notations.wavedrom.enable` | `boolean` | `true` | Load WaveDrom for digital timing diagram fences. |
