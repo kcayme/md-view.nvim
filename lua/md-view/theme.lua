@@ -248,13 +248,13 @@ M.resolve = function(opts)
     resolved_theme = vim.o.background
   end
 
-  local defs = THEME_DEFAULTS[resolved_theme] or THEME_DEFAULTS.dark
-  local m = opts.notations and opts.notations.mermaid
+  local theme_defaults = THEME_DEFAULTS[resolved_theme] or THEME_DEFAULTS.dark
+  local mermaid_theme = opts.notations and opts.notations.mermaid
 
   return {
     theme = resolved_theme,
-    highlight_theme = opts.theme.syntax or defs.highlight_theme,
-    mermaid_theme = (m and m.theme) or defs.mermaid_theme,
+    highlight_theme = opts.theme.syntax or theme_defaults.highlight_theme,
+    mermaid_theme = (mermaid_theme and mermaid_theme.theme) or theme_defaults.mermaid_theme,
   }
 end
 

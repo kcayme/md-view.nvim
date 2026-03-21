@@ -11,7 +11,7 @@ local VALID_THEME_MODES = {
   "auto",
   "sync",
 }
-local current_live_theme = nil
+local current_live_theme = "dark"
 
 local function get_live_css()
   if current_live_theme == "sync" then
@@ -214,28 +214,26 @@ M.set_theme = function(mode)
     end
   end
 
+  local active_previews = preview.get_active_previews()
+
   -- Early exit if no active previews (no state mutation)
-  if vim.tbl_isempty(preview.get_active_previews()) then
+  if vim.tbl_isempty(active_previews) then
     return
   end
-
-  local notified_mode
 
   if mode and mode ~= "" then
     -- Explicit arg path
     current_live_theme = mode
-    notified_mode = mode
   else
-    -- Cycle path: lazy-initialize then advance
+    -- Cycle path: lazy-initialize from config on first cycle after setup, then advance
     if current_live_theme == nil then
-      if config.options and config.options.theme and config.options.theme.mode == "sync" then
+      if config.options.theme.mode == "sync" then
         current_live_theme = "sync"
-      elseif config.options then
-        current_live_theme = theme.resolve(config.options).theme
       else
-        current_live_theme = "dark"
+        current_live_theme = theme.resolve(config.options).theme
       end
     end
+
     -- Advance to next in cycle
     local idx = 1
 
@@ -247,14 +245,13 @@ M.set_theme = function(mode)
     end
 
     current_live_theme = VALID_THEME_MODES[(idx % #VALID_THEME_MODES) + 1]
-    notified_mode = current_live_theme
   end
 
   -- Push to all active previews
   local css = get_live_css()
   local hub = preview.get_mux and preview.get_mux()
 
-  for bufnr, pview in pairs(preview.get_active_previews()) do
+  for bufnr, pview in pairs(active_previews) do
     if pview.sse then
       pview.sse:push("palette", { css = css })
     end
@@ -269,7 +266,7 @@ M.set_theme = function(mode)
     hub:push("hub_palette", { css = css })
   end
 
-  util.notify(config.options, "[md-view] theme: " .. notified_mode, vim.log.levels.INFO)
+  util.notify(config.options, "[md-view] theme: " .. current_live_theme, vim.log.levels.INFO)
 end
 
 return M
