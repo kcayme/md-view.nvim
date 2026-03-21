@@ -26,6 +26,12 @@ vim.api.nvim_create_user_command("MdViewClose", function(cmd_opts)
   end)
 end, { desc = "Close markdown preview panel(s) without stopping the server", nargs = "?" })
 
+vim.api.nvim_create_user_command("MdViewRestart", function()
+  util.safe_call("MdViewRestart", function()
+    require("md-view").restart()
+  end)
+end, { desc = "Restart all active markdown preview servers" })
+
 vim.api.nvim_create_user_command("MdViewToggle", function()
   util.safe_call("MdViewToggle", function()
     require("md-view").toggle()
