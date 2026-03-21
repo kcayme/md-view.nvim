@@ -185,17 +185,16 @@ describe("md-view init", function()
   end)
 
   it("restart destroys all active previews then re-creates each with bufnr", function()
-    local destroyed = {}
-    local created_opts = {}
+    local event_log = {}
     package.loaded["md-view.preview"] = {
       create = function(opts)
-        table.insert(created_opts, opts)
+        table.insert(event_log, { kind = "create", bufnr = opts.bufnr })
       end,
       get_by_buffer = function()
         return nil
       end,
       destroy = function(bufnr)
-        table.insert(destroyed, bufnr)
+        table.insert(event_log, { kind = "destroy", bufnr = bufnr })
       end,
       close = function() end,
       get_active_previews = function()
@@ -206,15 +205,37 @@ describe("md-view init", function()
     local fresh_M = require("md-view")
     fresh_M.setup({})
     fresh_M.restart()
-    table.sort(destroyed)
-    assert.are.same({ 3, 9 }, destroyed)
-    assert.are.equal(2, #created_opts)
-    local bufs_created = {}
-    for _, opts in ipairs(created_opts) do
-      table.insert(bufs_created, opts.bufnr)
+
+    -- Verify correct buffer IDs were destroyed and re-created
+    local destroyed = {}
+    local created = {}
+
+    for _, entry in ipairs(event_log) do
+      if entry.kind == "destroy" then
+        table.insert(destroyed, entry.bufnr)
+      else
+        table.insert(created, entry.bufnr)
+      end
     end
-    table.sort(bufs_created)
-    assert.are.same({ 3, 9 }, bufs_created)
+
+    table.sort(destroyed)
+    table.sort(created)
+    assert.are.same({ 3, 9 }, destroyed)
+    assert.are.same({ 3, 9 }, created)
+
+    -- Verify all destroys happen before any creates
+    local last_destroy_idx = 0
+    local first_create_idx = math.huge
+
+    for i, entry in ipairs(event_log) do
+      if entry.kind == "destroy" then
+        last_destroy_idx = i
+      elseif entry.kind == "create" and i < first_create_idx then
+        first_create_idx = i
+      end
+    end
+
+    assert.is_true(last_destroy_idx < first_create_idx, "all destroys must complete before any creates")
   end)
 
   it("restart applies live theme to re-created previews", function()
