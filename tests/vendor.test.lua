@@ -46,16 +46,16 @@ describe("vendor", function()
   end)
 
   describe("fetch", function()
-    local orig_executable, orig_notify, orig_mkdir, orig_jobstart
+    local orig_executable, orig_util, orig_mkdir, orig_jobstart
 
     after_each(function()
       if orig_executable then
         vim.fn.executable = orig_executable
         orig_executable = nil
       end
-      if orig_notify then
-        vim.notify = orig_notify
-        orig_notify = nil
+      if orig_util then
+        package.loaded["md-view.util"] = orig_util
+        orig_util = nil
       end
       if orig_mkdir then
         vim.fn.mkdir = orig_mkdir
@@ -70,20 +70,26 @@ describe("vendor", function()
     end)
 
     it("notifies ERROR when curl is not found", function()
-      local v = require("md-view.vendor")
-      orig_executable = vim.fn.executable
-      orig_notify = vim.notify
       local notify_calls = {}
+      orig_util = package.loaded["md-view.util"]
+      package.loaded["md-view.util"] = {
+        notify = function(opts, msg, level)
+          table.insert(notify_calls, { opts = opts, msg = msg, level = level })
+        end,
+      }
+      package.loaded["md-view.vendor"] = nil
+      local v = require("md-view.vendor")
+
+      orig_executable = vim.fn.executable
       vim.fn.executable = function(cmd)
         if cmd == "curl" then
           return 0
         end
         return orig_executable(cmd)
       end
-      vim.notify = function(msg, level)
-        table.insert(notify_calls, { msg = msg, level = level })
-      end
+
       v.fetch()
+
       local found = false
       for _, call in ipairs(notify_calls) do
         if call.level == vim.log.levels.ERROR and call.msg:find("curl") then
@@ -95,13 +101,19 @@ describe("vendor", function()
     end)
 
     it("notifies WARN when fetch already in progress", function()
+      local notify_calls = {}
+      orig_util = package.loaded["md-view.util"]
+      package.loaded["md-view.util"] = {
+        notify = function(opts, msg, level)
+          table.insert(notify_calls, { opts = opts, msg = msg, level = level })
+        end,
+      }
+      package.loaded["md-view.vendor"] = nil
       local v = require("md-view.vendor")
+
       orig_executable = vim.fn.executable
-      orig_notify = vim.notify
       orig_mkdir = vim.fn.mkdir
       orig_jobstart = vim.fn.jobstart
-
-      local notify_calls = {}
       vim.fn.executable = function(cmd)
         if cmd == "curl" then
           return 1
@@ -113,9 +125,6 @@ describe("vendor", function()
       end
       vim.fn.jobstart = function(_cmd, _opts)
         return 1
-      end
-      vim.notify = function(msg, level)
-        table.insert(notify_calls, { msg = msg, level = level })
       end
 
       -- First call sets fetching = true
@@ -134,12 +143,18 @@ describe("vendor", function()
     end)
 
     it("notifies ERROR when vendor dir cannot be created", function()
-      local v = require("md-view.vendor")
-      orig_executable = vim.fn.executable
-      orig_notify = vim.notify
-      orig_mkdir = vim.fn.mkdir
-
       local notify_calls = {}
+      orig_util = package.loaded["md-view.util"]
+      package.loaded["md-view.util"] = {
+        notify = function(opts, msg, level)
+          table.insert(notify_calls, { opts = opts, msg = msg, level = level })
+        end,
+      }
+      package.loaded["md-view.vendor"] = nil
+      local v = require("md-view.vendor")
+
+      orig_executable = vim.fn.executable
+      orig_mkdir = vim.fn.mkdir
       vim.fn.executable = function(cmd)
         if cmd == "curl" then
           return 1
@@ -148,9 +163,6 @@ describe("vendor", function()
       end
       vim.fn.mkdir = function(_path, _flags)
         return 0 -- simulate failure
-      end
-      vim.notify = function(msg, level)
-        table.insert(notify_calls, { msg = msg, level = level })
       end
 
       v.fetch()

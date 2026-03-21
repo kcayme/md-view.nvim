@@ -1,6 +1,7 @@
 local M = {}
 
 local uv = vim.uv or vim.loop
+local util = require("md-view.util")
 
 local fetching = false
 
@@ -99,23 +100,24 @@ end
 
 M.fetch = function(opts)
   opts = opts or {}
+
   if fetching then
-    vim.notify("md-view.nvim: asset fetch already in progress", vim.log.levels.WARN)
+    util.notify(nil, "md-view.nvim: asset fetch already in progress", vim.log.levels.WARN)
+
     return
   end
 
   fetching = true
 
-  local highlight_theme = opts.highlight_theme or "vs2015"
-  highlight_theme = highlight_theme:gsub("[^%w_%-]", "")
-
+  local highlight_theme = (opts.highlight_theme or ""):gsub("[^%w_%-]", "")
   if highlight_theme == "" then
     highlight_theme = "vs2015"
   end
 
   if vim.fn.executable("curl") ~= 1 then
     fetching = false
-    vim.notify("md-view.nvim: curl is required to fetch vendor assets", vim.log.levels.ERROR)
+    util.notify(nil, "md-view.nvim: curl is required to fetch vendor assets", vim.log.levels.ERROR)
+
     return
   end
 
@@ -123,7 +125,8 @@ M.fetch = function(opts)
 
   if vim.fn.mkdir(dir, "p") == 0 then
     fetching = false
-    vim.notify("md-view.nvim: could not create vendor dir: " .. dir, vim.log.levels.ERROR)
+    util.notify(nil, "md-view.nvim: could not create vendor dir: " .. dir, vim.log.levels.ERROR)
+
     return
   end
 
@@ -157,15 +160,18 @@ M.fetch = function(opts)
             done = done + 1
           else
             failed = failed + 1
-            vim.notify("md-view.nvim: failed to download " .. filename, vim.log.levels.WARN)
+
+            util.notify(nil, "md-view.nvim: failed to download " .. filename, vim.log.levels.WARN)
           end
 
           if done + failed == total then
             fetching = false
+
             if failed == 0 then
-              vim.notify("md-view.nvim: All " .. total .. " vendor assets downloaded", vim.log.levels.INFO)
+              util.notify(nil, "md-view.nvim: All " .. total .. " vendor assets downloaded", vim.log.levels.INFO)
             else
-              vim.notify(
+              util.notify(
+                nil,
                 "md-view.nvim: " .. done .. "/" .. total .. " vendor assets downloaded (" .. failed .. " failed)",
                 vim.log.levels.WARN
               )
