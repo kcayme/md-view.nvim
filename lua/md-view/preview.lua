@@ -90,9 +90,13 @@ local function init_hub(opts)
       for buf, _ in pairs(active_previews) do
         if _mux.registry[buf] then
           read_content_async(buf, function(content)
-            pcall(function()
+            local ok = pcall(function()
               client:write("event: content\ndata: " .. vim.json.encode({ id = buf, content = content }) .. "\n\n")
             end)
+
+            if not ok then
+              _mux:remove_client(client)
+            end
           end)
         end
       end
@@ -190,9 +194,13 @@ local function build_sse(bufnr)
 
   sse_instance.on_client_added = function(client)
     read_content_async(bufnr, function(content)
-      pcall(function()
+      local ok = pcall(function()
         client:write("event: content\ndata: " .. vim.json.encode({ content = content }) .. "\n\n")
       end)
+
+      if not ok then
+        sse_instance:remove_client(client)
+      end
     end)
   end
 
