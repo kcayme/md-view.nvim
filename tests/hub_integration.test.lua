@@ -473,4 +473,33 @@ describe("preview hub integration", function()
 
     preview.destroy(bufnr)
   end)
+
+  it("direct mode: only direct server starts and hub server is never created", function()
+    local start_calls = 0
+    package.loaded["md-view.server.tcp"] = {
+      start = function()
+        start_calls = start_calls + 1
+        local srv = {
+          is_closing = function()
+            return false
+          end,
+          close = function() end,
+        }
+        return srv, 8001
+      end,
+      stop = function() end,
+    }
+
+    config.setup({ single_page = { enable = false } })
+
+    local preview = require("md-view.preview")
+    local bufnr = vim.api.nvim_get_current_buf()
+
+    preview.create(config.options)
+
+    assert.are.equal(1, start_calls, "server.start must be called exactly once in direct mode (direct server only)")
+    assert.is_nil(preview.get_mux(), "hub must not be created in direct mode")
+
+    preview.destroy(bufnr)
+  end)
 end)
