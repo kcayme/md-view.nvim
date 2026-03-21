@@ -43,6 +43,18 @@ describe("vendor", function()
       uv.fs_stat = orig_fs_stat
       assert.is_true(result)
     end)
+
+    it("returns false when uv.fs_stat returns an error string", function()
+      local uv = vim.uv or vim.loop
+      local orig_fs_stat = uv.fs_stat
+      uv.fs_stat = function(_path)
+        return nil, "ENOENT: no such file or directory"
+      end
+      local v = require("md-view.vendor")
+      local result = v.is_available()
+      uv.fs_stat = orig_fs_stat
+      assert.is_false(result)
+    end)
   end)
 
   describe("fetch", function()
