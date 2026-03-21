@@ -189,6 +189,26 @@ describe("sse", function()
       s:add_client(c)
       assert.are.equal(0, #c._writes)
     end)
+
+    it("should remove dead client if replay write fails during add_client", function()
+      local s = sse.new()
+      local c1 = mock_client()
+      s:add_client(c1)
+      s:push("palette", { css = "some-css" })
+
+      -- dead client: write always throws
+      local dead = mock_client()
+      function dead:write()
+        error("broken pipe")
+      end
+
+      s:add_client(dead)
+
+      -- dead should have been removed; c1 still present
+      assert.are.equal(1, #s.clients)
+      assert.are.equal(c1, s.clients[1])
+      assert.is_true(dead._closing)
+    end)
   end)
 
   describe("close_all", function()
