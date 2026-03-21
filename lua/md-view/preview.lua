@@ -56,7 +56,7 @@ local function read_content_async(bufnr, callback)
 
     uv.fs_fstat(fd, function(ferr, stat)
       if ferr or not stat then
-        uv.fs_close(fd, function() end)
+        uv.fs_close(fd, function() end) -- best-effort; fd cleanup errors are intentionally ignored
         vim.schedule(function()
           if vim.api.nvim_buf_is_valid(bufnr) then
             callback(table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n"))
@@ -66,7 +66,7 @@ local function read_content_async(bufnr, callback)
       end
 
       uv.fs_read(fd, stat.size, 0, function(rerr, data)
-        uv.fs_close(fd, function() end)
+        uv.fs_close(fd, function() end) -- best-effort; fd cleanup errors are intentionally ignored
         vim.schedule(function()
           if rerr or not data then
             if vim.api.nvim_buf_is_valid(bufnr) then
