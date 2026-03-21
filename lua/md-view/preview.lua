@@ -378,7 +378,7 @@ end
 
 ---@param opts MdViewOptions
 M.create = function(opts)
-  local bufnr = vim.api.nvim_get_current_buf()
+  local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
   local sp = opts.single_page
   local preview_ctx = {}
   local port = nil
