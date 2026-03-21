@@ -85,14 +85,14 @@ M.is_available = function()
   local dir = M.vendor_dir()
   -- Check the 17 static files from MANIFEST
   for _, entry in ipairs(MANIFEST) do
-    local stat = uv.fs_stat(dir .. "/" .. entry.name)
-    if not stat then
+    local stat, err = uv.fs_stat(dir .. "/" .. entry.name)
+    if err or not stat then
       return false
     end
   end
   -- Check the dynamic highlight-theme.min.css file
-  local stat = uv.fs_stat(dir .. "/highlight-theme.min.css")
-  if not stat then
+  local stat, err = uv.fs_stat(dir .. "/highlight-theme.min.css")
+  if err or not stat then
     return false
   end
   return true
