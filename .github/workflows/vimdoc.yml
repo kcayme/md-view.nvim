@@ -51,12 +51,6 @@ jobs:
           printf "\n\n" >> .doc-source.md
           cat docs/recipes/single-page-mode.md >> .doc-source.md
           printf "\n\n" >> .doc-source.md
-          sed 's/^#/##/' docs/recipes/auto-open.md >> .doc-source.md
-          printf "\n\n" >> .doc-source.md
-          sed 's/^#/##/' docs/recipes/filetypes.md >> .doc-source.md
-          printf "\n\n" >> .doc-source.md
-          sed 's/^#/##/' docs/recipes/single-page-mode.md >> .doc-source.md
-          printf "\n\n" >> .doc-source.md
           sed 's/^#/##/' docs/options.md >> .doc-source.md
 
       - name: Check for duplicate headings
