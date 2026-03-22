@@ -15,9 +15,22 @@ Table of Contents                             *md-view.nvim-table-of-contents*
   - How It Works                                   |md-view.nvim-how-it-works|
   - License                                             |md-view.nvim-license|
   - Architecture                                   |md-view.nvim-architecture|
-  - Picker Integration                       |md-view.nvim-picker-integration|
-  - Configuration Options                 |md-view.nvim-configuration-options|
-1. Links                                                  |md-view.nvim-links|
+1. Picker Integration                        |md-view.nvim-picker-integration|
+  - How it works                |md-view.nvim-picker-integration-how-it-works|
+  - Per-picker setup        |md-view.nvim-picker-integration-per-picker-setup|
+  - Using picker.kind as a hint|md-view.nvim-picker-integration-using-picker.kind-as-a-hint|
+  - Custom prompt              |md-view.nvim-picker-integration-custom-prompt|
+  - Custom format_item tips|md-view.nvim-picker-integration-custom-format_item-tips|
+2. Auto-open                                          |md-view.nvim-auto-open|
+  - lazy.nvim users                   |md-view.nvim-auto-open-lazy.nvim-users|
+3. Filetypes                                          |md-view.nvim-filetypes|
+4. Single Page Mode                            |md-view.nvim-single-page-mode|
+  - How it works                  |md-view.nvim-single-page-mode-how-it-works|
+  - Basic setup                    |md-view.nvim-single-page-mode-basic-setup|
+  - Customising tab labels|md-view.nvim-single-page-mode-customising-tab-labels|
+  - Controlling close behaviour|md-view.nvim-single-page-mode-controlling-close-behaviour|
+  - Configuration Options|md-view.nvim-single-page-mode-configuration-options|
+5. Links                                                  |md-view.nvim-links|
 Browser-based markdown preview for Neovim with live mermaid diagram rendering.
 
 Opens a browser tab that renders your markdown buffer — including mermaid
@@ -1130,10 +1143,11 @@ BROWSER DEPENDENCIES (CDN) ~
   Vega-Embed    https://cdn.jsdelivr.net/npm/vega-embed@6.26.0/build/vega-embed.min.js
   --------------------------------------------------------------------------------------
 
-PICKER INTEGRATION                           *md-view.nvim-picker-integration*
+==============================================================================
+1. Picker Integration                        *md-view.nvim-picker-integration*
 
 
-HOW IT WORKS ~
+HOW IT WORKS                    *md-view.nvim-picker-integration-how-it-works*
 
 `:MdViewList` calls `vim.ui.select` with the list of active previews. Any
 plugin that overrides `vim.ui.select` automatically takes over the picker —
@@ -1142,10 +1156,10 @@ options described below.
 
 ------------------------------------------------------------------------------
 
-PER-PICKER SETUP ~
+PER-PICKER SETUP            *md-view.nvim-picker-integration-per-picker-setup*
 
 
-DRESSING.NVIM
+DRESSING.NVIM ~
 
 dressing.nvim replaces `vim.ui.select` automatically when it loads — no extra
 call needed. The `picker.kind` option is forwarded and can be used to select
@@ -1175,7 +1189,7 @@ calls including `:MdViewList`.
 
 ------------------------------------------------------------------------------
 
-TELESCOPE-UI-SELECT.NVIM
+TELESCOPE-UI-SELECT.NVIM ~
 
 Load the extension after Telescope is set up. Once loaded it replaces
 `vim.ui.select` globally.
@@ -1209,7 +1223,7 @@ the URL, show only the buffer name:
 
 ------------------------------------------------------------------------------
 
-FZF-LUA
+FZF-LUA ~
 
 Call `register_ui_select()` once during startup. This replaces `vim.ui.select`
 with fzf-lua’s implementation.
@@ -1235,7 +1249,7 @@ Custom `format_item` example — include the port number more prominently:
 
 ------------------------------------------------------------------------------
 
-SNACKS.NVIM
+SNACKS.NVIM ~
 
 snacks replaces `vim.ui.select` automatically via its `picker.select`
 integration when snacks is set up. The `picker.kind` value is forwarded as a
@@ -1255,7 +1269,7 @@ source hint that snacks can use to apply a custom display style.
 
 ------------------------------------------------------------------------------
 
-MINI.PICK
+MINI.PICK ~
 
 mini.pick does not replace `vim.ui.select` by default. Wire it up manually in
 your config using `MiniExtra.pickers.ui_select` (recommended) or by assigning
@@ -1279,7 +1293,7 @@ your config using `MiniExtra.pickers.ui_select` (recommended) or by assigning
 
 ------------------------------------------------------------------------------
 
-USING PICKER.KIND AS A HINT ~
+USING PICKER.KIND AS A HINT*md-view.nvim-picker-integration-using-picker.kind-as-a-hint*
 
 `kind` is a free-form string passed as `opts.kind` to `vim.ui.select`. Pickers
 that support it (dressing.nvim, snacks.nvim) can use it to route `:MdViewList`
@@ -1294,7 +1308,7 @@ are unaffected.
 
 ------------------------------------------------------------------------------
 
-CUSTOM PROMPT ~
+CUSTOM PROMPT                  *md-view.nvim-picker-integration-custom-prompt*
 
 The picker title defaults to `"Markdown Previews"`. Override it with:
 
@@ -1306,7 +1320,7 @@ The picker title defaults to `"Markdown Previews"`. Override it with:
 
 ------------------------------------------------------------------------------
 
-CUSTOM FORMAT_ITEM TIPS ~
+CUSTOM FORMAT_ITEM TIPS*md-view.nvim-picker-integration-custom-format_item-tips*
 
 The default format is `"name http://host:port"`. A few common customisations:
 
@@ -1340,7 +1354,239 @@ Apply any of these via:
 <
 
 
-CONFIGURATION OPTIONS                     *md-view.nvim-configuration-options*
+==============================================================================
+2. Auto-open                                          *md-view.nvim-auto-open*
+
+`auto_open` automatically opens a preview whenever you enter a qualifying
+buffer, so you never need to run `:MdView` manually.
+
+**Enable with the default trigger event (BufWinEnter):**
+
+>lua
+    require("md-view").setup({
+      auto_open = { enable = true },
+    })
+<
+
+**Use BufEnter instead** (fires more broadly — also on splits and `:e`
+without a window change):
+
+>lua
+    require("md-view").setup({
+      auto_open = { enable = true, events = { "BufEnter" } },
+    })
+<
+
+Toggle at runtime with `:MdViewAutoOpen`.
+
+------------------------------------------------------------------------------
+
+LAZY.NVIM USERS                       *md-view.nvim-auto-open-lazy.nvim-users*
+
+`auto_open` registers an autocmd at `setup()` time. If your spec uses `cmd =
+{...}` the plugin won’t load until a command is invoked and the autocmd will
+never fire.
+
+Either disable lazy-loading entirely:
+
+>lua
+    {
+      "kcayme/md-view.nvim",
+      lazy = false,
+      opts = { auto_open = { enable = true } },
+    }
+<
+
+Or keep command-based lazy-loading and add the trigger event to your spec so
+the plugin loads early enough:
+
+>lua
+    {
+      "kcayme/md-view.nvim",
+      cmd   = { "MdView", "MdViewStop", "MdViewToggle", "MdViewAutoOpen" },
+      event = { "BufWinEnter" },
+      opts  = { auto_open = { enable = true } },
+    }
+<
+
+
+==============================================================================
+3. Filetypes                                          *md-view.nvim-filetypes*
+
+By default md-view only opens previews for `markdown` buffers. The `filetypes`
+option controls which buffer filetypes are allowed.
+
+**Add MDX support alongside markdown:**
+
+>lua
+    require("md-view").setup({
+      filetypes = { "markdown", "mdx" },
+    })
+<
+
+**Allow any filetype** (useful for previewing non-standard markdown
+extensions):
+
+>lua
+    require("md-view").setup({
+      filetypes = {},
+    })
+<
+
+
+  Note: the list replaces the default rather than extending it, so always include
+  `"markdown"` if you want it.
+
+==============================================================================
+4. Single Page Mode                            *md-view.nvim-single-page-mode*
+
+
+HOW IT WORKS                      *md-view.nvim-single-page-mode-how-it-works*
+
+When `single_page.enable = true`, all active previews are multiplexed into one
+browser tab. A shared hub server starts on the first `:MdView` call and stays
+alive until every preview is closed. Each preview registers with the hub and
+gets its own tab in the browser — switching buffers in Neovim focuses the
+matching tab automatically.
+
+The hub server uses the top-level `port` option (`0` = OS-assigned free port).
+
+------------------------------------------------------------------------------
+
+BASIC SETUP                        *md-view.nvim-single-page-mode-basic-setup*
+
+>lua
+    require("md-view").setup({
+      single_page = { enable = true },
+    })
+<
+
+Open as many markdown buffers as you like with `:MdView`. Each one appears as a
+tab in the same browser window rather than opening a new tab.
+
+------------------------------------------------------------------------------
+
+CUSTOMISING TAB LABELS  *md-view.nvim-single-page-mode-customising-tab-labels*
+
+The `tab_label` option controls what each tab is called in the browser. The
+built-in presets cover most cases:
+
+  Value                  Example label
+  ---------------------- ----------------------
+  "filename" (default)   README.md
+  "relative"             docs/guide/README.md
+  "parent"               guide/README.md
+For anything beyond that, pass a function. The function receives a `ctx` table
+and must return a string:
+
+>lua
+    -- ctx fields:
+    --   ctx.bufnr    — Neovim buffer number
+    --   ctx.filename — basename of the file (e.g. "README.md")
+    --   ctx.path     — full absolute path  (e.g. "/home/user/project/docs/README.md")
+    tab_label = function(ctx)
+      return ctx.filename
+    end
+<
+
+
+EXAMPLES ~
+
+**Show the git branch alongside the filename** (useful when you have the same
+file open from two worktrees):
+
+>lua
+    require("md-view").setup({
+      single_page = {
+        enable = true,
+        tab_label = function(ctx)
+          local branch = vim.fn.systemlist("git -C " .. vim.fn.fnamemodify(ctx.path, ":h") .. " branch --show-current")[1]
+          return (branch and branch ~= "" and "[" .. branch .. "] " or "") .. ctx.filename
+        end,
+      },
+    })
+<
+
+**Show the project root name + relative path** (useful in a monorepo where
+filenames alone are ambiguous):
+
+>lua
+    require("md-view").setup({
+      single_page = {
+        enable = true,
+        tab_label = function(ctx)
+          local root = vim.fn.fnamemodify(ctx.path, ":h:h:t")  -- grandparent directory
+          local parent = vim.fn.fnamemodify(ctx.path, ":h:t")   -- parent directory
+          return root .. "/" .. parent .. "/" .. ctx.filename
+        end,
+      },
+    })
+<
+
+**Truncate long paths to a fixed width:**
+
+>lua
+    require("md-view").setup({
+      single_page = {
+        enable = true,
+        tab_label = function(ctx)
+          local label = vim.fn.fnamemodify(ctx.path, ":~:.")  -- relative to home, then cwd
+          if #label > 40 then
+            label = "…" .. label:sub(-39)
+          end
+          return label
+        end,
+      },
+    })
+<
+
+------------------------------------------------------------------------------
+
+CONTROLLING CLOSE BEHAVIOUR*md-view.nvim-single-page-mode-controlling-close-behaviour*
+
+By default, `single_page` mode inherits the top-level `auto_close` setting. You
+can override this independently with `close_by`:
+
+  -----------------------------------------------------------------------
+  Value                       Behaviour
+  --------------------------- -------------------------------------------
+  nil (default)               Inherit from top-level auto_close — true
+                              closes the window when the last preview
+                              ends, false never does.
+
+  "page"                      Close the browser window when the last
+                              preview ends, regardless of auto_close.
+
+  "tab" / false               Only remove the preview’s tab from the hub
+                              page; never close the browser window.
+  -----------------------------------------------------------------------
+**Keep the hub window open after all previews close** (useful if you want to
+reuse the tab later):
+
+>lua
+    require("md-view").setup({
+      single_page = {
+        enable = true,
+        close_by = "tab",
+      },
+    })
+<
+
+**Always close the window when the last preview ends**, even if `auto_close =
+false` elsewhere:
+
+>lua
+    require("md-view").setup({
+      auto_close = false,   -- don't auto-close individual (non-single-page) previews
+      single_page = {
+        enable = true,
+        close_by = "page",  -- but do close the hub window when it empties
+      },
+    })
+<
+
+
+CONFIGURATION OPTIONS    *md-view.nvim-single-page-mode-configuration-options*
 
 Full reference for all options accepted by `require("md-view").setup()`. All
 options are optional — omitted keys fall back to the defaults shown below.
@@ -1697,7 +1943,7 @@ specific browser, provide the binary path inside the `.app` bundle:
   Brave     "brave"
   Opera     "opera"
 ==============================================================================
-1. Links                                                  *md-view.nvim-links*
+5. Links                                                  *md-view.nvim-links*
 
 1. *Demo*: docs/demo/demo.gif
 2. *Colorscheme Sync*: docs/demo/colorscheme-sync.png
