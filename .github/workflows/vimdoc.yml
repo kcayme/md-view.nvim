@@ -34,7 +34,9 @@ jobs:
           # like *md-view.nvim-md-view.nvim-features*.
           sed '/^# md-view\.nvim$/d' README.md > .doc-source.md
           printf "\n\n" >> .doc-source.md
-          # Demote ARCHITECTURE.md and options.md so they nest under the README content.
+          # Demote options.md and ARCHITECTURE.md so they nest under the README content.
+          sed 's/^#/##/' docs/options.md >> .doc-source.md
+          printf "\n\n" >> .doc-source.md
           sed 's/^#/##/' docs/ARCHITECTURE.md >> .doc-source.md
           printf "\n\n" >> .doc-source.md
           # Recipe files are NOT demoted — their H1s stay as H1s so that
@@ -50,8 +52,6 @@ jobs:
           cat docs/recipes/filetypes.md >> .doc-source.md
           printf "\n\n" >> .doc-source.md
           cat docs/recipes/single-page-mode.md >> .doc-source.md
-          printf "\n\n" >> .doc-source.md
-          sed 's/^#/##/' docs/options.md >> .doc-source.md
 
       - name: Check for duplicate headings
         run: |
