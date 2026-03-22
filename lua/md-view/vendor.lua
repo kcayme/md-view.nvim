@@ -26,7 +26,7 @@ local MANIFEST = {
     name = "highlight-11.min.js",
     url = "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js",
   },
-  -- highlight-theme.min.css is inserted dynamically at fetch() time (after highlight-11.min.js)
+  -- highlight-theme-{name}.min.css files are inserted dynamically at fetch() time (after highlight-11.min.js)
   {
     name = "katex-0.16.38.min.css",
     url = "https://cdn.jsdelivr.net/npm/katex@0.16.38/dist/katex.min.css",
@@ -83,19 +83,36 @@ end
 
 M.is_available = function()
   local dir = M.vendor_dir()
-  -- Check the 17 static files from MANIFEST
+
   for _, entry in ipairs(MANIFEST) do
     local stat, err = uv.fs_stat(dir .. "/" .. entry.name)
     if err or not stat then
       return false
     end
   end
-  -- Check the dynamic highlight-theme.min.css file
-  local stat, err = uv.fs_stat(dir .. "/highlight-theme.min.css")
-  if err or not stat then
-    return false
-  end
+
   return true
+end
+
+---@param name string highlight.js theme name (e.g. "github", "vs2015")
+---@return boolean
+M.has_theme = function(name)
+  name = name:gsub("[^%w_%-]", "")
+  local stat, err = uv.fs_stat(M.vendor_dir() .. "/highlight-theme-" .. name .. ".min.css")
+
+  return not err and stat ~= nil
+end
+
+---@param name string highlight.js theme name (e.g. "github", "vs2015")
+---@return string URL for the highlight.js theme CSS (vendor path or CDN)
+M.hljs_url = function(name)
+  name = name:gsub("[^%w_%-]", "")
+
+  if M.is_available() and M.has_theme(name) then
+    return "/vendor/highlight-theme-" .. name .. ".min.css"
+  end
+
+  return "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/" .. name .. ".min.css"
 end
 
 M.fetch = function(opts)
@@ -109,9 +126,32 @@ M.fetch = function(opts)
 
   fetching = true
 
-  local highlight_theme = (opts.highlight_theme or ""):gsub("[^%w_%-]", "")
-  if highlight_theme == "" then
-    highlight_theme = "vs2015"
+  -- Collect and deduplicate highlight themes to fetch.
+  -- Accepts opts.highlight_themes (array), opts.highlight_theme (single, backward compat),
+  -- or defaults to both built-in light ("github") and dark ("vs2015") themes.
+  local highlight_themes = {}
+  local seen = {}
+
+  local function add_theme(raw)
+    local name = (raw or ""):gsub("[^%w_%-]", "")
+    if name == "" then
+      name = "vs2015"
+    end
+    if not seen[name] then
+      seen[name] = true
+      highlight_themes[#highlight_themes + 1] = name
+    end
+  end
+
+  if opts.highlight_themes then
+    for _, t in ipairs(opts.highlight_themes) do
+      add_theme(t)
+    end
+  elseif opts.highlight_theme then
+    add_theme(opts.highlight_theme)
+  else
+    add_theme("github")
+    add_theme("vs2015")
   end
 
   if vim.fn.executable("curl") ~= 1 then
@@ -130,17 +170,19 @@ M.fetch = function(opts)
     return
   end
 
-  -- Build the full list of files to download: static manifest + dynamic highlight theme CSS
+  -- Build the full list of files to download: static manifest + per-theme highlight CSS files.
   local files = {}
 
   for _, entry in ipairs(MANIFEST) do
     files[#files + 1] = { name = entry.name, url = entry.url }
-    -- Insert highlight-theme.min.css after highlight-11.min.js (after position 5 in MANIFEST)
+    -- Insert highlight theme CSS files after highlight-11.min.js
     if entry.name == "highlight-11.min.js" then
-      files[#files + 1] = {
-        name = "highlight-theme.min.css",
-        url = "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/" .. highlight_theme .. ".min.css",
-      }
+      for _, name in ipairs(highlight_themes) do
+        files[#files + 1] = {
+          name = "highlight-theme-" .. name .. ".min.css",
+          url = "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/" .. name .. ".min.css",
+        }
+      end
     end
   end
 

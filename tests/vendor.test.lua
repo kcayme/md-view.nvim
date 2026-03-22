@@ -189,7 +189,7 @@ describe("vendor", function()
       assert.is_true(found, "expected ERROR notify about vendor dir creation failure")
     end)
 
-    it("spawns 18 jobstart calls when curl is available", function()
+    it("spawns 19 jobstart calls when curl is available (17 static + 2 default theme files)", function()
       local v = require("md-view.vendor")
       orig_executable = vim.fn.executable
       orig_mkdir = vim.fn.mkdir
@@ -212,7 +212,7 @@ describe("vendor", function()
 
       v.fetch()
 
-      assert.are.equal(18, job_count)
+      assert.are.equal(19, job_count)
     end)
 
     it("uses default highlight theme vs2015 when no opts given", function()
@@ -300,7 +300,8 @@ describe("vendor", function()
       end
       vim.fn.jobstart = function(cmd, _opts)
         local dest = cmd[4]
-        if dest and dest:find("highlight%-theme%.min%.css") then
+        -- dest is now highlight-theme-{name}.min.css
+        if dest and dest:find("highlight%-theme%-") then
           css_url = cmd[5]
         end
         return 1
@@ -333,7 +334,8 @@ describe("vendor", function()
         local url = cmd[5]
         -- The highlight-theme CSS is identified by its destination filename
         local dest = cmd[4]
-        if dest and dest:find("highlight%-theme%.min%.css") then
+        -- dest is now highlight-theme-{name}.min.css
+        if dest and dest:find("highlight%-theme%-") then
           css_url = url
         end
         return 1
