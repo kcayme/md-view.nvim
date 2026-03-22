@@ -34,13 +34,22 @@ jobs:
           # like *md-view.nvim-md-view.nvim-features*.
           sed '/^# md-view\.nvim$/d' README.md > .doc-source.md
           printf "\n\n" >> .doc-source.md
-          # Demote all heading levels so each file's content nests under its own
-          # H1 (e.g. "# Architecture" → "## Architecture"), which causes
-          # dedupsubheadings to prefix tags with the file name automatically:
-          # *md-view.nvim-architecture-overview*, *md-view.nvim-picker-integration-how-it-works*
+          # Demote ARCHITECTURE.md and options.md so they nest under the README content.
           sed 's/^#/##/' docs/ARCHITECTURE.md >> .doc-source.md
           printf "\n\n" >> .doc-source.md
-          sed 's/^#/##/' docs/recipes/picker-integration.md >> .doc-source.md
+          # Recipe files are NOT demoted — their H1s stay as H1s so that
+          # panvimdoc's dedupsubheadings can scope each recipe's H2 subheadings
+          # by the recipe's own H1 parent, producing distinct tags like
+          # *md-view.nvim-picker-integration-how-it-works* and
+          # *md-view.nvim-single-page-mode-how-it-works* even when the heading
+          # text is identical.
+          cat docs/recipes/picker-integration.md >> .doc-source.md
+          printf "\n\n" >> .doc-source.md
+          cat docs/recipes/auto-open.md >> .doc-source.md
+          printf "\n\n" >> .doc-source.md
+          cat docs/recipes/filetypes.md >> .doc-source.md
+          printf "\n\n" >> .doc-source.md
+          cat docs/recipes/single-page-mode.md >> .doc-source.md
           printf "\n\n" >> .doc-source.md
           sed 's/^#/##/' docs/recipes/auto-open.md >> .doc-source.md
           printf "\n\n" >> .doc-source.md
