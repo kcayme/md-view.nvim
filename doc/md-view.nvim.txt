@@ -1,4 +1,4 @@
-*md-view.nvim.txt*          For NVIM v0.8.0         Last change: 2026 March 21
+*md-view.nvim.txt*          For NVIM v0.8.0         Last change: 2026 March 22
 
 ==============================================================================
 Table of Contents                             *md-view.nvim-table-of-contents*
@@ -544,6 +544,11 @@ COMMANDS ~
                            for this call (e.g. :MdView firefox).
 
   :MdViewStop              Stop the preview
+
+  :MdViewClose [all]       Close preview panel(s) without stopping the
+                           server
+
+  :MdViewRestart           Restart all active preview servers
 
   :MdViewToggle            Toggle the preview on/off
 
