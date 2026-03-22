@@ -56,11 +56,14 @@ jobs:
       - name: Check for duplicate headings
         run: |
           set -euo pipefail
-          dupes=$(grep -i '^#' .doc-source.md \
+          # Only check H1 headings (^# followed by a non-# character) for duplicates.
+          # H2+ subheadings are scoped by their parent H1 via panvimdoc's
+          # dedupsubheadings, so identical H2 text in different recipe sections is fine.
+          dupes=$(grep -i '^# [^#]' .doc-source.md \
             | tr '[:upper:]' '[:lower:]' \
             | sort | uniq -d)
           if [ -n "$dupes" ]; then
-            echo "ERROR: duplicate headings found (will produce duplicate vimdoc tags):"
+            echo "ERROR: duplicate H1 headings found (will produce duplicate vimdoc tags):"
             echo "$dupes"
             exit 1
           fi
