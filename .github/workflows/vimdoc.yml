@@ -24,6 +24,9 @@ jobs:
           test -f README.md
           test -f docs/ARCHITECTURE.md
           test -f docs/recipes/picker-integration.md
+          test -f docs/recipes/auto-open.md
+          test -f docs/recipes/filetypes.md
+          test -f docs/recipes/single-page-mode.md
           test -f docs/options.md
 
           # Strip the H1 plugin-name line from README — panvimdoc uses the plugin
@@ -38,6 +41,12 @@ jobs:
           sed 's/^#/##/' docs/ARCHITECTURE.md >> .doc-source.md
           printf "\n\n" >> .doc-source.md
           sed 's/^#/##/' docs/recipes/picker-integration.md >> .doc-source.md
+          printf "\n\n" >> .doc-source.md
+          sed 's/^#/##/' docs/recipes/auto-open.md >> .doc-source.md
+          printf "\n\n" >> .doc-source.md
+          sed 's/^#/##/' docs/recipes/filetypes.md >> .doc-source.md
+          printf "\n\n" >> .doc-source.md
+          sed 's/^#/##/' docs/recipes/single-page-mode.md >> .doc-source.md
           printf "\n\n" >> .doc-source.md
           sed 's/^#/##/' docs/options.md >> .doc-source.md
 
