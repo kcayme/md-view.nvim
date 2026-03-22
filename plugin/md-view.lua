@@ -59,10 +59,32 @@ end, { desc = "Switch live preview theme (dark/light/auto/sync); no arg cycles",
 vim.api.nvim_create_user_command("MdViewFetchAssets", function(cmd_opts)
   util.safe_call("MdViewFetchAssets", function()
     local opts = {}
-    local theme = cmd_opts.args:match("highlight_theme=(%S+)")
-    if theme then
-      opts.highlight_theme = theme
+    local theme_arg = cmd_opts.args:match("highlight_theme=(%S+)")
+
+    if theme_arg then
+      -- Explicit single theme override: fetch just that theme
+      opts.highlight_themes = { theme_arg }
+    else
+      -- Auto-resolve both light and dark themes from config
+      local config = require("md-view.config")
+      local theme_mod = require("md-view.theme")
+      local copts = config.options or {}
+      local theme_tbl = copts.theme or {}
+      local light_theme = theme_mod.resolve(
+        vim.tbl_extend("force", copts, { theme = vim.tbl_extend("force", theme_tbl, { mode = "light" }) })
+      ).highlight_theme
+      local dark_theme = theme_mod.resolve(
+        vim.tbl_extend("force", copts, { theme = vim.tbl_extend("force", theme_tbl, { mode = "dark" }) })
+      ).highlight_theme
+      local themes = { light_theme }
+
+      if dark_theme ~= light_theme then
+        themes[#themes + 1] = dark_theme
+      end
+
+      opts.highlight_themes = themes
     end
+
     require("md-view.vendor").fetch(opts)
   end)
 end, { desc = "Re-fetch vendor assets for offline use", nargs = "?" })

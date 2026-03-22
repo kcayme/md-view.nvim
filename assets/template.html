@@ -30,9 +30,9 @@
   }
   {{PROSE_CSS}}
   {{PALETTE_CSS}}
-  {{THEME_CSS}}
   {{CSS}}
 </style>
+<style id="md-view-theme">{{THEME_CSS}}</style>
 </head>
 <body>
 <div id="content"></div>
@@ -100,6 +100,19 @@
   source.addEventListener("scroll", function(e) {
     var d = safeParse(e.data);
     if (d) scrollToSource(container, d);
+  });
+
+  source.addEventListener("hljs_theme", function(e) {
+    var d = safeParse(e.data);
+    if (!d || !d.url) return;
+    var el = document.getElementById("md-view-hljs");
+    if (!el) {
+      el = document.createElement("link");
+      el.id = "md-view-hljs";
+      el.rel = "stylesheet";
+      document.head.appendChild(el);
+    }
+    el.href = d.url;
   });
 })();
 </script>

@@ -112,9 +112,9 @@
   .hub-panel.active { display: block; }
   {{PROSE_CSS}}
   {{PALETTE_CSS}}
-  {{THEME_CSS}}
   {{CSS}}
 </style>
+<style id="md-view-hub-theme">{{THEME_CSS}}</style>
 </head>
 <body>
 <nav id="hub-tabs"></nav>
@@ -294,6 +294,31 @@
     if (!el) {
       el = document.createElement("style");
       el.id = "md-view-hub-palette";
+      document.head.appendChild(el);
+    }
+    el.textContent = d.css;
+  });
+
+  source.addEventListener("hub_hljs_theme", function(e) {
+    var d = safeParse(e.data);
+    if (!d || !d.url) return;
+    var el = document.getElementById("md-view-hljs");
+    if (!el) {
+      el = document.createElement("link");
+      el.id = "md-view-hljs";
+      el.rel = "stylesheet";
+      document.head.appendChild(el);
+    }
+    el.href = d.url;
+  });
+
+  source.addEventListener("hub_theme", function(e) {
+    var d = safeParse(e.data);
+    if (!d) return;
+    var el = document.getElementById("md-view-hub-theme");
+    if (!el) {
+      el = document.createElement("style");
+      el.id = "md-view-hub-theme";
       document.head.appendChild(el);
     }
     el.textContent = d.css;

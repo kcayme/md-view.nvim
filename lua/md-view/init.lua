@@ -4,6 +4,7 @@ local config = require("md-view.config")
 local preview = require("md-view.preview")
 local theme = require("md-view.theme")
 local util = require("md-view.util")
+local vendor = require("md-view.vendor")
 
 local VALID_THEME_MODES = {
   "dark",
@@ -25,6 +26,25 @@ local function get_live_css()
   end
 
   return theme.palette_css(current_live_theme)
+end
+
+-- Returns the highlight.js CSS URL for the current live theme, or nil when in sync
+-- mode (which uses inline CSS overrides instead of a theme stylesheet).
+local function get_live_hljs_url()
+  if current_live_theme == "sync" then
+    return nil
+  end
+
+  local copts = config.options or {}
+  local theme_tbl = copts.theme or {}
+  local resolved_mode = current_live_theme == "auto" and (vim.o.background == "light" and "light" or "dark")
+    or current_live_theme
+
+  local resolved = theme.resolve(
+    vim.tbl_extend("force", copts, { theme = vim.tbl_extend("force", theme_tbl, { mode = resolved_mode }) })
+  )
+
+  return vendor.hljs_url(resolved.highlight_theme)
 end
 
 local function register_auto_open_augroup()
@@ -62,8 +82,6 @@ local function is_valid_filetype(bufnr, verbose)
 end
 
 local function init_assets()
-  local vendor = require("md-view.vendor")
-
   if not vendor.is_available() and vim.fn.executable("curl") == 1 then
     util.notify(config.options, "[md-view] Caching vendor assets...", vim.log.levels.INFO)
 
@@ -249,11 +267,19 @@ M.set_theme = function(mode)
 
   -- Push to all active previews
   local css = get_live_css()
+  local hljs_url = get_live_hljs_url()
+  local is_sync = current_live_theme == "sync"
   local hub = preview.get_mux and preview.get_mux()
 
   for bufnr, pview in pairs(active_previews) do
     if pview.sse then
       pview.sse:push("palette", { css = css })
+
+      if not is_sync then
+        -- Clear any sync CSS overrides baked into the static page at load time
+        pview.sse:push("theme", { css = "" })
+        pview.sse:push("hljs_theme", { url = hljs_url })
+      end
     end
 
     if hub and hub.server then
@@ -261,9 +287,15 @@ M.set_theme = function(mode)
     end
   end
 
-  -- Push hub-level palette so the chrome (tab bar, body) updates immediately
+  -- Push hub-level palette and hljs theme so the whole page updates immediately
   if hub and hub.server then
     hub:push("hub_palette", { css = css })
+
+    if not is_sync then
+      -- Clear any sync CSS overrides baked into the static hub page at load time
+      hub:push("hub_theme", { css = "" })
+      hub:push("hub_hljs_theme", { url = hljs_url })
+    end
   end
 
   util.notify(config.options, "[md-view] theme: " .. current_live_theme, vim.log.levels.INFO)

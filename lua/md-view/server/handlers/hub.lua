@@ -6,6 +6,8 @@ M.__index = M
 ---@field clients table[]
 ---@field last table<integer, table<string, table>>
 ---@field last_hub_palette table|nil
+---@field last_hub_hljs_theme table|nil
+---@field last_hub_theme table|nil
 ---@field on_client_added (fun(client: table))|nil
 ---@field server userdata|nil
 ---@field port integer|nil
@@ -21,6 +23,8 @@ M.new = function()
     clients = {}, -- SSE client list (shared across all previews)
     last = {}, -- last[bufnr][event_type] = data (per-preview replay state)
     last_hub_palette = nil, -- hub-level palette CSS replayed on connect
+    last_hub_hljs_theme = nil, -- hub-level hljs theme URL replayed on connect
+    last_hub_theme = nil, -- hub-level theme CSS replayed on connect (clears static sync overrides)
     on_client_added = nil, -- set by preview.lua to push initial content on connect
     server = nil,
     port = nil,
@@ -72,6 +76,32 @@ function M:add_client(client)
   -- Replay hub-level palette first so the chrome is styled before panels appear
   if self.last_hub_palette then
     local payload = "event: hub_palette\ndata: " .. vim.json.encode(self.last_hub_palette) .. "\n\n"
+    local ok = pcall(function()
+      client:write(payload)
+    end)
+
+    if not ok then
+      self:remove_client(client)
+      return
+    end
+  end
+
+  -- Replay hub-level hljs theme so the syntax highlight stylesheet matches the live theme
+  if self.last_hub_hljs_theme then
+    local payload = "event: hub_hljs_theme\ndata: " .. vim.json.encode(self.last_hub_hljs_theme) .. "\n\n"
+    local ok = pcall(function()
+      client:write(payload)
+    end)
+
+    if not ok then
+      self:remove_client(client)
+      return
+    end
+  end
+
+  -- Replay hub-level theme CSS so static sync overrides are cleared on reconnect
+  if self.last_hub_theme then
+    local payload = "event: hub_theme\ndata: " .. vim.json.encode(self.last_hub_theme) .. "\n\n"
     local ok = pcall(function()
       client:write(payload)
     end)
@@ -138,9 +168,13 @@ end
 ---@param event_type string
 ---@param data table
 function M:push(event_type, data)
-  -- Store hub-level palette for replay
+  -- Store hub-level events for replay on reconnect
   if event_type == "hub_palette" then
     self.last_hub_palette = data
+  elseif event_type == "hub_hljs_theme" then
+    self.last_hub_hljs_theme = data
+  elseif event_type == "hub_theme" then
+    self.last_hub_theme = data
   end
 
   -- Store per-preview replay state for allowlisted event types

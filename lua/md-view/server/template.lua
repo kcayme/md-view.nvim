@@ -98,12 +98,13 @@ local function build_script_tags(opts)
   local highlight_theme = sanitize_theme_name(opts.highlight_theme or "vs2015")
   local highlight_link = ""
   if opts.theme ~= "sync" then
-    highlight_link = '<link rel="stylesheet" href="'
-      .. asset_src(
-        "highlight-theme.min.css",
-        "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/" .. highlight_theme .. ".min.css"
-      )
-      .. '">'
+    local cdn_url = "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/"
+      .. highlight_theme
+      .. ".min.css"
+    local theme_src = (use_local and vendor.has_theme(highlight_theme))
+        and ("/vendor/highlight-theme-" .. highlight_theme .. ".min.css")
+      or cdn_url
+    highlight_link = '<link id="md-view-hljs" rel="stylesheet" href="' .. theme_src .. '">'
   end
 
   local core_scripts = '<script src="'

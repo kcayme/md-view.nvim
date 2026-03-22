@@ -12,6 +12,7 @@ M.__index = M
 local REPLAY_EVENTS = {
   palette = true,
   theme = true,
+  hljs_theme = true,
 }
 
 ---@return MdViewSse
