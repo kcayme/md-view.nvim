@@ -1178,14 +1178,20 @@ DATA FLOW ~
         participant sse as server/sse.lua
         participant Browser
     
-        Neovim->>buffer: TextChanged / TextChangedI / BufWritePost
-        Note over buffer: debounce timer resets (300ms)
+        Neovim->>buffer: TextChanged / TextChangedI / BufWritePost<br/>BufReadPost / FileChangedShellPost
+        Note over buffer: debounce timer resets (300ms default)
         buffer->>buffer: timer expires → read buffer lines
         buffer->>preview: callbacks.on_content(lines)
         preview->>sse: push("content", {content})
         sse->>Browser: event: content\ndata: {json}
     
         Note over Browser: markdown-it parse<br/>→ morphdom diff/patch<br/>→ mermaid.run()
+    
+        Note over buffer: External write (e.g. AI agent) detected by fs_event watcher
+        buffer->>buffer: fs debounce fires → read file from disk
+        buffer->>preview: callbacks.on_content(lines)
+        preview->>sse: push("content", {content})
+        sse->>Browser: event: content\ndata: {json}
 <
 
 
@@ -1228,14 +1234,16 @@ closest to the cursor line and smoothly scrolls to it.
         participant buffer as buffer.lua
         participant server as server/tcp.lua
     
-        User->>init: :MdViewStop / BufDelete / VimLeavePre
+        User->>init: :MdViewStop / BufDelete / BufWipeout / VimLeavePre
         init->>preview: destroy(bufnr)
-        preview->>sse: push("close", {})
+        preview->>preview: active_previews[bufnr] = nil
+        opt auto_close = true
+            preview->>sse: push("close", {})
+        end
         preview->>sse: close_all()
         preview->>buffer: watcher.stop()
         preview->>server: stop(srv)
         preview->>preview: delete augroup
-        preview->>preview: active_previews[bufnr] = nil
 <
 
 
@@ -1254,21 +1262,20 @@ so panels exist before content and styles arrive.
         participant Browser
     
         User->>preview: create(opts) — first preview
-        preview->>preview: ensure_mux() → start hub server (port H)
-        preview->>preview: start per-buffer server (port A)
-        preview->>buffer: watch(bufnr=1, callbacks)
+        preview->>preview: init_hub() → start hub server (port H)
         preview->>hub: register(bufnr=1, path, tab_label)
-        preview->>hub: push("preview_added", {id=1, label})
+        preview->>hub: push("preview_added", {id=1, title, label})
         preview->>hub: push("hub_palette", {css})
+        preview->>buffer: watch(bufnr=1, callbacks)
         preview->>Browser: open_browser(hub_url :H)
     
         Browser->>hub: GET /
         hub-->>Browser: mux.html
     
         Browser->>hub: GET /sse
-        Note over hub: add_client replay order:<br/>1. hub_palette (chrome styled first)<br/>2. preview_added (panel created)<br/>3. palette / theme (panel styled)<br/>4. on_client_added → async disk read → content
+        Note over hub: add_client replay order:<br/>1. hub_palette / hub_hljs_theme / hub_theme (chrome styled first)<br/>2. preview_added → palette → theme per preview (panel created + styled)<br/>3. on_client_added → async disk read → content
         hub-->>Browser: SSE: hub_palette {css}
-        hub-->>Browser: SSE: preview_added {id=1, label}
+        hub-->>Browser: SSE: preview_added {id=1, title, label}
         hub-->>Browser: SSE: content {id=1, content}
     
         Note over Browser: createPanel(1) → activateTab(1)<br/>→ panels[1].renderMarkdown(content)
@@ -1286,11 +1293,11 @@ so panels exist before content and styles arrive.
         participant Browser
     
         User->>preview: create(opts) — second preview (hub tab already open)
-        preview->>preview: start per-buffer server (port B)
-        preview->>buffer: watch(bufnr=2, callbacks)
         preview->>hub: register(bufnr=2, path, tab_label)
-        preview->>hub: push("preview_added", {id=2, label})
-        hub-->>Browser: SSE: preview_added {id=2, label}
+        preview->>hub: push("preview_added", {id=2, title, label})
+        preview->>hub: push("hub_palette", {css})
+        preview->>buffer: watch(bufnr=2, callbacks)
+        hub-->>Browser: SSE: preview_added {id=2, title, label}
         Note over Browser: createPanel(2) → activateTab(2)<br/>(panel is empty until first buffer change)
         Note over preview: on_client_added fires only on NEW SSE connect,<br/>not when a preview is added to an existing hub session
     
