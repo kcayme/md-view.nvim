@@ -78,12 +78,12 @@ M.defaults = {
   verbose = true,
   follow_focus = false,
   scroll = {
-    method = "cursor", -- "percentage" | "cursor"
+    method = "cursor",
   },
   theme = {
-    mode = "auto", -- "auto" | "dark" | "light" | "sync"
-    syntax = nil, -- highlight.js theme; nil = auto-select
-    highlights = {}, -- highlight group overrides (only used when mode = "sync")
+    mode = "auto",
+    syntax = nil,
+    highlights = {},
   },
   notations = {
     mermaid = { enable = true, theme = nil, security_level = "strict" },
