@@ -20,11 +20,15 @@ md-view.nvim/
     ├── theme.lua                 # All theme concerns: palettes, defaults, resolve, CSS
     ├── picker.lua                # UI selector for active previews
     ├── util.lua                  # Browser opening, debounce, platform detection
+    ├── vendor.lua                # Asset manifest + :MdViewFetchAssets implementation
     └── server/
         ├── tcp.lua               # TCP server (bind, listen, accept)
         ├── router.lua            # HTTP request parsing + route dispatch
         ├── sse.lua               # SSE connection manager + event fan-out
-        └── template.lua          # HTML page (markdown-it + mermaid.js + morphdom)
+        ├── template.lua          # HTML page (markdown-it + mermaid.js + morphdom)
+        └── handlers/
+            ├── direct.lua        # Per-buffer route handlers (/, /content, /events, /vendor/:file, /file)
+            └── hub.lua           # Single-page mode hub: registry, SSE fan-out, mux.html
 ```
 
 ## Module Dependency Graph
@@ -32,42 +36,42 @@ md-view.nvim/
 ```mermaid
 graph TD
     plugin["plugin/md-view.lua"]
-    init["init.lua<br/><i>API facade</i>"]
-    config["config.lua"]
+
+    subgraph api["API layer"]
+        init["init.lua<br/><i>facade</i>"]
+        picker["picker.lua<br/><i>UI selector</i>"]
+    end
+
+    subgraph support["Support"]
+        config["config.lua"]
+        theme["theme.lua"]
+        vendor["vendor.lua"]
+        util["util.lua"]
+    end
+
     preview["preview.lua<br/><i>orchestration</i>"]
-    theme["theme.lua<br/><i>palettes, resolve, CSS</i>"]
-    server["server/tcp.lua"]
-    router["server/router.lua"]
-    template["server/template.lua"]
-    sse["server/sse.lua"]
-    hub["server/handlers/hub.lua"]
-    buffer["buffer.lua"]
-    util["util.lua"]
-    picker["picker.lua"]
+    buffer["buffer.lua<br/><i>buffer watching</i>"]
+
+    subgraph srv["Server stack"]
+        tcp["tcp.lua"]
+        router["router.lua"]
+        sse["sse.lua"]
+        handlers["handlers/<br/>direct + hub"]
+        template["template.lua"]
+    end
 
     plugin --> init
-    init --> config
     init --> preview
-    init --> theme
-    init -.->|lazy| picker
-    picker --> init
+    init <--> picker
 
-    preview --> theme
-    preview --> server
-    preview --> router
-    preview --> sse
-    preview --> hub
+    preview --> support
     preview --> buffer
-    preview --> util
+    preview --> srv
 
-    server -.->|on_request callback| router
-    router --> template
-    router -.->|reads from ctx| sse
-    hub -.->|lazy| template
-    hub -.->|lazy| config
-    hub -.->|lazy| theme
-
-    buffer --> util
+    tcp -->|on_request| router
+    router --> sse
+    router --> handlers
+    handlers --> template
 ```
 
 ## Data Flow
