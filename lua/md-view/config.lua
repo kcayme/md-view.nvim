@@ -50,6 +50,13 @@ local M = {}
 ---@field tab_label MdViewTabLabel|(fun(ctx: MdViewTabLabelCtx): string)
 ---@field close_by MdViewCloseBy
 
+---@alias MdViewTocPosition "left"|"right"
+
+---@class MdViewTableOfContentsOptions
+---@field enable boolean
+---@field position MdViewTocPosition
+---@field max_depth integer
+
 ---@class MdViewOptions
 ---@field port integer
 ---@field host string
@@ -67,6 +74,7 @@ local M = {}
 ---@field auto_open MdViewAutoOpenOptions
 ---@field picker MdViewPickerOptions
 ---@field single_page MdViewSinglePageOptions
+---@field table_of_contents MdViewTableOfContentsOptions
 
 M.defaults = {
   port = 0,
@@ -107,6 +115,11 @@ M.defaults = {
   single_page = {
     enable = false,
     tab_label = "parent",
+  },
+  table_of_contents = {
+    enable = false,
+    position = "left",
+    max_depth = 6,
   },
 }
 
@@ -178,6 +191,13 @@ local SCHEMA = {
         close_by = { type = { "string", "boolean" }, enum = { "page", "tab" } },
       },
     },
+    table_of_contents = {
+      fields = {
+        enable = { type = "boolean" },
+        position = { type = "string", enum = { "left", "right" } },
+        max_depth = { type = "number" },
+      },
+    },
   },
 }
 
@@ -230,13 +250,7 @@ end
 ---@param opts MdViewOptions|nil
 M.setup = function(opts)
   if opts then
-    local ok, err = pcall(validate, SCHEMA, opts, "config")
-
-    if not ok then
-      vim.notify(err, vim.log.levels.ERROR)
-
-      return
-    end
+    validate(SCHEMA, opts, "config")
   end
 
   M.options = vim.tbl_deep_extend("force", {}, M.defaults, opts or {})
