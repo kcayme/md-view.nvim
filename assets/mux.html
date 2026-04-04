@@ -102,6 +102,113 @@
     min-height: 8rem;
   }
   #hub-panels { flex: 1; display: flex; flex-direction: column; }
+  #hub-workspace {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+  body[data-toc-position="right"] #hub-workspace { flex-direction: row-reverse; }
+
+  #hub-toc {
+    display: none;
+    width: 14rem;
+    flex-shrink: 0;
+    flex-direction: column;
+    background: var(--md-code-bg, #161b22);
+    border-right: 1px solid var(--md-border, #30363d);
+    overflow: hidden;
+  }
+  body[data-toc-enable="true"] #hub-toc { display: flex; }
+  body[data-toc-enable="true"][data-toc-position="right"] #hub-toc {
+    border-right: none;
+    border-left: 1px solid var(--md-border, #30363d);
+  }
+  .toc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.625rem 0.75rem;
+    border-bottom: 1px solid var(--md-border, #30363d);
+    flex-shrink: 0;
+  }
+  .toc-title {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--md-link, #58a6ff);
+    text-transform: uppercase;
+  }
+  .toc-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--md-muted, #8b949e);
+    padding: 0;
+    line-height: 0;
+    display: flex;
+    align-items: center;
+  }
+  .toc-close:hover { color: var(--md-fg, #e6edf3); }
+  .toc-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.375rem 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--md-border, #30363d) transparent;
+  }
+  .toc-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.1875rem 0.625rem;
+  }
+  .toc-item.toc-active { border-left: 2px solid var(--md-link, #58a6ff); }
+  .toc-item:not(.toc-active) { border-left: 2px solid transparent; }
+  .toc-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--md-muted, #8b949e);
+    padding: 0;
+    line-height: 0;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .toc-toggle:hover { color: var(--md-fg, #e6edf3); }
+  .toc-label {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--md-muted, #8b949e);
+    font-size: 0.8125rem;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    padding: 0;
+  }
+  .toc-label:hover { color: var(--md-fg, #e6edf3); }
+  .toc-active .toc-label { color: var(--md-fg, #e6edf3); }
+
+  #hub-toc-fab {
+    display: none;
+    position: fixed;
+    bottom: 1rem;
+    left: 1rem;
+    z-index: 200;
+    background: var(--md-code-bg, #161b22);
+    border: 1px solid var(--md-border, #30363d);
+    border-radius: 0.375rem;
+    padding: 0.375rem;
+    cursor: pointer;
+    color: var(--md-link, #58a6ff);
+    line-height: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  #hub-toc-fab:hover { color: var(--md-fg, #e6edf3); }
+  body[data-toc-enable="true"][data-toc-position="right"] #hub-toc-fab { left: auto; right: 1rem; }
   .hub-panel {
     display: none;
     padding: 0 1.625rem;
@@ -116,11 +223,21 @@
 </style>
 <style id="md-view-hub-theme">{{THEME_CSS}}</style>
 </head>
-<body>
+<body data-toc-enable="{{TOC_ENABLE}}" data-toc-position="{{TOC_POSITION}}" data-toc-max-depth="{{TOC_MAX_DEPTH}}">
 <nav id="hub-tabs"></nav>
-<div id="hub-panels">
-  <div id="hub-empty">No preview opened.</div>
+<div id="hub-workspace">
+  <div id="hub-toc">
+    <div class="toc-header">
+      <span class="toc-title">CONTENTS</span>
+      <button class="toc-close" id="hub-toc-close" title="Hide table of contents"></button>
+    </div>
+    <div class="toc-body"></div>
+  </div>
+  <div id="hub-panels">
+    <div id="hub-empty">No preview opened.</div>
+  </div>
 </div>
+<button id="hub-toc-fab" title="Show table of contents"></button>
 <script>
 (function() {
   // BroadcastChannel tab dedup — key "md-view-hub" distinct from per-preview keys
@@ -141,6 +258,31 @@
   var panels   = {}; // id -> { container, renderMarkdown, applyTheme, applyPalette, scrollTo }
   var activeId = null;
 
+  var ICON_PANEL_LEFT_HUB = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg>';
+  var ICON_PANEL_RIGHT_HUB = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/></svg>';
+  var ICON_X_HUB_TOC = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+
+  var hubTocEnabled = document.body.getAttribute("data-toc-enable") === "true";
+  var hubTocPosition = document.body.getAttribute("data-toc-position") || "left";
+  var hubTocMaxDepth = parseInt(document.body.getAttribute("data-toc-max-depth"), 10) || 6;
+  var hubTocEl = document.getElementById("hub-toc");
+  var hubTocFab = document.getElementById("hub-toc-fab");
+  var hubTocClose = document.getElementById("hub-toc-close");
+
+  if (hubTocEnabled && hubTocEl) {
+    hubTocClose.innerHTML = ICON_X_HUB_TOC;
+    hubTocFab.innerHTML = hubTocPosition === "right" ? ICON_PANEL_RIGHT_HUB : ICON_PANEL_LEFT_HUB;
+
+    hubTocClose.addEventListener("click", function() {
+      hubTocEl.style.display = "none";
+      hubTocFab.style.display = "flex";
+    });
+    hubTocFab.addEventListener("click", function() {
+      hubTocEl.style.display = "";
+      hubTocFab.style.display = "none";
+    });
+  }
+
   if (typeof mermaid !== 'undefined') {
     mermaid.initialize({ startOnLoad: false, theme: "{{MERMAID_THEME}}", securityLevel: "{{MERMAID_SECURITY_LEVEL}}" });
   }
@@ -158,6 +300,9 @@
     panelsEl.querySelectorAll(".hub-panel").forEach(function(div) {
       div.classList.toggle("active", div.dataset.id == id);
     });
+    if (panels[id] && panels[id].toc) {
+      panels[id].toc.update(panels[id].container, panels[id].panel);
+    }
   }
 
   var ICON_X = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
@@ -225,7 +370,19 @@
       scrollToSource(container, data);
     }
 
-    return { renderMarkdown: renderMarkdown, applyTheme: applyTheme, applyPalette: applyPalette, scrollTo: scrollTo };
+    var panelToc = (hubTocEnabled && hubTocEl)
+      ? makeToc(hubTocEl, { maxDepth: hubTocMaxDepth })
+      : null;
+
+    return {
+      renderMarkdown: renderMarkdown,
+      applyTheme: applyTheme,
+      applyPalette: applyPalette,
+      scrollTo: scrollTo,
+      toc: panelToc,
+      panel: panel,
+      container: container,
+    };
   }
 
   function removePanel(id) {
@@ -237,6 +394,9 @@
       var el = document.getElementById(prefix + id);
       if (el) el.remove();
     });
+    if (panels[id] && panels[id].toc) {
+      panels[id].toc.destroy();
+    }
     delete panels[id];
     if (activeId == id) {
       var firstWrap = tabsEl.querySelector(".hub-tab-wrap");
@@ -269,7 +429,11 @@
 
   source.addEventListener("content", function(e) {
     var d = safeParse(e.data);
-    if (d && panels[d.id]) panels[d.id].renderMarkdown(d.content);
+    if (!d || !panels[d.id]) return;
+    panels[d.id].renderMarkdown(d.content);
+    if (panels[d.id].toc && activeId == d.id) {
+      panels[d.id].toc.update(panels[d.id].container, panels[d.id].panel);
+    }
   });
 
   source.addEventListener("scroll", function(e) {

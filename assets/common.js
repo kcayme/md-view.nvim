@@ -470,3 +470,146 @@ function makeRenderer(container, fileId, onError, onClearErrors) {
     _render(text);
   };
 }
+
+var ICON_TOC_CHEVRON_DOWN = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+var ICON_TOC_CHEVRON_RIGHT = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+
+// Creates a table-of-contents controller bound to tocEl.
+// opts: { maxDepth: number }
+// Returns: { update(container, panelEl?), destroy() }
+//   update(container, panelEl) — extracts headings from container, rebuilds TOC,
+//     sets up IntersectionObserver. panelEl is the optional .hub-panel div; when
+//     provided the observer skips active-state updates unless panelEl is active.
+//   destroy() — disconnects observer, clears tocEl body. Call when a panel is removed.
+function makeToc(tocEl, opts) {
+  var maxDepth = (opts && opts.maxDepth) || 6;
+  var collapsed = {};
+  var observer = null;
+  var currentContainer = null;
+  var currentPanelEl = null;
+
+  var tocBody = tocEl.querySelector(".toc-body");
+
+  function buildTree(headings) {
+    var root = { children: [], level: 0 };
+    var stack = [root];
+    headings.forEach(function(h) {
+      var node = { level: h.level, text: h.text, line: h.line, children: [] };
+      while (stack.length > 1 && stack[stack.length - 1].level >= h.level) {
+        stack.pop();
+      }
+      stack[stack.length - 1].children.push(node);
+      stack.push(node);
+    });
+    return root.children;
+  }
+
+  function renderTree(nodes) {
+    nodes.forEach(function(node) {
+      var hasChildren = node.children.length > 0;
+      var isCollapsed = !!collapsed[node.line];
+      var indent = (node.level - 1) * 12;
+
+      var item = document.createElement("div");
+      item.className = "toc-item";
+      item.dataset.tocLine = node.line;
+      item.style.paddingLeft = indent + "px";
+
+      var toggleBtn = document.createElement("button");
+      toggleBtn.className = "toc-toggle";
+      if (hasChildren) {
+        toggleBtn.innerHTML = isCollapsed ? ICON_TOC_CHEVRON_RIGHT : ICON_TOC_CHEVRON_DOWN;
+        toggleBtn.addEventListener("click", function(e) {
+          e.stopPropagation();
+          collapsed[node.line] = !collapsed[node.line];
+          update(currentContainer, currentPanelEl);
+        });
+      } else {
+        toggleBtn.style.visibility = "hidden";
+      }
+
+      var labelBtn = document.createElement("button");
+      labelBtn.className = "toc-label";
+      labelBtn.textContent = node.text;
+      labelBtn.title = node.text;
+      labelBtn.addEventListener("click", function() {
+        if (currentContainer) {
+          scrollToSource(currentContainer, { line: node.line });
+        }
+      });
+
+      item.appendChild(toggleBtn);
+      item.appendChild(labelBtn);
+      tocBody.appendChild(item);
+
+      if (hasChildren && !isCollapsed) {
+        renderTree(node.children);
+      }
+    });
+  }
+
+  function update(container, panelEl) {
+    currentContainer = container;
+    currentPanelEl = panelEl || null;
+
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+
+    tocBody.innerHTML = "";
+
+    var selector = [];
+    for (var i = 1; i <= maxDepth; i++) {
+      selector.push("h" + i);
+    }
+
+    var headingEls = container.querySelectorAll(selector.join(","));
+    var headings = [];
+    headingEls.forEach(function(el) {
+      var line = parseInt(el.getAttribute("data-source-line"), 10);
+      if (isNaN(line)) return;
+      headings.push({
+        level: parseInt(el.tagName[1], 10),
+        text: el.textContent.trim(),
+        line: line,
+      });
+    });
+
+    if (headings.length === 0) return;
+
+    var tree = buildTree(headings);
+    renderTree(tree);
+
+    var activeLines = {};
+    observer = new IntersectionObserver(function(entries) {
+      if (currentPanelEl && !currentPanelEl.classList.contains("active")) return;
+      entries.forEach(function(entry) {
+        var line = parseInt(entry.target.getAttribute("data-source-line"), 10);
+        activeLines[line] = entry.isIntersecting;
+      });
+      var activeLine = null;
+      headings.forEach(function(h) {
+        if (activeLines[h.line] && (activeLine === null || h.line < activeLine)) {
+          activeLine = h.line;
+        }
+      });
+      tocBody.querySelectorAll(".toc-item").forEach(function(item) {
+        var line = parseInt(item.dataset.tocLine, 10);
+        item.classList.toggle("toc-active", line === activeLine);
+      });
+    }, { threshold: 0, rootMargin: "0px 0px -60% 0px" });
+
+    headingEls.forEach(function(el) { observer.observe(el); });
+  }
+
+  function destroy() {
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+    tocBody.innerHTML = "";
+  }
+
+  return { update: update, destroy: destroy };
+}

@@ -12,6 +12,7 @@ describe("template", function()
         mermaid = { enable = true, theme = "dark" },
       },
       theme = "auto",
+      table_of_contents = { enable = false, position = "left", max_depth = 6 },
     }, overrides or {})
   end
 
@@ -234,6 +235,29 @@ describe("template", function()
       opts.notations = nil
       local html = template.render(opts, "test.md")
       assert.is_nil(html:find("vega@"))
+    end)
+
+    it("injects TOC_ENABLE as false by default", function()
+      local html = template.render(make_opts(), "test.md")
+      assert.truthy(html:find('data%-toc%-enable="false"'))
+    end)
+
+    it("injects TOC_ENABLE as true when enabled", function()
+      local opts = make_opts({ table_of_contents = { enable = true, position = "left", max_depth = 6 } })
+      local html = template.render(opts, "test.md")
+      assert.truthy(html:find('data%-toc%-enable="true"'))
+    end)
+
+    it("injects TOC_POSITION", function()
+      local opts = make_opts({ table_of_contents = { enable = true, position = "right", max_depth = 6 } })
+      local html = template.render(opts, "test.md")
+      assert.truthy(html:find('data%-toc%-position="right"'))
+    end)
+
+    it("injects TOC_MAX_DEPTH", function()
+      local opts = make_opts({ table_of_contents = { enable = true, position = "left", max_depth = 3 } })
+      local html = template.render(opts, "test.md")
+      assert.truthy(html:find('data%-toc%-max%-depth="3"'))
     end)
   end)
 
@@ -526,6 +550,20 @@ describe("template", function()
 end)
 
 describe("render_mux", function()
+  local function make_opts(overrides)
+    return vim.tbl_extend("force", {
+      css = "",
+      theme_css = "",
+      palette_css = ":root { --md-bg: #000; }",
+      highlight_theme = "vs2015",
+      notations = {
+        mermaid = { enable = true, theme = "dark" },
+      },
+      theme = "auto",
+      table_of_contents = { enable = false, position = "left", max_depth = 6 },
+    }, overrides or {})
+  end
+
   it("returns non-empty HTML", function()
     local html = template.render_mux({
       css = "",
@@ -548,5 +586,23 @@ describe("render_mux", function()
     assert.truthy(html:find("hub%-tabs"))
     assert.truthy(html:find("hub%-panels"))
     assert.truthy(html:find("md%-view%-hub"))
+  end)
+
+  it("injects TOC_ENABLE into mux render", function()
+    local opts = make_opts({ table_of_contents = { enable = true, position = "left", max_depth = 6 } })
+    local html = template.render_mux(opts)
+    assert.truthy(html:find('data%-toc%-enable="true"'))
+  end)
+
+  it("injects TOC_POSITION into mux render", function()
+    local opts = make_opts({ table_of_contents = { enable = false, position = "right", max_depth = 6 } })
+    local html = template.render_mux(opts)
+    assert.truthy(html:find('data%-toc%-position="right"'))
+  end)
+
+  it("injects TOC_MAX_DEPTH into mux render", function()
+    local opts = make_opts({ table_of_contents = { enable = false, position = "left", max_depth = 2 } })
+    local html = template.render_mux(opts)
+    assert.truthy(html:find('data%-toc%-max%-depth="2"'))
   end)
 end)

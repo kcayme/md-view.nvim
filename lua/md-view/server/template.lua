@@ -219,6 +219,15 @@ local function build_script_tags(opts)
   }
 end
 
+local function toc_vars(opts)
+  local toc = opts and opts.table_of_contents
+  local enable = toc and toc.enable and "true" or "false"
+  local position = (toc and toc.position) or "left"
+  local max_depth = tostring((toc and toc.max_depth) or 6)
+
+  return enable, position, max_depth
+end
+
 M.render = function(opts, filename)
   local tmpl = load_template()
   if not tmpl then
@@ -283,6 +292,18 @@ M.render = function(opts, filename)
       return load_render_js() or ""
     end)
 
+  local toc_enable, toc_position, toc_max_depth = toc_vars(opts)
+  html = html
+    :gsub("{{TOC_ENABLE}}", function()
+      return toc_enable
+    end)
+    :gsub("{{TOC_POSITION}}", function()
+      return toc_position
+    end)
+    :gsub("{{TOC_MAX_DEPTH}}", function()
+      return toc_max_depth
+    end)
+
   return html
 end
 
@@ -298,7 +319,7 @@ M.render_mux = function(opts)
   local theme_css = opts.theme_css or ""
   local palette_css = opts.palette_css or ""
 
-  return tmpl
+  local mux_html = tmpl
     :gsub("{{PALETTE_CSS}}", function()
       return palette_css
     end)
@@ -344,6 +365,20 @@ M.render_mux = function(opts)
     :gsub("{{RENDER_JS}}", function()
       return load_render_js() or ""
     end)
+
+  local toc_enable, toc_position, toc_max_depth = toc_vars(opts)
+  mux_html = mux_html
+    :gsub("{{TOC_ENABLE}}", function()
+      return toc_enable
+    end)
+    :gsub("{{TOC_POSITION}}", function()
+      return toc_position
+    end)
+    :gsub("{{TOC_MAX_DEPTH}}", function()
+      return toc_max_depth
+    end)
+
+  return mux_html
 end
 
 return M
