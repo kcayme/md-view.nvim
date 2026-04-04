@@ -43,6 +43,7 @@ installed. I wanted something that's lightweight and just works out of the box �
 - **Multi-buffer** — each buffer gets its own server on an auto-assigned port
 - **Auto-cleanup** — servers shut down when buffers close or Neovim exits
 - **Single Page Mode** — preview all your markdown files in 1 browser tab
+- **Table of Contents** — collapsible TOC sidebar with active-heading tracking and click-to-scroll
 
 ## Requirements
 
@@ -155,6 +156,13 @@ require("md-view").setup({
     -- false  — same as "tab"
     close_by = nil,
   },
+  -- Table of contents sidebar shown alongside the preview.
+  -- Off by default — opt in explicitly.
+  table_of_contents = {
+    enable   = false,
+    position = "left",   -- "left" | "right"
+    max_depth = 6,        -- 1–6; headings deeper than this are omitted
+  },
 })
 ```
 
@@ -215,6 +223,13 @@ Full [LuaLS / EmmyLua](https://luals.github.io/wiki/annotations/) types for the 
 ---@field enable boolean Multiplex all active previews into one browser tab via a hub server.
 ---@field tab_label MdViewTabLabel|(fun(ctx: MdViewTabLabelCtx): string) Label for each preview tab. `"filename"` = basename; `"relative"` = path from cwd; `"parent"` = parent dir + basename; or a custom function.
 ---@field close_by MdViewCloseBy What to close when a preview ends. `nil` = inherit top-level `auto_close`; `"page"` = close the browser window when the last preview ends; `"tab"` / `false` = remove the tab only.
+
+---@alias MdViewTocPosition "left"|"right"
+
+---@class MdViewTableOfContentsOptions
+---@field enable boolean Show a collapsible TOC sidebar alongside the preview. Off by default.
+---@field position MdViewTocPosition Which side of the preview the sidebar appears on. Default: `"left"`.
+---@field max_depth integer Maximum heading level shown (`1`–`6`). Headings deeper than this are omitted. Default: `6`.
 
 ---@class MdViewOptions
 ---@field port integer Port for the local preview server. `0` = auto-assign a free port (recommended).

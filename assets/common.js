@@ -533,9 +533,23 @@ function makeToc(tocEl, opts) {
       labelBtn.textContent = node.text;
       labelBtn.title = node.text;
       labelBtn.addEventListener("click", function() {
-        if (currentContainer) {
-          scrollToSource(currentContainer, { line: node.line });
+        if (!currentContainer) return;
+        var target = null;
+        var bestDist = Infinity;
+        currentContainer.querySelectorAll("[data-source-line]").forEach(function(el) {
+          var sl = parseInt(el.getAttribute("data-source-line"), 10);
+          var dist = Math.abs(sl - node.line);
+          if (dist < bestDist) {
+            bestDist = dist;
+            target = el;
+          }
+        });
+        if (target) {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
         }
+        tocBody.querySelectorAll(".toc-item").forEach(function(item) {
+          item.classList.toggle("toc-active", parseInt(item.dataset.tocLine, 10) === node.line);
+        });
       });
 
       item.appendChild(toggleBtn);

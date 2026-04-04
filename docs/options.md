@@ -34,6 +34,9 @@ Full reference for all options accepted by `require("md-view").setup()`. All opt
 | `single_page.enable` | `boolean` | `false` | When `true`, all active previews are multiplexed into one browser tab via a shared hub server. The hub uses the top-level `port` option for its address. |
 | `single_page.tab_label` | `MdViewTabLabel\|fun(ctx: MdViewTabLabelCtx): string` | `"parent"` | Label shown on each preview's tab in the hub. `"filename"` — basename; `"relative"` — path relative to cwd; `"parent"` — parent dir + basename; function for a fully custom label. |
 | `single_page.close_by` | `MdViewCloseBy` | `nil` | Controls what closes when a preview ends, overriding top-level `auto_close`. `nil` — inherit from `auto_close`; `"page"` — close the browser window when the last preview ends; `"tab"` or `false` — only remove the preview's tab, keep the window open. |
+| `table_of_contents.enable` | `boolean` | `false` | When `true`, shows a collapsible TOC sidebar alongside the preview listing the file's headings. Off by default — opt in explicitly. |
+| `table_of_contents.position` | `"left"\|"right"` | `"left"` | Which side of the preview the sidebar appears on. |
+| `table_of_contents.max_depth` | `integer` | `6` | Maximum heading level included in the TOC. `1` shows only `h1`, `2` shows `h1`–`h2`, and so on. Headings deeper than this level are omitted. |
 
 ---
 
