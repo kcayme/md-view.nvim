@@ -1,4 +1,4 @@
-*md-view.nvim.txt*          For NVIM v0.8.0         Last change: 2026 March 23
+*md-view.nvim.txt*          For NVIM v0.8.0         Last change: 2026 April 04
 
 ==============================================================================
 Table of Contents                             *md-view.nvim-table-of-contents*
@@ -71,6 +71,7 @@ FEATURES                                               *md-view.nvim-features*
 - **Multi-buffer** — each buffer gets its own server on an auto-assigned port
 - **Auto-cleanup** — servers shut down when buffers close or Neovim exits
 - **Single Page Mode** — preview all your markdown files in 1 browser tab
+- **Table of Contents** — collapsible TOC sidebar with active-heading tracking and click-to-scroll
 
 
 REQUIREMENTS                                       *md-view.nvim-requirements*
@@ -190,6 +191,13 @@ docs/options.md <docs/options.md> for the full reference.
         -- false  — same as "tab"
         close_by = nil,
       },
+      -- Table of contents sidebar shown alongside the preview.
+      -- Off by default — opt in explicitly.
+      table_of_contents = {
+        enable   = false,
+        position = "left",   -- "left" | "right"
+        max_depth = 6,        -- 1–6; headings deeper than this are omitted
+      },
     })
 <
 
@@ -198,7 +206,7 @@ TYPE SPECIFICATION ~
 
 Full LuaLS / EmmyLua <https://luals.github.io/wiki/annotations/> types for the
 configuration. Adding `---@type MdViewOptions` above your `setup()` call
-enables completion and inline docs in any editor with `lua-language-server`
+enables completion and hover docs in any editor with `lua-language-server`
 configured.
 
 Expand type definitions ~
@@ -209,64 +217,75 @@ Expand type definitions ~
     ---@alias MdViewTabLabel "filename"|"relative"|"parent"
     ---@alias MdViewCloseBy "page"|"tab"|false|nil
     
-    ---@class MdViewTabLabelCtx
-    ---@field bufnr integer
-    ---@field filename string
-    ---@field path string
+    ---@class MdViewTabLabelCtx Context passed to a custom `tab_label` function.
+    ---@field bufnr integer Buffer number of the preview.
+    ---@field filename string Basename of the file (e.g. `"README.md"`).
+    ---@field path string Full absolute file path.
     
     ---@class MdViewScrollOptions
-    ---@field method MdViewScrollMethod
+    ---@field method MdViewScrollMethod `"cursor"` anchors to the nearest source line; `"percentage"` syncs by proportional scroll offset.
     
     ---@class MdViewThemeOptions
-    ---@field mode MdViewThemeMode
-    ---@field syntax string|nil
-    ---@field highlights table<string, string|string[]>
+    ---@field mode MdViewThemeMode `"auto"` follows `vim.o.background`; `"dark"`/`"light"` are fixed palettes; `"sync"` mirrors the active colorscheme via highlight group extraction.
+    ---@field syntax string|nil highlight.js theme for fenced code blocks. `nil` = auto-select (`"vs2015"` for dark, `"github"` for light).
+    ---@field highlights table<string, string|string[]> Highlight group overrides for CSS variable extraction. Single group name or ordered list — first group with the attribute wins. Only applied when `mode = "sync"`.
     
     ---@class MdViewNotationOptions
-    ---@field enable boolean
+    ---@field enable boolean Load and render this notation. Set to `false` to skip loading the CDN library entirely.
+    
+    ---@alias MdViewMermaidSecurityLevel "strict"|"antiscript"|"loose"|"sandbox"
     
     ---@class MdViewMermaidNotationOptions : MdViewNotationOptions
-    ---@field theme string|nil
+    ---@field theme string|nil Mermaid diagram theme. `nil` = auto-chosen based on the page theme.
+    ---@field security_level MdViewMermaidSecurityLevel Mermaid `securityLevel` option. Default: `"strict"`.
     
     ---@class MdViewNotationsOptions
-    ---@field mermaid MdViewMermaidNotationOptions
-    ---@field katex MdViewNotationOptions
-    ---@field graphviz MdViewNotationOptions
-    ---@field wavedrom MdViewNotationOptions
-    ---@field nomnoml MdViewNotationOptions
-    ---@field abc MdViewNotationOptions
-    ---@field vegalite MdViewNotationOptions
+    ---@field mermaid MdViewMermaidNotationOptions `mermaid` fenced code blocks rendered as SVG diagrams.
+    ---@field katex MdViewNotationOptions `math` fences and `$...$` / `$$...$$` inline math via KaTeX.
+    ---@field graphviz MdViewNotationOptions `dot` / `graphviz` fences rendered via Graphviz (@viz-js/viz).
+    ---@field wavedrom MdViewNotationOptions `wavedrom` fences rendered as digital timing diagrams.
+    ---@field nomnoml MdViewNotationOptions `nomnoml` fences rendered as UML diagrams.
+    ---@field abc MdViewNotationOptions `abc` fences rendered as sheet music via abcjs.
+    ---@field vegalite MdViewNotationOptions `vega-lite` fences rendered as Vega-Lite charts.
     
     ---@class MdViewAutoOpenOptions
-    ---@field enable boolean
-    ---@field events string[]
+    ---@field enable boolean Automatically open (or refocus) a preview whenever entering a qualifying buffer.
+    ---@field events string[] Neovim events that trigger the auto-open check. Default: `{ "BufWinEnter" }`.
     
     ---@class MdViewPickerOptions
-    ---@field prompt string
-    ---@field format_item (fun(item: table): string)|nil
-    ---@field kind string|nil
+    ---@field prompt string Title/prompt shown at the top of the `:MdViewList` picker.
+    ---@field format_item (fun(item: table): string)|nil Custom item formatter. `item` exposes `.bufnr`, `.port`, `.name` (basename). `nil` = built-in `"name  http://host:port"` format.
+    ---@field kind string|nil Hint passed as `opts.kind` to `vim.ui.select`. Some pickers use this to render a specialised UI (e.g. a file-preview pane).
     
     ---@class MdViewSinglePageOptions
-    ---@field enable boolean
-    ---@field tab_label MdViewTabLabel|(fun(ctx: MdViewTabLabelCtx): string)
-    ---@field close_by MdViewCloseBy
+    ---@field enable boolean Multiplex all active previews into one browser tab via a hub server.
+    ---@field tab_label MdViewTabLabel|(fun(ctx: MdViewTabLabelCtx): string) Label for each preview tab. `"filename"` = basename; `"relative"` = path from cwd; `"parent"` = parent dir + basename; or a custom function.
+    ---@field close_by MdViewCloseBy What to close when a preview ends. `nil` = inherit top-level `auto_close`; `"page"` = close the browser window when the last preview ends; `"tab"` / `false` = remove the tab only.
+    
+    ---@alias MdViewTocPosition "left"|"right"
+    
+    ---@class MdViewTableOfContentsOptions
+    ---@field enable boolean Show a collapsible TOC sidebar alongside the preview. Off by default.
+    ---@field position MdViewTocPosition Which side of the preview the sidebar appears on. Default: `"left"`.
+    ---@field max_depth integer Maximum heading level shown (`1`–`6`). Headings deeper than this are omitted. Default: `6`.
     
     ---@class MdViewOptions
-    ---@field port integer
-    ---@field host string
-    ---@field browser string|nil
-    ---@field debounce_ms integer
-    ---@field css string|nil
-    ---@field auto_close boolean
-    ---@field verbose boolean
-    ---@field follow_focus boolean
-    ---@field scroll MdViewScrollOptions
-    ---@field theme MdViewThemeOptions
-    ---@field notations MdViewNotationsOptions
-    ---@field filetypes string[]
-    ---@field auto_open MdViewAutoOpenOptions
-    ---@field picker MdViewPickerOptions
-    ---@field single_page MdViewSinglePageOptions
+    ---@field port integer Port for the local preview server. `0` = auto-assign a free port (recommended).
+    ---@field host string Bind address. Must be a loopback address (`127.0.0.1`, `::1`, `localhost`).
+    ---@field browser string|nil Browser executable to launch. `nil` = auto-detect via `open` / `xdg-open` / `cmd /c start`.
+    ---@field bufnr integer|nil Target buffer number. `nil` = current buffer at the time `:MdView` is called.
+    ---@field debounce_ms integer Milliseconds to debounce buffer content updates before pushing to the browser. Default: `300`.
+    ---@field css string|nil Raw CSS string injected into the preview page after all built-in styles. Use to override layout, typography, or CSS custom properties.
+    ---@field auto_close boolean Close the browser tab automatically when the preview is stopped.
+    ---@field verbose boolean Show `[md-view]` notifications on open/stop.
+    ---@field follow_focus boolean Reopen the browser tab when switching to a buffer that already has an active preview.
+    ---@field scroll MdViewScrollOptions Scroll-sync settings.
+    ---@field theme MdViewThemeOptions Color theme settings.
+    ---@field notations MdViewNotationsOptions Notation renderer settings (mermaid, katex, graphviz, …).
+    ---@field filetypes string[] Buffer filetypes this plugin will preview. `{}` = allow any filetype.
+    ---@field auto_open MdViewAutoOpenOptions Automatic preview-on-enter settings.
+    ---@field picker MdViewPickerOptions `:MdViewList` picker settings.
+    ---@field single_page MdViewSinglePageOptions Single-page (hub) mode settings.
 <
 
 
@@ -886,6 +905,23 @@ options are optional — omitted keys fall back to the defaults shown below.
                                                                                                                  false — only remove the
                                                                                                                  preview’s tab, keep the
                                                                                                                  window open.
+
+  table_of_contents.enable           boolean                                               false                 When true, shows a
+                                                                                                                 collapsible TOC sidebar
+                                                                                                                 alongside the preview
+                                                                                                                 listing the file’s
+                                                                                                                 headings. Off by default —
+                                                                                                                 opt in explicitly.
+
+  table_of_contents.position         "left"\|"right"                                       "left"                Which side of the preview
+                                                                                                                 the sidebar appears on.
+
+  table_of_contents.max_depth        integer                                               6                     Maximum heading level
+                                                                                                                 included in the TOC. 1
+                                                                                                                 shows only h1, 2 shows
+                                                                                                                 h1–h2, and so on. Headings
+                                                                                                                 deeper than this level are
+                                                                                                                 omitted.
   -----------------------------------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------
 
