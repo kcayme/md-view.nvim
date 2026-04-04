@@ -250,7 +250,13 @@ end
 ---@param opts MdViewOptions|nil
 M.setup = function(opts)
   if opts then
-    validate(SCHEMA, opts, "config")
+    local ok, err = pcall(validate, SCHEMA, opts, "config")
+
+    if not ok then
+      vim.notify(err, vim.log.levels.ERROR)
+
+      return
+    end
   end
 
   M.options = vim.tbl_deep_extend("force", {}, M.defaults, opts or {})

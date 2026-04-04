@@ -258,33 +258,74 @@ describe("config", function()
       assert.is_true(warned)
     end)
 
-    it("errors on non-boolean table_of_contents.enable", function()
-      local ok = pcall(config.setup, { table_of_contents = { enable = "yes" } })
-      assert.is_false(ok)
-    end)
-
     describe("validation", function()
-      it("errors when port is wrong type", function()
-        local ok = pcall(config.setup, { port = "not-a-number" })
-        assert.is_false(ok)
+      it("notifies error and aborts setup when port is wrong type", function()
+        local errored = false
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+          if level == vim.log.levels.ERROR then
+            errored = true
+          end
+        end
+        config.setup({ port = "not-a-number" })
+        vim.notify = orig
+        assert.is_true(errored)
         assert.is_nil(config.options)
       end)
 
-      it("errors when nested field is wrong type", function()
-        local ok = pcall(config.setup, { theme = { mode = 123 } })
-        assert.is_false(ok)
+      it("notifies error and aborts setup when nested field is wrong type", function()
+        local errored = false
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+          if level == vim.log.levels.ERROR then
+            errored = true
+          end
+        end
+        config.setup({ theme = { mode = 123 } })
+        vim.notify = orig
+        assert.is_true(errored)
         assert.is_nil(config.options)
       end)
 
-      it("errors when table-typed option is given a scalar", function()
-        local ok = pcall(config.setup, { scroll = "fast" })
-        assert.is_false(ok)
+      it("notifies error and aborts setup when table-typed option is given a scalar", function()
+        local errored = false
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+          if level == vim.log.levels.ERROR then
+            errored = true
+          end
+        end
+        config.setup({ scroll = "fast" })
+        vim.notify = orig
+        assert.is_true(errored)
         assert.is_nil(config.options)
       end)
 
-      it("errors when function-typed field receives a non-function", function()
-        local ok = pcall(config.setup, { picker = { format_item = "not-a-function" } })
-        assert.is_false(ok)
+      it("notifies error and aborts setup when function-typed field receives a non-function", function()
+        local errored = false
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+          if level == vim.log.levels.ERROR then
+            errored = true
+          end
+        end
+        config.setup({ picker = { format_item = "not-a-function" } })
+        vim.notify = orig
+        assert.is_true(errored)
+        assert.is_nil(config.options)
+      end)
+
+      it("errors on non-boolean table_of_contents.enable", function()
+        local errored = false
+        local orig_notify = vim.notify
+        vim.notify = function(_, level)
+          if level == vim.log.levels.ERROR then
+            errored = true
+          end
+        end
+        config.setup({ table_of_contents = { enable = "yes" } })
+        vim.notify = orig_notify
+        assert.is_true(errored)
         assert.is_nil(config.options)
       end)
 
