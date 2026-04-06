@@ -25,29 +25,31 @@
     color: var(--md-fg);
     background: var(--md-bg);
     word-wrap: break-word;
-    display: flex;
-    align-items: stretch;
     min-height: 100vh;
   }
-  body[data-toc-position="right"] { flex-direction: row-reverse; }
 
-  /* TOC sidebar */
+  /* TOC floating panel */
   #md-toc {
     display: none;
     width: var(--toc-width);
-    flex-shrink: 0;
+    min-width: 10rem;
     flex-direction: column;
     background: var(--md-code-bg, #161b22);
-    border-right: 1px solid var(--md-border, #30363d);
-    height: 100vh;
-    position: sticky;
-    top: 0;
+    border: 1px solid var(--md-border, #30363d);
+    border-radius: 0.5rem;
+    height: calc(100vh - 2rem);
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 150;
     overflow: hidden;
+    resize: horizontal;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
   }
   body[data-toc-enable="true"] #md-toc { display: flex; }
   body[data-toc-enable="true"][data-toc-position="right"] #md-toc {
-    border-right: none;
-    border-left: 1px solid var(--md-border, #30363d);
+    left: auto;
+    right: 1rem;
   }
   .toc-header {
     display: flex;
@@ -131,7 +133,7 @@
   #toc-fab {
     display: none;
     position: fixed;
-    bottom: 1rem;
+    top: 1rem;
     left: 1rem;
     z-index: 200;
     background: var(--md-code-bg, #161b22);

@@ -107,21 +107,28 @@
     display: flex;
     overflow: hidden;
   }
-  body[data-toc-position="right"] #hub-workspace { flex-direction: row-reverse; }
 
   #hub-toc {
     display: none;
     width: 14rem;
-    flex-shrink: 0;
+    min-width: 10rem;
     flex-direction: column;
     background: var(--md-code-bg, #161b22);
-    border-right: 1px solid var(--md-border, #30363d);
+    border: 1px solid var(--md-border, #30363d);
+    border-radius: 0.5rem;
+    height: calc(100vh - 4rem);
+    position: fixed;
+    top: 3rem;
+    left: 1rem;
+    z-index: 150;
     overflow: hidden;
+    resize: horizontal;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
   }
   body[data-toc-enable="true"] #hub-toc { display: flex; }
   body[data-toc-enable="true"][data-toc-position="right"] #hub-toc {
-    border-right: none;
-    border-left: 1px solid var(--md-border, #30363d);
+    left: auto;
+    right: 1rem;
   }
   .toc-header {
     display: flex;
@@ -195,7 +202,7 @@
   #hub-toc-fab {
     display: none;
     position: fixed;
-    bottom: 1rem;
+    top: 3rem;
     left: 1rem;
     z-index: 200;
     background: var(--md-code-bg, #161b22);
@@ -225,14 +232,14 @@
 </head>
 <body data-toc-enable="{{TOC_ENABLE}}" data-toc-position="{{TOC_POSITION}}" data-toc-max-depth="{{TOC_MAX_DEPTH}}">
 <nav id="hub-tabs"></nav>
-<div id="hub-workspace">
-  <div id="hub-toc">
-    <div class="toc-header">
-      <span class="toc-title">CONTENTS</span>
-      <button class="toc-close" id="hub-toc-close" title="Hide table of contents"></button>
-    </div>
-    <div class="toc-body"></div>
+<div id="hub-toc">
+  <div class="toc-header">
+    <span class="toc-title">CONTENTS</span>
+    <button class="toc-close" id="hub-toc-close" title="Hide table of contents"></button>
   </div>
+  <div class="toc-body"></div>
+</div>
+<div id="hub-workspace">
   <div id="hub-panels">
     <div id="hub-empty">No preview opened.</div>
   </div>
