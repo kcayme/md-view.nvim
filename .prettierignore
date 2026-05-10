@@ -1,0 +1,9 @@
+# Prettier is scoped to assets/ JS and CSS (browser preview sources).
+# HTML templates contain {{...}} placeholders that prettier mangles, so
+# they are excluded. Lua is formatted by stylua; vimdoc is generated;
+# Markdown sources are kept as-authored.
+*
+
+!assets/
+!assets/*.js
+!assets/*.css
