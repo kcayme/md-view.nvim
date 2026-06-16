@@ -522,8 +522,18 @@ function openMermaidModal(svgEl) {
   header.appendChild(headerLeft);
   header.appendChild(headerRight);
 
-  // Fit to screen after layout is ready
-  requestAnimationFrame(fitToScreen);
+  // Open at 100% zoom, centered
+  function initZoom() {
+    var bodyRect = body.getBoundingClientRect();
+    var vb = clonedSvg.viewBox && clonedSvg.viewBox.baseVal;
+    var svgW = (vb && vb.width) || clonedSvg.clientWidth || 300;
+    var svgH = (vb && vb.height) || clonedSvg.clientHeight || 200;
+    state.scale = 1;
+    state.tx = Math.max(0, (bodyRect.width - svgW) / 2);
+    state.ty = Math.max(0, (bodyRect.height - svgH) / 2);
+    applyModal();
+  }
+  requestAnimationFrame(initZoom);
 
   // Wheel zoom (Ctrl/Meta required)
   body.addEventListener("wheel", function (e) {
