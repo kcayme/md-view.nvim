@@ -324,6 +324,93 @@ hr {
   text-align: center;
   padding: 0 0.25rem;
 }
+.mermaid-tool-sep {
+  width: 1px;
+  height: 1rem;
+  background: var(--md-border, #30363d);
+  margin: 0 0.125rem;
+  flex-shrink: 0;
+}
+.mermaid-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mermaid-modal {
+  background: var(--md-code-bg, #161b22);
+  border: 1px solid var(--md-border, #30363d);
+  border-radius: 0.625rem;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  width: 92vw;
+  height: 88vh;
+  max-width: 1400px;
+  overflow: hidden;
+}
+.mermaid-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--md-border, #30363d);
+  flex-shrink: 0;
+}
+.mermaid-modal-header-left,
+.mermaid-modal-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+.mermaid-modal-body {
+  flex: 1;
+  overflow: hidden;
+  cursor: grab;
+  position: relative;
+  touch-action: none;
+  background: var(--md-bg);
+}
+.mermaid-modal-body.mermaid-dragging {
+  cursor: grabbing;
+}
+.mermaid-modal-body svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  user-select: none;
+  will-change: transform;
+}
+.mermaid-modal-footer {
+  padding: 0.375rem 0.75rem;
+  border-top: 1px solid var(--md-border, #30363d);
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--md-fg-muted, #6e7681);
+  flex-shrink: 0;
+  user-select: none;
+}
+.mermaid-modal-close {
+  background: none;
+  border: none;
+  color: var(--md-fg-muted, #6e7681);
+  cursor: pointer;
+  font-size: 1.125rem;
+  line-height: 1;
+  padding: 0.25rem 0.375rem;
+  border-radius: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mermaid-modal-close:hover {
+  color: var(--md-fg);
+  background: var(--md-border);
+}
 .katex-wrapper {
   margin-bottom: 1rem;
   text-align: center;

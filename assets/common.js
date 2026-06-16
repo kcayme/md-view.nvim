@@ -376,6 +376,10 @@ var ICON_ZOOM_OUT =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><line x1="8" y1="11" x2="14" y2="11"/></svg>';
 var ICON_ZOOM_RESET =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
+var ICON_DOWNLOAD =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+var ICON_EXPAND =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
 
 function makeMermaidToolBtn(iconMarkup, title) {
   var btn = document.createElement("button");
@@ -384,6 +388,207 @@ function makeMermaidToolBtn(iconMarkup, title) {
   btn.insertAdjacentHTML("afterbegin", iconMarkup);
 
   return btn;
+}
+
+function makeMermaidToolSep() {
+  var sep = document.createElement("span");
+  sep.className = "mermaid-tool-sep";
+  return sep;
+}
+
+function downloadSvg(svgEl) {
+  var serializer = new XMLSerializer();
+  var svgStr = serializer.serializeToString(svgEl);
+  var blob = new Blob([svgStr], { type: "image/svg+xml" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = "diagram.svg";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function openMermaidModal(svgEl) {
+  var existing = document.querySelector(".mermaid-modal-overlay");
+  if (existing) existing.remove();
+
+  var overlay = document.createElement("div");
+  overlay.className = "mermaid-modal-overlay";
+
+  var modal = document.createElement("div");
+  modal.className = "mermaid-modal";
+
+  // Header
+  var header = document.createElement("div");
+  header.className = "mermaid-modal-header";
+
+  var headerLeft = document.createElement("div");
+  headerLeft.className = "mermaid-modal-header-left";
+
+  var headerRight = document.createElement("div");
+  headerRight.className = "mermaid-modal-header-right";
+
+  // Body
+  var body = document.createElement("div");
+  body.className = "mermaid-modal-body";
+
+  var clonedSvg = svgEl.cloneNode(true);
+  body.appendChild(clonedSvg);
+
+  // Footer
+  var footer = document.createElement("div");
+  footer.className = "mermaid-modal-footer";
+  footer.textContent = "Esc to close · drag to pan · Ctrl+scroll to zoom · double-click to fit";
+
+  modal.appendChild(header);
+  modal.appendChild(body);
+  modal.appendChild(footer);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  // Zoom/pan state — independent of the inline view
+  var state = { scale: 1, tx: 0, ty: 0 };
+  var dragging = false;
+  var lastX = 0;
+  var lastY = 0;
+
+  function applyModal() {
+    clonedSvg.style.transformOrigin = "0 0";
+    clonedSvg.style.transform =
+      "translate(" + state.tx + "px, " + state.ty + "px) scale(" + state.scale + ")";
+    label.textContent = Math.round(state.scale * 100) + "%";
+  }
+
+  function zoomToModal(newScale, anchorX, anchorY) {
+    newScale = Math.max(0.2, Math.min(8, newScale));
+    var ratio = newScale / state.scale;
+    state.tx = anchorX - (anchorX - state.tx) * ratio;
+    state.ty = anchorY - (anchorY - state.ty) * ratio;
+    state.scale = newScale;
+    applyModal();
+  }
+
+  function zoomStepModal(delta) {
+    var rect = body.getBoundingClientRect();
+    var next = Math.round((state.scale + delta) * 20) / 20;
+    zoomToModal(next, rect.width / 2, rect.height / 2);
+  }
+
+  function fitToScreen() {
+    var bodyRect = body.getBoundingClientRect();
+    var vb = clonedSvg.viewBox && clonedSvg.viewBox.baseVal;
+    var svgW = (vb && vb.width) || clonedSvg.clientWidth || 300;
+    var svgH = (vb && vb.height) || clonedSvg.clientHeight || 200;
+    var pad = 48;
+    var fitScale = Math.min((bodyRect.width - pad) / svgW, (bodyRect.height - pad) / svgH);
+    state.scale = fitScale;
+    state.tx = (bodyRect.width - svgW * fitScale) / 2;
+    state.ty = (bodyRect.height - svgH * fitScale) / 2;
+    applyModal();
+  }
+
+  // Toolbar buttons
+  var btnOut = makeMermaidToolBtn(ICON_ZOOM_OUT, "Zoom out");
+  btnOut.addEventListener("click", function (e) { e.stopPropagation(); zoomStepModal(-0.05); });
+
+  var label = document.createElement("span");
+  label.className = "mermaid-tool-label";
+  label.textContent = "100%";
+
+  var btnIn = makeMermaidToolBtn(ICON_ZOOM_IN, "Zoom in");
+  btnIn.addEventListener("click", function (e) { e.stopPropagation(); zoomStepModal(0.05); });
+
+  var btnReset = makeMermaidToolBtn(ICON_ZOOM_RESET, "Fit to screen");
+  btnReset.addEventListener("click", function (e) { e.stopPropagation(); fitToScreen(); });
+
+  headerLeft.appendChild(btnOut);
+  headerLeft.appendChild(label);
+  headerLeft.appendChild(btnIn);
+  headerLeft.appendChild(btnReset);
+
+  var btnDownload = makeMermaidToolBtn(ICON_DOWNLOAD, "Download SVG");
+  btnDownload.addEventListener("click", function (e) { e.stopPropagation(); downloadSvg(clonedSvg); });
+
+  var btnClose = document.createElement("button");
+  btnClose.className = "mermaid-modal-close";
+  btnClose.title = "Close";
+  btnClose.textContent = "×";
+
+  headerRight.appendChild(btnDownload);
+  headerRight.appendChild(btnClose);
+
+  header.appendChild(headerLeft);
+  header.appendChild(headerRight);
+
+  // Fit to screen after layout is ready
+  requestAnimationFrame(fitToScreen);
+
+  // Wheel zoom (Ctrl/Meta required)
+  body.addEventListener("wheel", function (e) {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    var rect = body.getBoundingClientRect();
+    var mx = e.clientX - rect.left;
+    var my = e.clientY - rect.top;
+    var factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+    zoomToModal(state.scale * factor, mx, my);
+  }, { passive: false });
+
+  // Drag pan
+  body.addEventListener("pointerdown", function (e) {
+    if (e.button !== 0) return;
+    if (e.target.closest(".mermaid-modal-header")) return;
+    dragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    body.setPointerCapture(e.pointerId);
+    body.classList.add("mermaid-dragging");
+    e.preventDefault();
+  });
+
+  body.addEventListener("pointermove", function (e) {
+    if (!dragging) return;
+    state.tx += e.clientX - lastX;
+    state.ty += e.clientY - lastY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    applyModal();
+  });
+
+  function endDragModal() {
+    if (!dragging) return;
+    dragging = false;
+    body.classList.remove("mermaid-dragging");
+  }
+
+  body.addEventListener("pointerup", endDragModal);
+  body.addEventListener("pointercancel", endDragModal);
+
+  // Double-click to re-fit
+  body.addEventListener("dblclick", function (e) {
+    if (e.target.closest(".mermaid-modal-header")) return;
+    fitToScreen();
+  });
+
+  // Close helpers
+  function closeModal() {
+    overlay.remove();
+    document.removeEventListener("keydown", escHandler);
+  }
+
+  function escHandler(e) {
+    if (e.key === "Escape") closeModal();
+  }
+
+  btnClose.addEventListener("click", closeModal);
+  document.addEventListener("keydown", escHandler);
+
+  // Clicking the backdrop (outside the modal box) closes
+  overlay.addEventListener("click", function (e) {
+    if (!modal.contains(e.target)) closeModal();
+  });
 }
 
 // Adds wheel-zoom + drag-pan + double-click-reset and a VS Code-style floating
@@ -420,6 +625,23 @@ function enhanceMermaidZoom(container) {
       toolbar.appendChild(label);
       toolbar.appendChild(btnIn);
       toolbar.appendChild(btnReset);
+
+      toolbar.appendChild(makeMermaidToolSep());
+
+      var btnDownload = makeMermaidToolBtn(ICON_DOWNLOAD, "Download SVG");
+      btnDownload.addEventListener("click", function (e) {
+        e.stopPropagation();
+        downloadSvg(svg);
+      });
+      toolbar.appendChild(btnDownload);
+
+      var btnExpand = makeMermaidToolBtn(ICON_EXPAND, "Expand");
+      btnExpand.addEventListener("click", function (e) {
+        e.stopPropagation();
+        openMermaidModal(svg);
+      });
+      toolbar.appendChild(btnExpand);
+
       wrapper.appendChild(toolbar);
 
       function apply() {
