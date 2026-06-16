@@ -397,8 +397,18 @@ function makeMermaidToolSep() {
 }
 
 function downloadSvg(svgEl) {
+  // Clone without pan/zoom transform so the full diagram is captured
+  var clean = svgEl.cloneNode(true);
+  clean.style.transform = "";
+  clean.style.transformOrigin = "";
+  // Ensure the SVG declares its natural dimensions so viewers render it fully
+  var vb = svgEl.viewBox && svgEl.viewBox.baseVal;
+  if (vb && vb.width && vb.height) {
+    clean.setAttribute("width", vb.width);
+    clean.setAttribute("height", vb.height);
+  }
   var serializer = new XMLSerializer();
-  var svgStr = serializer.serializeToString(svgEl);
+  var svgStr = serializer.serializeToString(clean);
   var blob = new Blob([svgStr], { type: "image/svg+xml" });
   var url = URL.createObjectURL(blob);
   var a = document.createElement("a");
