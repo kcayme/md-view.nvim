@@ -1,4 +1,4 @@
-*md-view.nvim.txt*           For NVIM v0.8.0          Last change: 2026 May 10
+*md-view.nvim.txt*          For NVIM v0.8.0          Last change: 2026 June 16
 
 ==============================================================================
 Table of Contents                             *md-view.nvim-table-of-contents*
