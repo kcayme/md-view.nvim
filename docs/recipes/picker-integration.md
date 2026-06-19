@@ -21,6 +21,8 @@ picker's confirm action/keymap. This previews only the files you pick — unlike
 
 ### fff.nvim
 
+Note: fff.nvim does not expose a selection hook, so this uses a global `BufEnter` autocommand — it fires whenever you open a markdown file, not only from fff.
+
 fff.nvim does not expose a stable selection callback (`on_open` or similar).
 The closest correct approach is to use a `BufEnter` autocommand that fires
 whenever fff opens a file:
@@ -42,22 +44,8 @@ adds a dedicated selection hook, wire `open({ path = ... })` there instead.
 
 ### snacks.nvim
 
-Add a custom confirm action to the files picker that previews the selected
-item, then performs the normal open:
-
-```lua
-require("snacks").picker.files({
-  confirm = function(picker, item)
-    picker:action("confirm") -- default open behavior
-    if item and item.file then
-      require("md-view").open({ path = item.file })
-    end
-  end,
-})
-```
-
-Or bind it to a key (e.g. `<c-p>`) instead of `confirm` to preview without
-changing the default Enter behavior:
+Bind a key (e.g. `<c-p>`) to a custom action to preview without changing the
+default Enter behavior — this is the recommended approach:
 
 ```lua
 require("snacks").picker.files({
@@ -75,6 +63,22 @@ require("snacks").picker.files({
   },
 })
 ```
+
+Alternatively, override `confirm` to preview the selected item and then
+perform the normal open:
+
+```lua
+require("snacks").picker.files({
+  confirm = function(picker, item)
+    picker:action("confirm") -- default open behavior
+    if item and item.file then
+      require("md-view").open({ path = item.file })
+    end
+  end,
+})
+```
+
+Note: `picker:action("confirm")` reproduces the default open action but was not found as an explicit example in the snacks docs — verify it against your snacks version.
 
 ### telescope.nvim
 
@@ -144,7 +148,7 @@ end
 
 ---
 
-## Per-picker setup
+### Per-picker setup
 
 ### dressing.nvim
 
