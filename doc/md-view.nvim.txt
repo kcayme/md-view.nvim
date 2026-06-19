@@ -1,4 +1,4 @@
-*md-view.nvim.txt*          For NVIM v0.8.0          Last change: 2026 June 16
+*md-view.nvim.txt*          For NVIM v0.8.0          Last change: 2026 June 19
 
 ==============================================================================
 Table of Contents                             *md-view.nvim-table-of-contents*
@@ -17,8 +17,8 @@ Table of Contents                             *md-view.nvim-table-of-contents*
   - Configuration Options                 |md-view.nvim-configuration-options|
   - Architecture                                   |md-view.nvim-architecture|
 1. Picker Integration                        |md-view.nvim-picker-integration|
-  - How it works                |md-view.nvim-picker-integration-how-it-works|
-  - Per-picker setup        |md-view.nvim-picker-integration-per-picker-setup|
+  - Preview a file picked from a file picker|md-view.nvim-picker-integration-preview-a-file-picked-from-a-file-picker|
+  - Choosing a backend for :MdViewList|md-view.nvim-picker-integration-choosing-a-backend-for-:mdviewlist|
   - Using picker.kind as a hint|md-view.nvim-picker-integration-using-picker.kind-as-a-hint|
   - Custom prompt              |md-view.nvim-picker-integration-custom-prompt|
   - Custom format_item tips|md-view.nvim-picker-integration-custom-format_item-tips|
@@ -72,6 +72,9 @@ FEATURES                                               *md-view.nvim-features*
 - **Auto-cleanup** — servers shut down when buffers close or Neovim exits
 - **Single Page Mode** — preview all your markdown files in 1 browser tab
 - **Table of Contents** — collapsible TOC sidebar with active-heading tracking and click-to-scroll
+- **File-picker preview** — preview a markdown file selected in fff.nvim,
+    snacks.nvim, telescope, or fzf-lua. See
+    docs/recipes/picker-integration.md <docs/recipes/picker-integration.md>.
 
 
 REQUIREMENTS                                       *md-view.nvim-requirements*
@@ -1550,8 +1553,168 @@ BROWSER DEPENDENCIES (CDN) ~
 ==============================================================================
 1. Picker Integration                        *md-view.nvim-picker-integration*
 
+This plugin involves two distinct picker concepts:
 
-HOW IT WORKS                    *md-view.nvim-picker-integration-how-it-works*
+1. **Preview a file picked from a file picker** — wire your file picker
+(fff.nvim, snacks.nvim, telescope.nvim, fzf-lua) so selecting a markdown
+file opens an `MdView` preview for it. See below.
+2. **Choosing a backend for :MdViewList** — `:MdViewList` uses
+`vim.ui.select` to list active previews; any plugin that overrides
+`vim.ui.select` takes over that UI. See
+|md-view.nvim-choosing-a-backend-for-`:mdviewlist`|.
+
+------------------------------------------------------------------------------
+
+PREVIEW A FILE PICKED FROM A FILE PICKER*md-view.nvim-picker-integration-preview-a-file-picked-from-a-file-picker*
+
+`require("md-view").open({ path = <file path> })` starts a preview for an
+arbitrary file without it having to be the current buffer. Wire it into your
+picker’s confirm action/keymap. This previews only the files you pick —
+unlike `auto_open`, which fires for every markdown buffer you visit.
+
+
+AUTO-PREVIEW ON OPEN (TOGGLEABLE) ~
+
+If instead you want a preview to open automatically whenever you _enter_ a
+markdown buffer — regardless of which picker (or command) opened it — use
+the built-in `auto_open` <auto-open.md> feature rather than wiring a custom
+autocommand. It registers an autocommand (default event `BufWinEnter`) that
+previews any markdown buffer you enter, and respects your `filetypes` setting:
+
+>lua
+    require("md-view").setup({
+      auto_open = { enable = true },
+    })
+<
+
+Toggle it on and off at runtime with:
+
+>lua
+    require("md-view").toggle_auto_open()
+<
+
+This is the simplest way to get auto-preview-on-open with a runtime toggle. The
+per-picker recipes below are for the narrower case of previewing _only_ the
+files you explicitly pick.
+
+
+FFF.NVIM ~
+
+fff.nvim has no hook for picker-scoped preview: its only selection hook,
+`select.select_window`, is a window router (overriding it clobbers fff’s
+split/tab routing), and its `keymaps` map only to built-in actions, not custom
+Lua functions. Use the built-in |md-view.nvim-`auto_open`| feature for
+auto-preview-on-open (note: previews _every_ markdown buffer you enter, not
+only picked files). For picker-scoped preview, use snacks.nvim, telescope, or
+fzf-lua below.
+
+
+SNACKS.NVIM ~
+
+Bind a key (e.g. `<c-p>`) to a custom action to preview without changing the
+default Enter behavior — this is the recommended approach:
+
+>lua
+    require("snacks").picker.files({
+      win = {
+        input = {
+          keys = { ["<c-p>"] = { "md_view", mode = { "n", "i" } } },
+        },
+      },
+      actions = {
+        md_view = function(picker, item)
+          if item and item.file then
+            require("md-view").open({ path = item.file })
+          end
+        end,
+      },
+    })
+<
+
+Alternatively, override `confirm` to preview the selected item and then perform
+the normal open:
+
+>lua
+    require("snacks").picker.files({
+      confirm = function(picker, item)
+        picker:action("confirm") -- default open behavior
+        if item and item.file then
+          require("md-view").open({ path = item.file })
+        end
+      end,
+    })
+<
+
+Note: `picker:action("confirm")` reproduces the default open action but was not
+found as an explicit example in the snacks docs — verify it against your
+snacks version.
+
+
+TELESCOPE.NVIM ~
+
+Attach a custom action in `attach_mappings` that reads the selected entry’s
+path:
+
+>lua
+    local actions = require("telescope.actions")
+    local action_state = require("telescope.actions.state")
+    
+    require("telescope.builtin").find_files({
+      attach_mappings = function(_, map)
+        local function preview_md(prompt_bufnr)
+          local entry = action_state.get_selected_entry()
+          actions.close(prompt_bufnr)
+          if entry and entry.path then
+            require("md-view").open({ path = entry.path })
+          end
+        end
+        map({ "i", "n" }, "<c-p>", preview_md)
+        return true
+      end,
+    })
+<
+
+`entry.path` is the absolute file path computed by telescope’s `find_files`
+entry maker (it combines `cwd` and the relative filename via a metatable).
+
+
+FZF-LUA ~
+
+Add a custom action; fzf-lua passes the selected entries as the first argument
+and an options table as the second:
+
+>lua
+    require("fzf-lua").files({
+      actions = {
+        ["ctrl-p"] = function(selected, opts)
+          local file = selected and require("fzf-lua").path.entry_to_file(selected[1], opts)
+          if file and file.path then
+            require("md-view").open({ path = file.path })
+          end
+        end,
+      },
+    })
+<
+
+`require("fzf-lua").path.entry_to_file(entry_str, opts)` strips fzf decorations
+(icons, line/col suffixes) and returns a table whose `.path` field is the
+absolute file path.
+
+
+MULTIPLE SELECTIONS ~
+
+`open({ path = ... })` previews one file. To preview several picked files, loop
+over the selected paths:
+
+>lua
+    for _, path in ipairs(selected_paths) do
+      require("md-view").open({ path = path })
+    end
+<
+
+------------------------------------------------------------------------------
+
+CHOOSING A BACKEND FOR :MDVIEWLIST*md-view.nvim-picker-integration-choosing-a-backend-for-:mdviewlist*
 
 `:MdViewList` calls `vim.ui.select` with the list of active previews. Any
 plugin that overrides `vim.ui.select` automatically takes over the picker —
@@ -1560,7 +1723,7 @@ options described below.
 
 ------------------------------------------------------------------------------
 
-PER-PICKER SETUP            *md-view.nvim-picker-integration-per-picker-setup*
+PER-PICKER SETUP ~
 
 
 DRESSING.NVIM ~
