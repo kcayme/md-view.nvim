@@ -197,17 +197,14 @@ M.restart = function()
   end
 end
 
----@param opts { path?: string }|nil
 ---@return nil
-M.toggle = function(opts)
-  opts = opts or {}
-
-  local bufnr = opts.path and resolve_buf_from_path(opts.path) or vim.api.nvim_get_current_buf()
+M.toggle = function()
+  local bufnr = vim.api.nvim_get_current_buf()
 
   if preview.get_by_buffer(bufnr) then
     M.stop(bufnr)
   else
-    M.open(opts)
+    M.open()
   end
 end
 
