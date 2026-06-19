@@ -19,42 +19,39 @@ arbitrary file without it having to be the current buffer. Wire it into your
 picker's confirm action/keymap. This previews only the files you pick — unlike
 `auto_open`, which fires for every markdown buffer you visit.
 
-To bind a key that opens *and* closes the preview, use
-`require("md-view").toggle({ path = <file path> })` instead — it starts the
-preview for that file if none is active, or stops it if one already is. Every
-recipe below works the same way with `toggle` swapped in for `open`. For
-example, the snacks.nvim keymap action becomes:
+### Auto-preview on open (toggleable)
+
+If instead you want a preview to open automatically whenever you *enter* a
+markdown buffer — regardless of which picker (or command) opened it — use the
+built-in [`auto_open`](auto-open.md) feature rather than wiring a custom
+autocommand. It registers an autocommand (default event `BufWinEnter`) that
+previews any markdown buffer you enter, and respects your `filetypes` setting:
 
 ```lua
-actions = {
-  md_view = function(picker, item)
-    if item and item.file then
-      require("md-view").toggle({ path = item.file })
-    end
-  end,
-},
-```
-
-### fff.nvim
-
-fff.nvim does not expose a stable selection callback (`on_open` or similar).
-The closest correct approach is a global `BufEnter` autocommand — note that it
-fires whenever you open a markdown file, not only from fff:
-
-```lua
-vim.api.nvim_create_autocmd("BufEnter", {
-  callback = function(ev)
-    local path = vim.api.nvim_buf_get_name(ev.buf)
-    if path:match("%.md$") then
-      require("md-view").open({ path = path })
-    end
-  end,
+require("md-view").setup({
+  auto_open = { enable = true },
 })
 ```
 
-This is functionally equivalent for most workflows: any markdown file opened
-by fff (or any other mechanism) gets a preview. If a future version of fff.nvim
-adds a dedicated selection hook, wire `open({ path = ... })` there instead.
+Toggle it on and off at runtime with:
+
+```lua
+require("md-view").toggle_auto_open()
+```
+
+This is the simplest way to get auto-preview-on-open with a runtime toggle. The
+per-picker recipes below are for the narrower case of previewing *only* the
+files you explicitly pick.
+
+### fff.nvim
+
+fff.nvim does not expose a stable selection callback (`on_open` or similar), so
+there is no picker-scoped hook to preview *only* the file you pick. The closest
+behavior is auto-preview-on-open — use the built-in
+[`auto_open`](#auto-preview-on-open-toggleable) feature described above, which
+previews any markdown buffer you enter (including those opened by fff). If a
+future version of fff.nvim adds a dedicated selection hook, wire
+`require("md-view").open({ path = ... })` there instead.
 
 ### snacks.nvim
 

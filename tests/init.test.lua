@@ -315,61 +315,6 @@ describe("md-view init", function()
     assert.is_false(create_called)
   end)
 
-  it("toggle({ path }) opens a preview for that file when none is active", function()
-    local created_bufnr
-    package.loaded["md-view.preview"] = {
-      create = function(opts)
-        created_bufnr = opts.bufnr
-      end,
-      get_by_buffer = function()
-        return nil
-      end,
-      destroy = function() end,
-      close = function() end,
-      get_active_previews = function()
-        return {}
-      end,
-    }
-    package.loaded["md-view"] = nil
-    M = require("md-view")
-    M.setup({ filetypes = { "markdown" } })
-
-    local path = vim.fn.fnamemodify("tests/previews/headings.md", ":p")
-    M.toggle({ path = path })
-
-    local expected = vim.fn.bufnr(path)
-    assert.is_true(expected ~= -1)
-    assert.are.equal(expected, created_bufnr)
-  end)
-
-  it("toggle({ path }) stops the preview for that file when one is active", function()
-    local destroyed_bufnr
-    local path = vim.fn.fnamemodify("tests/previews/headings.md", ":p")
-    local active_bufnr = vim.fn.bufadd(path)
-    vim.fn.bufload(active_bufnr)
-
-    package.loaded["md-view.preview"] = {
-      create = function() end,
-      get_by_buffer = function(bufnr)
-        return bufnr == active_bufnr and { bufnr = bufnr } or nil
-      end,
-      destroy = function(bufnr)
-        destroyed_bufnr = bufnr
-      end,
-      close = function() end,
-      get_active_previews = function()
-        return {}
-      end,
-    }
-    package.loaded["md-view"] = nil
-    M = require("md-view")
-    M.setup({ filetypes = { "markdown" } })
-
-    M.toggle({ path = path })
-
-    assert.are.equal(active_bufnr, destroyed_bufnr)
-  end)
-
   it("forwards palette to hub SSE when set_theme is called in hub mode", function()
     local hub_pushed = {}
     local fake_mux = {
