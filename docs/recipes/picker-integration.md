@@ -19,6 +19,22 @@ arbitrary file without it having to be the current buffer. Wire it into your
 picker's confirm action/keymap. This previews only the files you pick — unlike
 `auto_open`, which fires for every markdown buffer you visit.
 
+To bind a key that opens *and* closes the preview, use
+`require("md-view").toggle({ path = <file path> })` instead — it starts the
+preview for that file if none is active, or stops it if one already is. Every
+recipe below works the same way with `toggle` swapped in for `open`. For
+example, the snacks.nvim keymap action becomes:
+
+```lua
+actions = {
+  md_view = function(picker, item)
+    if item and item.file then
+      require("md-view").toggle({ path = item.file })
+    end
+  end,
+},
+```
+
 ### fff.nvim
 
 fff.nvim does not expose a stable selection callback (`on_open` or similar).
