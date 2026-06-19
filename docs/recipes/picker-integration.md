@@ -45,13 +45,13 @@ files you explicitly pick.
 
 ### fff.nvim
 
-fff.nvim does not expose a stable selection callback (`on_open` or similar), so
-there is no picker-scoped hook to preview *only* the file you pick. The closest
-behavior is auto-preview-on-open — use the built-in
-[`auto_open`](#auto-preview-on-open-toggleable) feature described above, which
-previews any markdown buffer you enter (including those opened by fff). If a
-future version of fff.nvim adds a dedicated selection hook, wire
-`require("md-view").open({ path = ... })` there instead.
+fff.nvim has no hook for picker-scoped preview: its only selection hook,
+`select.select_window`, is a window router (overriding it clobbers fff's
+split/tab routing), and its `keymaps` map only to built-in actions, not custom
+Lua functions. Use the built-in
+[`auto_open`](#auto-preview-on-open-toggleable) feature for auto-preview-on-open
+(note: previews *every* markdown buffer you enter, not only picked files). For
+picker-scoped preview, use snacks.nvim, telescope, or fzf-lua below.
 
 ### snacks.nvim
 
