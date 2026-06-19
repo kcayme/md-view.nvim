@@ -21,11 +21,9 @@ picker's confirm action/keymap. This previews only the files you pick — unlike
 
 ### fff.nvim
 
-Note: fff.nvim does not expose a selection hook, so this uses a global `BufEnter` autocommand — it fires whenever you open a markdown file, not only from fff.
-
 fff.nvim does not expose a stable selection callback (`on_open` or similar).
-The closest correct approach is to use a `BufEnter` autocommand that fires
-whenever fff opens a file:
+The closest correct approach is a global `BufEnter` autocommand — note that it
+fires whenever you open a markdown file, not only from fff:
 
 ```lua
 vim.api.nvim_create_autocmd("BufEnter", {
