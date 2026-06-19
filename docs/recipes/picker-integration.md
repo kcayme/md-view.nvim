@@ -1,12 +1,152 @@
 # Picker Integration
 
-## How it works
+This plugin involves two distinct picker concepts:
+
+1. **Preview a file picked from a file picker** — wire your file picker
+   (fff.nvim, snacks.nvim, telescope.nvim, fzf-lua) so selecting a markdown
+   file opens an `MdView` preview for it. See below.
+2. **Choosing a backend for `:MdViewList`** — `:MdViewList` uses
+   `vim.ui.select` to list active previews; any plugin that overrides
+   `vim.ui.select` takes over that UI. See
+   [Choosing a backend for `:MdViewList`](#choosing-a-backend-for-mdviewlist).
+
+---
+
+## Preview a file picked from a file picker
+
+`require("md-view").open({ path = <file path> })` starts a preview for an
+arbitrary file without it having to be the current buffer. Wire it into your
+picker's confirm action/keymap. This previews only the files you pick — unlike
+`auto_open`, which fires for every markdown buffer you visit.
+
+### fff.nvim
+
+fff.nvim does not expose a stable selection callback (`on_open` or similar).
+The closest correct approach is a global `BufEnter` autocommand — note that it
+fires whenever you open a markdown file, not only from fff:
+
+```lua
+vim.api.nvim_create_autocmd("BufEnter", {
+  callback = function(ev)
+    local path = vim.api.nvim_buf_get_name(ev.buf)
+    if path:match("%.md$") then
+      require("md-view").open({ path = path })
+    end
+  end,
+})
+```
+
+This is functionally equivalent for most workflows: any markdown file opened
+by fff (or any other mechanism) gets a preview. If a future version of fff.nvim
+adds a dedicated selection hook, wire `open({ path = ... })` there instead.
+
+### snacks.nvim
+
+Bind a key (e.g. `<c-p>`) to a custom action to preview without changing the
+default Enter behavior — this is the recommended approach:
+
+```lua
+require("snacks").picker.files({
+  win = {
+    input = {
+      keys = { ["<c-p>"] = { "md_view", mode = { "n", "i" } } },
+    },
+  },
+  actions = {
+    md_view = function(picker, item)
+      if item and item.file then
+        require("md-view").open({ path = item.file })
+      end
+    end,
+  },
+})
+```
+
+Alternatively, override `confirm` to preview the selected item and then
+perform the normal open:
+
+```lua
+require("snacks").picker.files({
+  confirm = function(picker, item)
+    picker:action("confirm") -- default open behavior
+    if item and item.file then
+      require("md-view").open({ path = item.file })
+    end
+  end,
+})
+```
+
+Note: `picker:action("confirm")` reproduces the default open action but was not found as an explicit example in the snacks docs — verify it against your snacks version.
+
+### telescope.nvim
+
+Attach a custom action in `attach_mappings` that reads the selected entry's
+path:
+
+```lua
+local actions = require("telescope.actions")
+local action_state = require("telescope.actions.state")
+
+require("telescope.builtin").find_files({
+  attach_mappings = function(_, map)
+    local function preview_md(prompt_bufnr)
+      local entry = action_state.get_selected_entry()
+      actions.close(prompt_bufnr)
+      if entry and entry.path then
+        require("md-view").open({ path = entry.path })
+      end
+    end
+    map({ "i", "n" }, "<c-p>", preview_md)
+    return true
+  end,
+})
+```
+
+`entry.path` is the absolute file path computed by telescope's `find_files`
+entry maker (it combines `cwd` and the relative filename via a metatable).
+
+### fzf-lua
+
+Add a custom action; fzf-lua passes the selected entries as the first argument
+and an options table as the second:
+
+```lua
+require("fzf-lua").files({
+  actions = {
+    ["ctrl-p"] = function(selected, opts)
+      local file = selected and require("fzf-lua").path.entry_to_file(selected[1], opts)
+      if file and file.path then
+        require("md-view").open({ path = file.path })
+      end
+    end,
+  },
+})
+```
+
+`require("fzf-lua").path.entry_to_file(entry_str, opts)` strips fzf decorations
+(icons, line/col suffixes) and returns a table whose `.path` field is the
+absolute file path.
+
+### Multiple selections
+
+`open({ path = ... })` previews one file. To preview several picked files,
+loop over the selected paths:
+
+```lua
+for _, path in ipairs(selected_paths) do
+  require("md-view").open({ path = path })
+end
+```
+
+---
+
+## Choosing a backend for `:MdViewList`
 
 `:MdViewList` calls `vim.ui.select` with the list of active previews. Any plugin that overrides `vim.ui.select` automatically takes over the picker — no md-view-specific configuration is required beyond the optional `picker.*` options described below.
 
 ---
 
-## Per-picker setup
+### Per-picker setup
 
 ### dressing.nvim
 

@@ -44,6 +44,9 @@ installed. I wanted something that's lightweight and just works out of the box �
 - **Auto-cleanup** — servers shut down when buffers close or Neovim exits
 - **Single Page Mode** — preview all your markdown files in 1 browser tab
 - **Table of Contents** — collapsible TOC sidebar with active-heading tracking and click-to-scroll
+- **File-picker preview** — preview a markdown file selected in fff.nvim,
+  snacks.nvim, telescope, or fzf-lua. See
+  [docs/recipes/picker-integration.md](docs/recipes/picker-integration.md).
 
 ## Requirements
 
