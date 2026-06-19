@@ -89,6 +89,23 @@ local function init_assets()
   end
 end
 
+-- Resolve a file path to a loaded buffer, ensuring filetype detection has run.
+local function resolve_buf_from_path(path)
+  local abspath = vim.fn.fnamemodify(path, ":p")
+  local bufnr = vim.fn.bufadd(abspath)
+  vim.fn.bufload(bufnr)
+
+  if vim.bo[bufnr].filetype == "" then
+    local ft = vim.filetype.match({ filename = abspath, buf = bufnr })
+
+    if ft then
+      vim.bo[bufnr].filetype = ft
+    end
+  end
+
+  return bufnr
+end
+
 ---@param opts MdViewOptions|nil
 M.setup = function(opts)
   current_live_theme = nil
@@ -101,7 +118,7 @@ M.setup = function(opts)
   end
 end
 
----@param opts { verbose?: boolean, follow_focus?: boolean, browser?: string }|nil
+---@param opts { verbose?: boolean, follow_focus?: boolean, browser?: string, path?: string }|nil
 M.open = function(opts)
   opts = opts or {}
 
@@ -109,7 +126,7 @@ M.open = function(opts)
     config.setup({})
   end
 
-  local bufnr = vim.api.nvim_get_current_buf()
+  local bufnr = opts.path and resolve_buf_from_path(opts.path) or vim.api.nvim_get_current_buf()
   local existing_preview = preview.get_by_buffer(bufnr)
   local preview_opts = config.options
   local verbose = opts.verbose == nil and config.options.verbose or opts.verbose
@@ -128,6 +145,7 @@ M.open = function(opts)
     verbose = verbose,
     follow_focus = (opts.follow_focus ~= nil and existing_preview and opts.follow_focus),
     browser = (opts.browser ~= nil and opts.browser),
+    bufnr = bufnr,
   }
 
   preview.create(vim.tbl_extend("force", preview_opts, call_opts))

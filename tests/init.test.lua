@@ -263,6 +263,58 @@ describe("md-view init", function()
     assert.are.equal("dark", created_opts[1].theme.mode)
   end)
 
+  it("open({ path }) previews the buffer for that file", function()
+    local created_bufnr
+    package.loaded["md-view.preview"] = {
+      create = function(opts)
+        created_bufnr = opts.bufnr
+      end,
+      get_by_buffer = function()
+        return nil
+      end,
+      destroy = function() end,
+      close = function() end,
+      get_active_previews = function()
+        return {}
+      end,
+    }
+    package.loaded["md-view"] = nil
+    M = require("md-view")
+    M.setup({ filetypes = { "markdown" } })
+
+    local path = vim.fn.fnamemodify("tests/previews/headings.md", ":p")
+    M.open({ path = path })
+
+    local expected = vim.fn.bufnr(path)
+    assert.is_true(expected ~= -1)
+    assert.are.equal(expected, created_bufnr)
+  end)
+
+  it("open({ path }) rejects a non-markdown file", function()
+    local create_called = false
+    package.loaded["md-view.preview"] = {
+      create = function()
+        create_called = true
+      end,
+      get_by_buffer = function()
+        return nil
+      end,
+      destroy = function() end,
+      close = function() end,
+      get_active_previews = function()
+        return {}
+      end,
+    }
+    package.loaded["md-view"] = nil
+    M = require("md-view")
+    M.setup({ filetypes = { "markdown" } })
+
+    local path = vim.fn.fnamemodify("lua/md-view/init.lua", ":p")
+    M.open({ path = path, verbose = false })
+
+    assert.is_false(create_called)
+  end)
+
   it("forwards palette to hub SSE when set_theme is called in hub mode", function()
     local hub_pushed = {}
     local fake_mux = {
