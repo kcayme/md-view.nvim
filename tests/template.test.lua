@@ -605,4 +605,12 @@ describe("render_mux", function()
     local html = template.render_mux(opts)
     assert.truthy(html:find('data%-toc%-max%-depth="2"'))
   end)
+
+  it("toc destroy is ownership-guarded so closing a background tab keeps the sidebar", function()
+    local opts = make_opts({ table_of_contents = { enable = true, position = "left", max_depth = 6 } })
+    local html = template.render_mux(opts)
+    -- Hub panels share one #hub-toc body; without the guard, closing an inactive tab wipes it.
+    assert.truthy(html:find("tocBody.dataset.tocOwner = ownerId", 1, true))
+    assert.truthy(html:find("tocBody.dataset.tocOwner === ownerId", 1, true))
+  end)
 end)

@@ -1022,12 +1022,16 @@ var ICON_TOC_CHEVRON_RIGHT =
 //     sets up IntersectionObserver. panelEl is the optional .hub-panel div; when
 //     provided the observer skips active-state updates unless panelEl is active.
 //   destroy() — disconnects observer, clears tocEl body. Call when a panel is removed.
+// Hub panels share one tocEl: destroying a background panel must not wipe the active one's contents.
+var tocOwnerSeq = 0;
+
 function makeToc(tocEl, opts) {
   var maxDepth = (opts && opts.maxDepth) || 6;
   var collapsed = {};
   var observer = null;
   var currentContainer = null;
   var currentPanelEl = null;
+  var ownerId = String(++tocOwnerSeq);
 
   var tocBody = tocEl.querySelector(".toc-body");
 
@@ -1125,6 +1129,7 @@ function makeToc(tocEl, opts) {
     }
 
     tocBody.innerHTML = "";
+    tocBody.dataset.tocOwner = ownerId;
 
     var selector = [];
     for (var i = 1; i <= maxDepth; i++) {
@@ -1191,7 +1196,10 @@ function makeToc(tocEl, opts) {
       observer = null;
     }
 
-    tocBody.innerHTML = "";
+    if (tocBody.dataset.tocOwner === ownerId) {
+      tocBody.innerHTML = "";
+      delete tocBody.dataset.tocOwner;
+    }
   }
 
   return { update: update, destroy: destroy };
