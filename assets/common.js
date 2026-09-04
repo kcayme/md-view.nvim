@@ -342,9 +342,7 @@ function makeErrorUI() {
   return { notifyError: notifyError, clearErrors: clearErrors };
 }
 
-// Scrolls to the closest element matching a scroll data event.
-// data.percent: 0-1 fraction of document height
-// data.line: source line number to scroll nearest annotated element into view
+// Scrolls to a scroll event's target: data.percent (0-1 of doc height) or data.line (source line).
 function scrollToSource(container, data) {
   if (data.percent != null) {
     var maxScroll = document.documentElement.scrollHeight - window.innerHeight;
@@ -611,9 +609,7 @@ function openMermaidModal(svgEl) {
   });
 }
 
-// Adds wheel-zoom + drag-pan + double-click-reset and a VS Code-style floating
-// toolbar (zoom-out, %, zoom-in, reset) to each rendered mermaid SVG.
-// Wheel zoom requires Ctrl/Meta so page scroll still works over diagrams.
+// Adds Ctrl/Meta wheel-zoom (so page scroll still works), drag-pan, dbl-click-reset and a zoom toolbar per SVG.
 function enhanceMermaidZoom(container) {
   container
     .querySelectorAll(".mermaid-wrapper:not([data-zoom-enhanced]):not(.notation-error)")

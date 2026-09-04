@@ -5,10 +5,7 @@ M.__index = M
 ---@field clients table[]
 ---@field last table<string, table>
 
--- Event types whose last value is replayed to newly-connected clients.
--- content: delivered fresh via on_client_added on every connect — replay would be redundant.
--- scroll: ephemeral position — replaying on reconnect causes a jarring viewport jump.
--- close: one-shot signal — must never be replayed to reconnecting clients.
+-- Replayed to new clients; content is re-sent on connect anyway, and scroll/close must never replay.
 local REPLAY_EVENTS = {
   palette = true,
   theme = true,

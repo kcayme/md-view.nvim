@@ -2,9 +2,7 @@ local M = {}
 
 local vendor = require("md-view.vendor")
 
--- NOTE: innerHTML usage here is safe — this is a local-only preview server
--- (127.0.0.1) rendering the user's own markdown buffer content. No untrusted
--- external content is involved. morphdom requires innerHTML for DOM diffing.
+-- innerHTML is safe here (127.0.0.1 server, user's own buffer) and morphdom requires it for diffing.
 
 -- Asset cache: nil = not yet tried, false = failed, string = loaded content
 local function load_asset(name, cache)

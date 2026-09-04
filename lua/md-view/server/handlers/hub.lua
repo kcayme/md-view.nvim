@@ -112,9 +112,7 @@ function M:add_client(client)
     end
   end
 
-  -- Replay per-preview state in fixed order: preview_added first (creates panel),
-  -- then palette/theme (style the panel). Arbitrary table iteration would apply
-  -- palette before the panel exists, losing the style.
+  -- Fixed replay order matters: preview_added creates the panel that palette/theme then style.
   for bufnr, _ in pairs(self.registry) do
     local per_preview = self.last[bufnr]
 

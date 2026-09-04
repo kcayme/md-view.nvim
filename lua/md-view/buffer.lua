@@ -213,10 +213,7 @@ function M.new(opts)
   local uv = opts.uv or (vim.uv or vim.loop)
   local debounce = opts.debounce or util.debounce
   local vim_api = opts.vim_api
-    -- vim.api is the base; bufwinid and schedule are injected on top.
-    -- Neither key exists in vim.api today so there is no collision.
-    -- "keep" means our custom keys (bufwinid, schedule, split) win if vim.api ever gains
-    -- keys with the same names in a future Neovim version.
+    -- "keep" so our bufwinid/schedule/split win if vim.api ever gains keys with those names.
     or vim.tbl_extend("keep", {
       bufwinid = vim.fn.bufwinid,
       schedule = vim.schedule,

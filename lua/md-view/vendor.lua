@@ -126,9 +126,7 @@ M.fetch = function(opts)
 
   fetching = true
 
-  -- Collect and deduplicate highlight themes to fetch.
-  -- Accepts opts.highlight_themes (array), opts.highlight_theme (single, backward compat),
-  -- or defaults to both built-in light ("github") and dark ("vs2015") themes.
+  -- Dedupe from opts.highlight_themes, else opts.highlight_theme (legacy), else github + vs2015.
   local highlight_themes = {}
   local seen = {}
 
