@@ -527,13 +527,6 @@ Running `:MdView` opens a browser tab with the rendered markdown and a live SVG 
 | **Scroll sync** | Yes | Yes | Yes | No | N/A | Yes (splitview) |
 | **Maintained** | Yes | Yes | Yes | Archived | Yes | Yes |
 
-**Why md-view.nvim?**
-
-- **No external runtime.** markdown-preview.nvim requires Node.js and yarn. peek.nvim requires Deno. glow.nvim requires a Go binary. md-view.nvim is pure Lua — it uses Neovim's built-in libuv TCP server and offloads rendering to the browser via CDN scripts. Nothing to install beyond the plugin itself.
-
-- **Mermaid support without the weight.** The inline/extmark plugins (render-markdown.nvim, markview.nvim) are great for in-editor rendering but cannot draw diagrams. md-view.nvim gives you live mermaid SVGs alongside standard markdown, without the Node.js/Deno overhead of the other browser-based options.
-
-- **Broad notation support without the runtime.** Beyond mermaid, md-view.nvim renders KaTeX math, Graphviz, WaveDrom, Nomnoml, ABC notation, and Vega-Lite charts — all via CDN, no extra installs. The other browser-based options stop at mermaid.
 
 ## How It Works
 
