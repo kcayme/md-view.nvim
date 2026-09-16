@@ -230,8 +230,8 @@ local function toast_vars(opts)
   local toast = opts and opts.toast
   local enable = (toast == nil or toast.enable ~= false) and "true" or "false"
   local debounce_ms = tostring((toast and toast.debounce_ms) or 500)
-  local duration_ms = tostring((toast and toast.duration_ms) or 1500)
-  local position = (toast and toast.position) or "bottom-left"
+  local duration_ms = tostring((toast and toast.duration_ms) or 3000)
+  local position = (toast and toast.position) or "top-right"
 
   return enable, debounce_ms, duration_ms, position
 end

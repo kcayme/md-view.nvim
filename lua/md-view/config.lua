@@ -133,8 +133,8 @@ M.defaults = {
   toast = {
     enable = true,
     debounce_ms = 500,
-    duration_ms = 1500,
-    position = "bottom-left",
+    duration_ms = 3000,
+    position = "top-right",
   },
 }
 

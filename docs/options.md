@@ -39,8 +39,8 @@ Full reference for all options accepted by `require("md-view").setup()`. All opt
 | `table_of_contents.max_depth` | `integer` | `6` | Maximum heading level included in the TOC. `1` shows only `h1`, `2` shows `h1`–`h2`, and so on. Headings deeper than this level are omitted. |
 | `toast.enable` | `boolean` | `true` | When `true`, the preview shows a brief "Updated" pill after live changes land, so you can tell the page caught up with the buffer. |
 | `toast.debounce_ms` | `integer` | `500` | Quiet period before the pill appears. Every update resets the timer, so a burst of edits produces one pill once typing settles rather than one per keystroke. |
-| `toast.duration_ms` | `integer` | `1500` | How long the pill stays visible before fading out. |
-| `toast.position` | `"bottom-left"\|"bottom-right"\|"top-left"\|"top-right"` | `"bottom-left"` | Corner the pill appears in. Defaults to bottom-left because the notation-error button occupies the bottom-right corner. |
+| `toast.duration_ms` | `integer` | `3000` | How long the pill stays visible before fading out. |
+| `toast.position` | `"bottom-left"\|"bottom-right"\|"top-left"\|"top-right"` | `"top-right"` | Corner the pill appears in. Avoid `"bottom-right"` (the notation-error button sits there) and, when `table_of_contents.position = "right"`, `"top-right"` (the sidebar sits there). |
 
 ---
 

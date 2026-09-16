@@ -169,8 +169,8 @@ require("md-view").setup({
   toast = {
     enable      = true,
     debounce_ms = 500,           -- quiet period before the pill appears
-    duration_ms = 1500,          -- how long it stays visible
-    position    = "bottom-left", -- "bottom-left" | "bottom-right" | "top-left" | "top-right"
+    duration_ms = 3000,        -- how long it stays visible
+    position    = "top-right", -- "bottom-left" | "bottom-right" | "top-left" | "top-right"
   },
 })
 ```
@@ -245,8 +245,8 @@ Full [LuaLS / EmmyLua](https://luals.github.io/wiki/annotations/) types for the 
 ---@class MdViewToastOptions
 ---@field enable boolean Show a brief "Updated" pill in the preview after live changes land.
 ---@field debounce_ms integer Quiet period before the pill appears; every update resets it. Default: `500`.
----@field duration_ms integer How long the pill stays visible before fading. Default: `1500`.
----@field position MdViewToastPosition Corner the pill appears in. Default: `"bottom-left"` (bottom-right is taken by the notation-error button).
+---@field duration_ms integer How long the pill stays visible before fading. Default: `3000`.
+---@field position MdViewToastPosition Corner the pill appears in. Default: `"top-right"`. Note `"bottom-right"` is taken by the notation-error button, and `"top-right"` overlaps a right-positioned TOC sidebar.
 
 ---@class MdViewOptions
 ---@field port integer Port for the local preview server. `0` = auto-assign a free port (recommended).

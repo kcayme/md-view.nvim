@@ -346,7 +346,7 @@ function makeErrorUI() {
 // opts: { debounceMs, durationMs }. Returns { ping() } — call on every re-render.
 function makeToast(opts) {
   var debounceMs = opts && opts.debounceMs > 0 ? opts.debounceMs : 500;
-  var durationMs = opts && opts.durationMs > 0 ? opts.durationMs : 1500;
+  var durationMs = opts && opts.durationMs > 0 ? opts.durationMs : 3000;
 
   var el = document.createElement("div");
 
