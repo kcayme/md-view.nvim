@@ -166,6 +166,12 @@ require("md-view").setup({
     position = "left",   -- "left" | "right"
     max_depth = 6,        -- 1–6; headings deeper than this are omitted
   },
+  toast = {
+    enable      = true,
+    debounce_ms = 500,           -- quiet period before the pill appears
+    duration_ms = 1500,          -- how long it stays visible
+    position    = "bottom-left", -- "bottom-left" | "bottom-right" | "top-left" | "top-right"
+  },
 })
 ```
 
@@ -234,6 +240,14 @@ Full [LuaLS / EmmyLua](https://luals.github.io/wiki/annotations/) types for the 
 ---@field position MdViewTocPosition Which side of the preview the sidebar appears on. Default: `"left"`.
 ---@field max_depth integer Maximum heading level shown (`1`–`6`). Headings deeper than this are omitted. Default: `6`.
 
+---@alias MdViewToastPosition "bottom-left"|"bottom-right"|"top-left"|"top-right"
+
+---@class MdViewToastOptions
+---@field enable boolean Show a brief "Updated" pill in the preview after live changes land.
+---@field debounce_ms integer Quiet period before the pill appears; every update resets it. Default: `500`.
+---@field duration_ms integer How long the pill stays visible before fading. Default: `1500`.
+---@field position MdViewToastPosition Corner the pill appears in. Default: `"bottom-left"` (bottom-right is taken by the notation-error button).
+
 ---@class MdViewOptions
 ---@field port integer Port for the local preview server. `0` = auto-assign a free port (recommended).
 ---@field host string Bind address. Must be a loopback address (`127.0.0.1`, `::1`, `localhost`).
@@ -251,6 +265,8 @@ Full [LuaLS / EmmyLua](https://luals.github.io/wiki/annotations/) types for the 
 ---@field auto_open MdViewAutoOpenOptions Automatic preview-on-enter settings.
 ---@field picker MdViewPickerOptions `:MdViewList` picker settings.
 ---@field single_page MdViewSinglePageOptions Single-page (hub) mode settings.
+---@field table_of_contents MdViewTableOfContentsOptions Table-of-contents sidebar settings.
+---@field toast MdViewToastOptions Live-update toast settings.
 ```
 
 </details>

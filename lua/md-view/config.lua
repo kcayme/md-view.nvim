@@ -57,6 +57,14 @@ local M = {}
 ---@field position MdViewTocPosition
 ---@field max_depth integer
 
+---@alias MdViewToastPosition "bottom-left"|"bottom-right"|"top-left"|"top-right"
+
+---@class MdViewToastOptions
+---@field enable boolean
+---@field debounce_ms integer
+---@field duration_ms integer
+---@field position MdViewToastPosition
+
 ---@class MdViewOptions
 ---@field port integer
 ---@field host string
@@ -75,6 +83,7 @@ local M = {}
 ---@field picker MdViewPickerOptions
 ---@field single_page MdViewSinglePageOptions
 ---@field table_of_contents MdViewTableOfContentsOptions
+---@field toast MdViewToastOptions
 
 M.defaults = {
   port = 0,
@@ -120,6 +129,12 @@ M.defaults = {
     enable = false,
     position = "left",
     max_depth = 6,
+  },
+  toast = {
+    enable = true,
+    debounce_ms = 500,
+    duration_ms = 1500,
+    position = "bottom-left",
   },
 }
 
@@ -196,6 +211,17 @@ local SCHEMA = {
         enable = { type = "boolean" },
         position = { type = "string", enum = { "left", "right" } },
         max_depth = { type = "number" },
+      },
+    },
+    toast = {
+      fields = {
+        enable = { type = "boolean" },
+        debounce_ms = { type = "number" },
+        duration_ms = { type = "number" },
+        position = {
+          type = "string",
+          enum = { "bottom-left", "bottom-right", "top-left", "top-right" },
+        },
       },
     },
   },

@@ -153,7 +153,7 @@
 </style>
 <style id="md-view-theme">{{THEME_CSS}}</style>
 </head>
-<body data-toc-enable="{{TOC_ENABLE}}" data-toc-position="{{TOC_POSITION}}" data-toc-max-depth="{{TOC_MAX_DEPTH}}">
+<body data-toc-enable="{{TOC_ENABLE}}" data-toc-position="{{TOC_POSITION}}" data-toc-max-depth="{{TOC_MAX_DEPTH}}" data-toast-enable="{{TOAST_ENABLE}}" data-toast-debounce="{{TOAST_DEBOUNCE_MS}}" data-toast-duration="{{TOAST_DURATION_MS}}" data-toast-position="{{TOAST_POSITION}}">
 <div id="md-toc">
   <div class="toc-header">
     <span class="toc-title">CONTENTS</span>
@@ -206,6 +206,14 @@
     });
   }
 
+  var toast = document.body.getAttribute("data-toast-enable") === "true"
+    ? makeToast({
+        debounceMs: parseInt(document.body.getAttribute("data-toast-debounce"), 10),
+        durationMs: parseInt(document.body.getAttribute("data-toast-duration"), 10),
+      })
+    : null;
+  var firstContent = true;
+
   var source = new EventSource("/events");
   source.onerror = function() {
     console.warn("md-view: SSE connection lost, waiting to reconnect\u2026");
@@ -225,8 +233,11 @@
   source.addEventListener("content", function(e) {
     var d = safeParse(e.data);
     if (!d) return;
-    renderMarkdown(d.content);
+    var changed = renderMarkdown(d.content);
     if (toc) toc.update(container);
+    // Skip the replay sent on connect — that is not a live change.
+    if (changed && !firstContent && toast) toast.ping();
+    firstContent = false;
   });
 
   source.addEventListener("theme", function(e) {

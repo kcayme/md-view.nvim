@@ -226,6 +226,16 @@ local function toc_vars(opts)
   return enable, position, max_depth
 end
 
+local function toast_vars(opts)
+  local toast = opts and opts.toast
+  local enable = (toast == nil or toast.enable ~= false) and "true" or "false"
+  local debounce_ms = tostring((toast and toast.debounce_ms) or 500)
+  local duration_ms = tostring((toast and toast.duration_ms) or 1500)
+  local position = (toast and toast.position) or "bottom-left"
+
+  return enable, debounce_ms, duration_ms, position
+end
+
 M.render = function(opts, filename)
   local tmpl = load_template()
   if not tmpl then
@@ -302,6 +312,21 @@ M.render = function(opts, filename)
       return toc_max_depth
     end)
 
+  local toast_enable, toast_debounce, toast_duration, toast_position = toast_vars(opts)
+  html = html
+    :gsub("{{TOAST_ENABLE}}", function()
+      return toast_enable
+    end)
+    :gsub("{{TOAST_DEBOUNCE_MS}}", function()
+      return toast_debounce
+    end)
+    :gsub("{{TOAST_DURATION_MS}}", function()
+      return toast_duration
+    end)
+    :gsub("{{TOAST_POSITION}}", function()
+      return toast_position
+    end)
+
   return html
 end
 
@@ -374,6 +399,21 @@ M.render_mux = function(opts)
     end)
     :gsub("{{TOC_MAX_DEPTH}}", function()
       return toc_max_depth
+    end)
+
+  local toast_enable, toast_debounce, toast_duration, toast_position = toast_vars(opts)
+  mux_html = mux_html
+    :gsub("{{TOAST_ENABLE}}", function()
+      return toast_enable
+    end)
+    :gsub("{{TOAST_DEBOUNCE_MS}}", function()
+      return toast_debounce
+    end)
+    :gsub("{{TOAST_DURATION_MS}}", function()
+      return toast_duration
+    end)
+    :gsub("{{TOAST_POSITION}}", function()
+      return toast_position
     end)
 
   return mux_html

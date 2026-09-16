@@ -257,6 +257,34 @@ describe("template", function()
       local html = template.render(opts, "test.md")
       assert.truthy(html:find('data%-toc%-max%-depth="3"'))
     end)
+
+    it("injects toast defaults when opts.toast is absent", function()
+      local html = template.render(make_opts(), "test.md")
+      assert.truthy(html:find('data%-toast%-enable="true"'))
+      assert.truthy(html:find('data%-toast%-debounce="500"'))
+      assert.truthy(html:find('data%-toast%-duration="1500"'))
+      assert.truthy(html:find('data%-toast%-position="bottom%-left"'))
+    end)
+
+    it("injects TOAST_ENABLE as false when disabled", function()
+      local html = template.render(make_opts({ toast = { enable = false } }), "test.md")
+      assert.truthy(html:find('data%-toast%-enable="false"'))
+    end)
+
+    it("injects toast timings and position", function()
+      local opts = make_opts({
+        toast = { enable = true, debounce_ms = 800, duration_ms = 2000, position = "top-right" },
+      })
+      local html = template.render(opts, "test.md")
+      assert.truthy(html:find('data%-toast%-debounce="800"'))
+      assert.truthy(html:find('data%-toast%-duration="2000"'))
+      assert.truthy(html:find('data%-toast%-position="top%-right"'))
+    end)
+
+    it("inlines the toast helper from common.js", function()
+      local html = template.render(make_opts(), "test.md")
+      assert.truthy(html:find("function makeToast(", 1, true))
+    end)
   end)
 
   describe("error handling", function()
@@ -602,6 +630,22 @@ describe("render_mux", function()
     local opts = make_opts({ table_of_contents = { enable = false, position = "left", max_depth = 2 } })
     local html = template.render_mux(opts)
     assert.truthy(html:find('data%-toc%-max%-depth="2"'))
+  end)
+
+  it("injects toast attributes into mux render", function()
+    local opts = make_opts({
+      toast = { enable = true, debounce_ms = 700, duration_ms = 1200, position = "bottom-right" },
+    })
+    local html = template.render_mux(opts)
+    assert.truthy(html:find('data%-toast%-enable="true"'))
+    assert.truthy(html:find('data%-toast%-debounce="700"'))
+    assert.truthy(html:find('data%-toast%-duration="1200"'))
+    assert.truthy(html:find('data%-toast%-position="bottom%-right"'))
+  end)
+
+  it("hub toasts only for the active panel", function()
+    local html = template.render_mux(make_opts())
+    assert.truthy(html:find("activeId == d.id && hubToast", 1, true))
   end)
 
   it("toc destroy is ownership-guarded so closing a background tab keeps the sidebar", function()

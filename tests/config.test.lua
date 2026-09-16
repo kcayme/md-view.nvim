@@ -258,6 +258,35 @@ describe("config", function()
       assert.is_true(warned)
     end)
 
+    it("sets toast defaults", function()
+      config.setup({})
+      assert.is_not_nil(config.options.toast)
+      assert.is_true(config.options.toast.enable)
+      assert.are.equal(500, config.options.toast.debounce_ms)
+      assert.are.equal(1500, config.options.toast.duration_ms)
+      assert.are.equal("bottom-left", config.options.toast.position)
+    end)
+
+    it("merges toast user options over defaults", function()
+      config.setup({ toast = { enable = false, debounce_ms = 800 } })
+      assert.is_false(config.options.toast.enable)
+      assert.are.equal(800, config.options.toast.debounce_ms)
+      assert.are.equal(1500, config.options.toast.duration_ms)
+    end)
+
+    it("warns on unknown toast position", function()
+      local warned = false
+      local orig_notify = vim.notify
+      vim.notify = function(msg, level)
+        if level == vim.log.levels.WARN and msg:find("position") then
+          warned = true
+        end
+      end
+      config.setup({ toast = { position = "middle" } })
+      vim.notify = orig_notify
+      assert.is_true(warned)
+    end)
+
     describe("validation", function()
       it("notifies error and aborts setup when port is wrong type", function()
         local errored = false
@@ -324,6 +353,20 @@ describe("config", function()
           end
         end
         config.setup({ table_of_contents = { enable = "yes" } })
+        vim.notify = orig_notify
+        assert.is_true(errored)
+        assert.is_nil(config.options)
+      end)
+
+      it("errors on non-number toast.debounce_ms", function()
+        local errored = false
+        local orig_notify = vim.notify
+        vim.notify = function(_, level)
+          if level == vim.log.levels.ERROR then
+            errored = true
+          end
+        end
+        config.setup({ toast = { debounce_ms = "fast" } })
         vim.notify = orig_notify
         assert.is_true(errored)
         assert.is_nil(config.options)

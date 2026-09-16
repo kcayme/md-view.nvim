@@ -342,6 +342,43 @@ function makeErrorUI() {
   return { notifyError: notifyError, clearErrors: clearErrors };
 }
 
+// Creates the "Updated" pill shown after live changes settle, appended to document.body.
+// opts: { debounceMs, durationMs }. Returns { ping() } — call on every re-render.
+function makeToast(opts) {
+  var debounceMs = opts && opts.debounceMs > 0 ? opts.debounceMs : 500;
+  var durationMs = opts && opts.durationMs > 0 ? opts.durationMs : 1500;
+
+  var el = document.createElement("div");
+
+  el.className = "md-toast";
+  el.setAttribute("role", "status");
+  el.setAttribute("aria-live", "polite");
+  el.innerHTML = '<span class="md-toast-dot"></span><span class="md-toast-label">Updated</span>';
+  document.body.appendChild(el);
+
+  var showTimer = null;
+  var hideTimer = null;
+
+  function ping() {
+    if (showTimer) clearTimeout(showTimer);
+    if (hideTimer) clearTimeout(hideTimer);
+
+    el.classList.remove("show");
+
+    showTimer = setTimeout(function () {
+      showTimer = null;
+      el.classList.add("show");
+
+      hideTimer = setTimeout(function () {
+        hideTimer = null;
+        el.classList.remove("show");
+      }, durationMs);
+    }, debounceMs);
+  }
+
+  return { ping: ping };
+}
+
 // Scrolls to a scroll event's target: data.percent (0-1 of doc height) or data.line (source line).
 function scrollToSource(container, data) {
   if (data.percent != null) {
@@ -1000,9 +1037,11 @@ function makeRenderer(container, fileId, onError, onClearErrors) {
   }
 
   return function renderMarkdown(text) {
-    if (text === lastContent) return;
+    if (text === lastContent) return false;
     lastContent = text;
     _render(text);
+
+    return true;
   };
 }
 
