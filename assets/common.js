@@ -15,12 +15,9 @@ var renderProgress = (window.__mdviewRender = { done: 0, pending: 0, errors: [] 
 
 function trackRender(promise) {
   renderProgress.pending++;
-
-  var settle = function () {
+  promise.finally(function () {
     renderProgress.pending--;
-  };
-
-  promise.then(settle, settle);
+  });
 }
 
 // Wraps an async forEach callback so each call is tracked.

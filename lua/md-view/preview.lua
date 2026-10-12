@@ -146,11 +146,11 @@ local function init_hub(opts)
 end
 
 -- Handle an open() call when a preview already exists for bufnr.
-local function handle_preview(bufnr, opts, sp)
+local function handle_preview(bufnr, opts)
   local preview = active_previews[bufnr]
 
-  -- per-entry: terminal previews live in the hub even when single_page is off
-  if ((sp and sp.enable) or not preview.server) and _mux and _mux.server then
+  -- per-entry: hub entries have no server of their own (terminal previews join the hub regardless)
+  if not preview.server and _mux and _mux.server then
     local url = "http://" .. opts.host .. ":" .. _mux.port
     -- a terminal-only preview asked for in the browser: give it its hub tab now
     local revealed = _mux:show(bufnr)
@@ -401,7 +401,7 @@ M.create = function(opts)
   local sse_instance = nil
 
   if active_previews[bufnr] then
-    handle_preview(bufnr, opts, sp)
+    handle_preview(bufnr, opts)
 
     return
   end

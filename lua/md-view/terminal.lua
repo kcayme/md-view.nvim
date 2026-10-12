@@ -303,7 +303,6 @@ local DIACRITIC_CODEPOINTS = {
   0x1D243,
   0x1D244,
 }
-local PLACEHOLDER_CODEPOINT = 0x10EEEE
 local ROWS_PER_TILE = 200 -- must stay below #DIACRITIC_CODEPOINTS
 local MAX_TILES_PER_VIEWER = 64
 local IMAGE_ID_BASE = 0xA0D000
@@ -347,7 +346,7 @@ local METRICS_JS = [[
 })()
 ]]
 
-local placeholder = vim.fn.nr2char(PLACEHOLDER_CODEPOINT)
+local placeholder = vim.fn.nr2char(0x10EEEE)
 local diacritics = vim.tbl_map(vim.fn.nr2char, DIACRITIC_CODEPOINTS)
 local namespace = vim.api.nvim_create_namespace("md_view_terminal")
 
@@ -748,9 +747,10 @@ M.scroll = function(buf, topline)
 end
 
 -- Entry point for the tmux pane's Neovim: turn the current window into a viewer.
----@return integer viewer bufnr
+---@return { [1]: integer, [2]: integer, [3]: integer } viewer bufnr, width, height
 M.viewer = function()
   local buf = vim.api.nvim_get_current_buf()
+  local win = vim.api.nvim_get_current_win()
 
   vim.o.termguicolors = true
   vim.o.laststatus = 0
@@ -767,7 +767,6 @@ M.viewer = function()
   -- the source Neovim is this pane's only RPC socket client; tell it the new size
   vim.api.nvim_create_autocmd("VimResized", {
     callback = function()
-      local win = vim.api.nvim_get_current_win()
       local size = { vim.api.nvim_win_get_width(win), vim.api.nvim_win_get_height(win) }
 
       for _, chan in ipairs(vim.api.nvim_list_chans()) do
@@ -778,7 +777,7 @@ M.viewer = function()
     end,
   })
 
-  return buf
+  return { buf, vim.api.nvim_win_get_width(win), vim.api.nvim_win_get_height(win) }
 end
 
 -- ── Surfaces: where the viewer lives ─────────────────────────────────────
@@ -831,8 +830,6 @@ local function split_surface(on_close, on_resize)
       M[name](buf, ...)
     end,
     close = function()
-      pcall(vim.api.nvim_del_augroup_by_name, "md_view_terminal_viewer")
-
       if vim.api.nvim_win_is_valid(win) then
         vim.api.nvim_win_close(win, true)
       end
@@ -867,7 +864,7 @@ local function tmux_surface(on_ready, on_close)
     50,
     vim.schedule_wrap(function()
       local ok, channel = pcall(vim.fn.sockconnect, "pipe", socket, { rpc = true })
-      local buf, width, height
+      local viewer_info, buf, width, height
 
       attempts = attempts + 1
 
@@ -884,9 +881,8 @@ local function tmux_surface(on_ready, on_close)
       timer:stop()
       timer:close()
 
-      buf = vim.rpcrequest(channel, "nvim_exec_lua", "return require('md-view.terminal').viewer()", {})
-      width = vim.rpcrequest(channel, "nvim_win_get_width", 0)
-      height = vim.rpcrequest(channel, "nvim_win_get_height", 0)
+      viewer_info = vim.rpcrequest(channel, "nvim_exec_lua", "return require('md-view.terminal').viewer()", {})
+      buf, width, height = viewer_info[1], viewer_info[2], viewer_info[3]
 
       on_ready({
         width = function()
@@ -1015,6 +1011,15 @@ local function capture(session)
     end
   end
 
+  local function set_viewport(height, on_done)
+    cdp_send(client, "Emulation.setDeviceMetricsOverride", {
+      width = css_width,
+      height = height,
+      deviceScaleFactor = session.scale,
+      mobile = false,
+    }, target, on_done)
+  end
+
   local function capture_tiles(total_rows, start_row)
     local rows = math.min(ROWS_PER_TILE, total_rows - start_row)
 
@@ -1055,49 +1060,25 @@ local function capture(session)
   end
 
   -- Shrink the viewport first so scrollHeight reflects the content, not the last viewport.
-  cdp_send(
-    client,
-    "Emulation.setDeviceMetricsOverride",
-    {
-      width = css_width,
-      height = 600,
-      deviceScaleFactor = session.scale,
-      mobile = false,
-    },
-    target,
-    function()
-      cdp_send(client, "Runtime.evaluate", { expression = METRICS_JS, returnByValue = true }, target, function(result)
-        local metrics = result and result.result and result.result.value
-        local page_height
+  set_viewport(600, function()
+    cdp_send(client, "Runtime.evaluate", { expression = METRICS_JS, returnByValue = true }, target, function(result)
+      local metrics = result and result.result and result.result.value
 
-        if not metrics then
-          finish()
+      if not metrics then
+        finish()
 
-          return
-        end
+        return
+      end
 
-        page_height = metrics.height
-        session.line_map = metrics.lines
-        report_render_errors(session, metrics.errors)
+      session.line_map = metrics.lines
+      report_render_errors(session, metrics.errors)
 
-        -- A viewport as tall as the page keeps the SSE scroll events from moving it.
-        cdp_send(
-          client,
-          "Emulation.setDeviceMetricsOverride",
-          {
-            width = css_width,
-            height = page_height,
-            deviceScaleFactor = session.scale,
-            mobile = false,
-          },
-          target,
-          function()
-            capture_tiles(math.ceil(page_height * session.scale / cell.height), 0)
-          end
-        )
+      -- A viewport as tall as the page keeps the SSE scroll events from moving it.
+      set_viewport(metrics.height, function()
+        capture_tiles(math.ceil(metrics.height * session.scale / cell.height), 0)
       end)
-    end
-  )
+    end)
+  end)
 end
 
 -- Captures once a render newer than the last capture settles, or on timeout; a newer poll supersedes this one.
@@ -1158,10 +1139,7 @@ end
 ---@param captured { cols: integer, cell: { width: integer, height: integer } }|nil what the last capture used
 ---@return boolean
 local function size_changed(captured, cols, cell)
-  return not captured
-    or captured.cols ~= cols
-    or captured.cell.width ~= cell.width
-    or captured.cell.height ~= cell.height
+  return not vim.deep_equal(captured, { cols = cols, cell = cell })
 end
 
 -- Debounced on its own timer so a resize never cancels an edit's pending capture.
@@ -1255,19 +1233,6 @@ local function register_source_autocmds(session, debounce_ms)
       sync_scroll(session)
     end,
   })
-  vim.api.nvim_create_autocmd({ "BufWipeout", "BufDelete" }, {
-    group = group,
-    buffer = session.bufnr,
-    callback = function()
-      M.close(session.bufnr)
-    end,
-  })
-  vim.api.nvim_create_autocmd("VimLeavePre", {
-    group = group,
-    callback = function()
-      M.close(session.bufnr)
-    end,
-  })
 end
 
 ---@param bufnr integer|nil
@@ -1327,14 +1292,8 @@ end
 ---@param bufnr integer
 ---@param start_server fun() starts this buffer's preview server without opening a browser
 M.open = function(target, bufnr, start_server)
-  local config = require("md-view.config")
-  local options, binary, preview, url, session
-
-  if not config.options then
-    config.setup({})
-  end
-
-  options = config.options
+  local options = require("md-view.config").options
+  local binary, preview, url, session
 
   if sessions[bufnr] then
     require("md-view.util").notify(options, "[md-view] Terminal preview already open")

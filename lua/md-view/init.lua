@@ -71,6 +71,10 @@ local function register_auto_open_augroup()
       end
     end,
   })
+
+  if not auto_open_supported() then
+    warn_auto_open_unsupported()
+  end
 end
 
 local function is_valid_filetype(bufnr, verbose)
@@ -130,10 +134,6 @@ M.setup = function(opts)
 
   if config.options.auto_open.enable then
     register_auto_open_augroup()
-
-    if not auto_open_supported() then
-      warn_auto_open_unsupported()
-    end
   end
 end
 
@@ -268,10 +268,6 @@ M.toggle_auto_open = function()
     util.notify(config.options, "[md-view] auto-open enabled", vim.log.levels.INFO)
 
     register_auto_open_augroup()
-
-    if not auto_open_supported() then
-      warn_auto_open_unsupported()
-    end
   else
     util.notify(config.options, "[md-view] auto-open disabled", vim.log.levels.INFO)
   end
