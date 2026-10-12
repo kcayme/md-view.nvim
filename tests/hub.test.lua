@@ -352,6 +352,102 @@ describe("handlers/hub routing", function()
     assert.equals(h, res._sse_instance)
   end)
 
+  it("should not replay preview_added for a hidden (terminal-only) preview", function()
+    local h = hub.new()
+    local written = {}
+
+    h:register(7, "/tmp/notes.md", "filename", true)
+    h:push("content", { id = 7, content = "# hi" })
+    h:add_client({
+      write = function(_, payload)
+        table.insert(written, payload)
+      end,
+    })
+
+    assert.is_nil(table.concat(written):find("preview_added", 1, true))
+  end)
+
+  it("show() reveals a hidden preview once and replays it to new hub pages", function()
+    local h = hub.new()
+    local written = {}
+
+    h:register(7, "/tmp/notes.md", "filename", true)
+
+    assert.is_true(h:show(7))
+    assert.is_false(h:show(7))
+
+    h:add_client({
+      write = function(_, payload)
+        table.insert(written, payload)
+      end,
+    })
+
+    assert.truthy(table.concat(written):find("event: preview_added", 1, true))
+  end)
+
+  it("serve_sse tags /view page clients so they don't count as hub tabs", function()
+    local h = hub.new()
+    local res = mock_res()
+    local function fake_client()
+      return {
+        write = function() end,
+        is_closing = function()
+          return false
+        end,
+        close = function() end,
+      }
+    end
+    local view_client = fake_client()
+    local tab_client = fake_client()
+
+    hub.serve_sse({ query = { view = "1" } }, res, { hub = h })
+    res._sse_instance:add_client(view_client)
+    h:add_client(tab_client)
+
+    assert.equals(2, #h.clients)
+    assert.equals(1, h:page_client_count())
+
+    -- the router removes a disconnected /view page through the same object
+    res._sse_instance:remove_client(view_client)
+    assert.equals(1, #h.clients)
+  end)
+
+  it("serves a single preview at /view for a registered id", function()
+    local h = hub.new()
+    local res = mock_res()
+    local bufnr = vim.api.nvim_create_buf(false, true)
+
+    require("md-view.config").setup({ table_of_contents = { enable = true }, toast = { enable = true } })
+    h:register(bufnr, "/tmp/notes.md", "filename")
+    router.dispatch(
+      hub.routes,
+      { method = "GET", path = "/view", query = { id = tostring(bufnr) }, params = {} },
+      res,
+      { hub = h }
+    )
+
+    assert.equals("200 OK", res._status)
+    assert.truthy(res._body:find('data-preview-id="' .. bufnr .. '"', 1, true))
+    assert.truthy(res._body:find('data-events-url="/sse?view=1"', 1, true))
+    assert.truthy(res._body:find('data-toc-enable="false"', 1, true))
+    assert.truthy(res._body:find('data-toast-enable="false"', 1, true))
+    vim.api.nvim_buf_delete(bufnr, { force = true })
+  end)
+
+  it("returns 400 for /view with an unregistered id", function()
+    local h = hub.new()
+    local res = mock_res()
+
+    router.dispatch(
+      hub.routes,
+      { method = "GET", path = "/view", query = { id = "99999" }, params = {} },
+      res,
+      { hub = h }
+    )
+
+    assert.equals("400 Bad Request", res._status)
+  end)
+
   it("exports a routes list with expected paths", function()
     assert.equals("table", type(hub.routes))
     assert.is_true(#hub.routes > 0)

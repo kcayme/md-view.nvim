@@ -477,4 +477,31 @@ describe("config", function()
       end)
     end)
   end)
+
+  describe("with_terminal_overrides", function()
+    it("should force the terminal overrides and keep the rest of each option", function()
+      local opts = vim.tbl_deep_extend("force", config.defaults, {
+        single_page = { enable = false, tab_label = "parent", close_by = "page" },
+        table_of_contents = { enable = true, position = "right" },
+        toast = { enable = true, duration_ms = 1000 },
+      })
+      local result = config.with_terminal_overrides(opts)
+
+      assert.is_true(result.single_page.enable)
+      assert.are.equal("parent", result.single_page.tab_label)
+      assert.are.equal("page", result.single_page.close_by)
+      assert.is_false(result.table_of_contents.enable)
+      assert.are.equal("right", result.table_of_contents.position)
+      assert.is_false(result.toast.enable)
+      assert.are.equal(1000, result.toast.duration_ms)
+    end)
+
+    it("should not modify the options passed in", function()
+      local opts = vim.tbl_deep_extend("force", config.defaults, { toast = { enable = true } })
+
+      config.with_terminal_overrides(opts)
+
+      assert.is_true(opts.toast.enable)
+    end)
+  end)
 end)

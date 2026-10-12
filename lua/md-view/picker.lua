@@ -54,7 +54,7 @@ M.open = function()
 
     local url = "http://" .. (config.host or "127.0.0.1") .. ":" .. item.port
     local preview = previews[item.bufnr]
-    local has_clients = (preview and preview.sse and #preview.sse.clients > 0) or (hub and #hub.clients > 0)
+    local has_clients = (preview and preview.sse and #preview.sse.clients > 0) or (hub and hub:page_client_count() > 0)
 
     if has_clients then
       util.notify(config, "[md-view] Preview already open at " .. url, vim.log.levels.INFO)

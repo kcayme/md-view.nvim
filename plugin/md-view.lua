@@ -1,14 +1,28 @@
 local util = require("md-view.util")
 
+local PREVIEW_TARGETS = { "browser", "split", "tmux" }
+
 vim.api.nvim_create_user_command("MdView", function(cmd_opts)
   util.safe_call("MdView", function()
     local opts = { follow_focus = true }
-    if cmd_opts.args ~= "" then
+
+    if vim.tbl_contains(PREVIEW_TARGETS, cmd_opts.args) then
+      opts.target = cmd_opts.args
+    elseif cmd_opts.args ~= "" then
+      -- any other argument is a browser command, which implies the browser preview
+      opts.target = "browser"
       opts.browser = cmd_opts.args
     end
+
     require("md-view").open(opts)
   end)
-end, { desc = "Open markdown preview in browser", nargs = "?" })
+end, {
+  desc = "Open markdown preview (browser, or split/tmux for the terminal preview)",
+  nargs = "?",
+  complete = function()
+    return PREVIEW_TARGETS
+  end,
+})
 
 vim.api.nvim_create_user_command("MdViewStop", function()
   util.safe_call("MdViewStop", function()

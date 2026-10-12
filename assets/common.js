@@ -10,6 +10,26 @@ function safeParse(raw) {
 
 var vizPromise = typeof Viz !== "undefined" ? Viz.instance() : null;
 
+// Render progress (done renders, pending async notations, current errors), polled by the terminal preview.
+var renderProgress = (window.__mdviewRender = { done: 0, pending: 0, errors: [] });
+
+function trackRender(promise) {
+  renderProgress.pending++;
+
+  var settle = function () {
+    renderProgress.pending--;
+  };
+
+  promise.then(settle, settle);
+}
+
+// Wraps an async forEach callback so each call is tracked.
+function trackEach(fn) {
+  return function (el) {
+    trackRender(fn(el));
+  };
+}
+
 var md = window
   .markdownit({
     html: true,
@@ -303,6 +323,7 @@ function makeErrorUI() {
     console.error("md-view: " + notation + " render error", src || "");
 
     errorEntries.push({ notation: notation, source: src || "" });
+    renderProgress.errors = errorEntries.slice();
 
     if (errorFlushTimer) clearTimeout(errorFlushTimer);
 
@@ -335,6 +356,7 @@ function makeErrorUI() {
 
   function clearErrors() {
     errorEntries = [];
+    renderProgress.errors = [];
     fab.style.display = "none";
     popupEl.classList.remove("show");
   }
@@ -853,7 +875,7 @@ function makeRenderer(container, fileId, onError, onClearErrors) {
     }
 
     if (typeof mermaid !== "undefined") {
-      (async function () {
+      trackRender((async function () {
         try {
           await mermaid.run({ nodes: mermaidNodes });
           fixMermaidErrors();
@@ -861,7 +883,7 @@ function makeRenderer(container, fileId, onError, onClearErrors) {
         } catch (e) {
           fixMermaidErrors();
         }
-      })();
+      })());
     }
 
     if (typeof katex !== "undefined") {
@@ -892,7 +914,7 @@ function makeRenderer(container, fileId, onError, onClearErrors) {
       var graphvizEls = container.querySelectorAll(".graphviz-wrapper:not([data-rendered])");
 
       if (graphvizEls.length > 0) {
-        (async function () {
+        trackRender((async function () {
           var viz;
 
           try {
@@ -926,7 +948,7 @@ function makeRenderer(container, fileId, onError, onClearErrors) {
 
             el.setAttribute("data-rendered", "true");
           });
-        })();
+        })());
       }
     }
 
@@ -1002,7 +1024,7 @@ function makeRenderer(container, fileId, onError, onClearErrors) {
     }
 
     if (typeof vegaEmbed !== "undefined") {
-      container.querySelectorAll(".vegalite-wrapper:not([data-rendered])").forEach(async function (el) {
+      container.querySelectorAll(".vegalite-wrapper:not([data-rendered])").forEach(trackEach(async function (el) {
         var sourceEl = el.querySelector(".vegalite-source");
 
         if (!sourceEl) return;
@@ -1030,10 +1052,11 @@ function makeRenderer(container, fileId, onError, onClearErrors) {
           el.classList.add("notation-error");
           onError("Vega-Lite", source);
         }
-      });
+      }));
     }
 
     attachCopyButtons(container);
+    renderProgress.done++;
   }
 
   return function renderMarkdown(text) {

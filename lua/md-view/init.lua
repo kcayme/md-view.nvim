@@ -118,7 +118,7 @@ M.setup = function(opts)
   end
 end
 
----@param opts { verbose?: boolean, follow_focus?: boolean, browser?: string, path?: string }|nil
+---@param opts { verbose?: boolean, follow_focus?: boolean, browser?: string, path?: string, target?: MdViewPreviewTarget }|nil
 M.open = function(opts)
   opts = opts or {}
 
@@ -130,6 +130,7 @@ M.open = function(opts)
   local existing_preview = preview.get_by_buffer(bufnr)
   local preview_opts = config.options
   local verbose = opts.verbose == nil and config.options.verbose or opts.verbose
+  local target = opts.target or config.options.preview.target
 
   if not is_valid_filetype(bufnr, verbose) then
     return
@@ -146,9 +147,23 @@ M.open = function(opts)
     follow_focus = (opts.follow_focus ~= nil and existing_preview and opts.follow_focus),
     browser = (opts.browser ~= nil and opts.browser),
     bufnr = bufnr,
+    target = target,
   }
 
-  preview.create(vim.tbl_extend("force", preview_opts, call_opts))
+  local merged_opts = vim.tbl_extend("force", preview_opts, call_opts)
+
+  if target ~= "browser" then
+    merged_opts = config.with_terminal_overrides(merged_opts)
+
+    -- terminal.open runs its preflight checks first and starts the server only if they pass
+    require("md-view.terminal").open(target, bufnr, function()
+      preview.create(merged_opts)
+    end)
+
+    return
+  end
+
+  preview.create(merged_opts)
 
   if current_live_theme and existing_preview and existing_preview.sse then
     existing_preview.sse:push("palette", { css = get_live_css() })

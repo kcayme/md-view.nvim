@@ -350,4 +350,92 @@ describe("md-view init", function()
     end
     assert.is_true(found, "palette not forwarded to hub")
   end)
+
+  describe("preview target", function()
+    local terminal_calls
+    local created_opts
+
+    before_each(function()
+      terminal_calls = {}
+      created_opts = nil
+      package.loaded["md-view.terminal"] = {
+        open = function(target, bufnr, start_server)
+          table.insert(terminal_calls, { target = target, bufnr = bufnr, start_server = start_server })
+        end,
+      }
+      package.loaded["md-view.preview"].create = function(opts)
+        create_called = true
+        created_opts = opts
+      end
+      vim.bo.filetype = "markdown"
+    end)
+
+    after_each(function()
+      package.loaded["md-view.terminal"] = nil
+    end)
+
+    it("should open the browser preview by default", function()
+      M.open()
+
+      assert.is_true(create_called)
+      assert.are.equal("browser", created_opts.target)
+      assert.are.same({}, terminal_calls)
+    end)
+
+    it("should hand split to the terminal preview without starting a server yet", function()
+      M.open({ target = "split" })
+
+      assert.is_false(create_called)
+      assert.are.equal(1, #terminal_calls)
+      assert.are.equal("split", terminal_calls[1].target)
+      assert.are.equal(vim.api.nvim_get_current_buf(), terminal_calls[1].bufnr)
+    end)
+
+    it("should use preview.target from config when no target is given", function()
+      M.setup({ preview = { target = "tmux" } })
+      M.open()
+
+      assert.are.equal("tmux", terminal_calls[1].target)
+    end)
+
+    it("should let an explicit browser target override a terminal config", function()
+      M.setup({ preview = { target = "split" } })
+      M.open({ target = "browser" })
+
+      assert.is_true(create_called)
+      assert.are.same({}, terminal_calls)
+    end)
+
+    it("should start the server with the terminal target when the terminal preview asks", function()
+      M.setup({ single_page = { tab_label = "parent" } })
+      M.open({ target = "split" })
+      terminal_calls[1].start_server()
+
+      assert.is_true(create_called)
+      assert.are.equal("split", created_opts.target)
+      -- the full config reaches preview.create, not just the per-call options
+      assert.are.equal("127.0.0.1", created_opts.host)
+      assert.is_not_nil(created_opts.theme)
+      -- forcing the hub keeps the rest of single_page
+      assert.are.equal("parent", created_opts.single_page.tab_label)
+    end)
+
+    it("should put the terminal preview's server in the hub even when single_page is off", function()
+      M.setup({ single_page = { enable = false } })
+      M.open({ target = "split" })
+      terminal_calls[1].start_server()
+
+      assert.is_true(created_opts.single_page.enable)
+      assert.is_false(require("md-view.config").options.single_page.enable)
+    end)
+
+    it("should apply every terminal override to the terminal preview's server", function()
+      M.setup({ table_of_contents = { enable = true }, toast = { enable = true } })
+      M.open({ target = "split" })
+      terminal_calls[1].start_server()
+
+      assert.is_false(created_opts.table_of_contents.enable)
+      assert.is_false(created_opts.toast.enable)
+    end)
+  end)
 end)
