@@ -1,4 +1,4 @@
-*md-view.nvim.txt*        For NVIM v0.8.0       Last change: 2026 September 16
+*md-view.nvim.txt*         For NVIM v0.8.0        Last change: 2026 October 12
 
 ==============================================================================
 Table of Contents                             *md-view.nvim-table-of-contents*
@@ -9,7 +9,6 @@ Table of Contents                             *md-view.nvim-table-of-contents*
   - Installation                                   |md-view.nvim-installation|
   - Configuration                                 |md-view.nvim-configuration|
   - Recipes                                             |md-view.nvim-recipes|
-  - Offline Support                             |md-view.nvim-offline-support|
   - Usage                                                 |md-view.nvim-usage|
   - Comparison                                       |md-view.nvim-comparison|
   - How It Works                                   |md-view.nvim-how-it-works|
@@ -33,9 +32,7 @@ Table of Contents                             *md-view.nvim-table-of-contents*
 5. Links                                                  |md-view.nvim-links|
 Browser-based markdown preview for Neovim with live mermaid diagram rendering.
 
-Opens a browser tab that renders your markdown buffer — including mermaid
-diagrams as SVG — and updates live as you type. Scroll sync keeps the browser
-viewport aligned with your cursor position.
+Opens a browser tab that renders your markdown buffer in real-time.
 
 
 
@@ -43,9 +40,8 @@ viewport aligned with your cursor position.
 WHY ANOTHER MARKDOWN PREVIEW PLUGIN?*md-view.nvim-why-another-markdown-preview-plugin?*
 
 I heavily use mermaid diagrams in my markdown files. The in-editor previewers I
-tried don’t render them, and the browser-based ones that do (like
-markdown-preview.nvim) need Node.js or Deno installed. I wanted something
-that’s lightweight and just works out of the box — no runtime, no setup.
+tried don’t render them, and the browser-based ones that do. I wanted
+something that’s lightweight and just works out of the box.
 
 - **Mermaid out of the box** — most previewers can’t render mermaid diagrams
     at all. The ones that can need a Node.js or Deno runtime. This one just loads
@@ -543,12 +539,6 @@ RECIPES                                                 *md-view.nvim-recipes*
 - Single-page mode <docs/recipes/single-page-mode.md> — multiplex all previews into one browser tab
 
 
-OFFLINE SUPPORT                                 *md-view.nvim-offline-support*
-
-md-view.nvim can work offline by caching vendor assets locally. This is useful
-when developing without internet access or for reproducible deployments.
-
-
 AUTO-FETCH ON SETUP ~
 
 `setup()` automatically fetches vendor assets the first time it runs
@@ -618,25 +608,6 @@ The plugin does not set any keymaps. Bind the commands yourself:
 >lua
     vim.keymap.set("n", "<leader>mp", "<cmd>MdViewToggle<cr>", { desc = "Toggle markdown preview" })
 <
-
-
-EXAMPLE ~
-
-Given a markdown file with a mermaid block:
-
->markdown
-    # My Document
-    
-    Some text here.
-    
-    ```mermaid
-    graph LR
-      A --> B --> C
-    ```
-<
-
-Running `:MdView` opens a browser tab with the rendered markdown and a live SVG
-diagram.
 
 
 COMPARISON                                           *md-view.nvim-comparison*
