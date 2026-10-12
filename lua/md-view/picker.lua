@@ -8,6 +8,13 @@ local function default_format(item, max_name_len, cfg)
   return string.format("%-" .. max_name_len .. "s  %s", item.name, url)
 end
 
+-- Terminal-only previews (hidden hub entries) are shown in the terminal viewer, not the browser.
+local function is_terminal_only(bufnr, preview, hub)
+  local entry = hub and not preview.server and hub.registry and hub.registry[bufnr]
+
+  return entry ~= nil and entry.hidden == true
+end
+
 M.open = function()
   local previews = require("md-view").get_active_previews()
   local preview_mod = require("md-view.preview")
@@ -21,14 +28,16 @@ M.open = function()
     local item_name = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t")
     local port = preview.port or (hub and hub.port)
 
-    items[#items + 1] = {
-      bufnr = bufnr,
-      port = port,
-      name = item_name,
-    }
+    if not is_terminal_only(bufnr, preview, hub) then
+      items[#items + 1] = {
+        bufnr = bufnr,
+        port = port,
+        name = item_name,
+      }
 
-    if #item_name > max_name_len then
-      max_name_len = #item_name
+      if #item_name > max_name_len then
+        max_name_len = #item_name
+      end
     end
   end
 

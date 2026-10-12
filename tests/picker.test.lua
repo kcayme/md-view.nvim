@@ -217,5 +217,59 @@ describe("picker", function()
       preview_mod.get_mux = orig_get_mux
       restore_previews()
     end)
+
+    it("should list only browser previews when some are terminal-only", function()
+      stub_previews({
+        [1] = { port = nil, sse = nil },
+        [2] = { port = nil, sse = nil },
+      })
+      vim.api.nvim_buf_get_name = function(bufnr)
+        return "/path/to/doc" .. bufnr .. ".md"
+      end
+      vim.fn.fnamemodify = function(path, _)
+        return path:match("[^/]+$")
+      end
+
+      local preview_mod = require("md-view.preview")
+      local orig_get_mux = preview_mod.get_mux
+      preview_mod.get_mux = function()
+        return { port = 4999, clients = {}, registry = { [1] = { hidden = true }, [2] = {} } }
+      end
+
+      config.setup({ host = "127.0.0.1" })
+      picker.open()
+
+      assert.are.equal(1, #captured_items)
+      assert.are.equal(2, captured_items[1].bufnr)
+
+      preview_mod.get_mux = orig_get_mux
+      restore_previews()
+    end)
+
+    it("should report no active previews when all are terminal-only", function()
+      local notified
+
+      stub_previews({
+        [1] = { port = nil, sse = nil },
+      })
+      vim.notify = function(msg)
+        notified = msg
+      end
+
+      local preview_mod = require("md-view.preview")
+      local orig_get_mux = preview_mod.get_mux
+      preview_mod.get_mux = function()
+        return { port = 4999, clients = {}, registry = { [1] = { hidden = true } } }
+      end
+
+      config.setup({ host = "127.0.0.1" })
+      picker.open()
+
+      assert.is_nil(captured_items)
+      assert.truthy(notified and notified:find("No active previews", 1, true))
+
+      preview_mod.get_mux = orig_get_mux
+      restore_previews()
+    end)
   end)
 end)
