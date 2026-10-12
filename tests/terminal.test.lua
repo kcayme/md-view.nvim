@@ -125,3 +125,23 @@ describe("terminal.check_requirements", function()
     assert.truthy(messages(vim.log.levels.WARN)[1]:find("allow-passthrough", 1, true))
   end)
 end)
+
+describe("terminal.size_changed", function()
+  local cell = { width = 10, height = 21 }
+
+  it("should re-render when nothing has been captured yet", function()
+    assert.is_true(terminal.size_changed(nil, 80, cell))
+  end)
+
+  it("should re-render when the viewer width changes", function()
+    assert.is_true(terminal.size_changed({ cols = 80, cell = cell }, 60, cell))
+  end)
+
+  it("should re-render when the cell size changes (font zoom)", function()
+    assert.is_true(terminal.size_changed({ cols = 80, cell = cell }, 80, { width = 12, height = 25 }))
+  end)
+
+  it("should not re-render when only the height changed", function()
+    assert.is_false(terminal.size_changed({ cols = 80, cell = cell }, 80, { width = 10, height = 21 }))
+  end)
+end)

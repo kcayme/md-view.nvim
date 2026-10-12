@@ -70,6 +70,7 @@ local M = {}
 ---@class MdViewTerminalOptions
 ---@field browser string|nil Chromium-based executable for headless rendering; auto-detected when nil
 ---@field scale number device scale factor for the rendered page
+---@field resize_debounce_ms integer quiet time after the viewer is resized before it re-renders
 
 ---@class MdViewPreviewOptions
 ---@field target MdViewPreviewTarget where :MdView shows the preview; "split"/"tmux" are the terminal preview
@@ -152,6 +153,7 @@ M.defaults = {
     terminal = {
       browser = nil,
       scale = 1,
+      resize_debounce_ms = 200,
     },
   },
 }
@@ -262,6 +264,7 @@ local SCHEMA = {
           fields = {
             browser = { type = "string" },
             scale = { type = "number" },
+            resize_debounce_ms = { type = "number" },
           },
         },
       },

@@ -308,7 +308,6 @@ local ROWS_PER_TILE = 200 -- must stay below #DIACRITIC_CODEPOINTS
 local MAX_TILES_PER_VIEWER = 64
 local IMAGE_ID_BASE = 0xA0D000
 local DEFAULT_CELL = { width = 10, height = 20 }
-local RESIZE_DEBOUNCE_MS = 200
 -- Render-progress polling (window.__mdviewRender from common.js) used to capture as soon as a render settles.
 local RENDER_POLL_MS = 50
 local RENDER_TIMEOUT_MS = 3000
@@ -765,15 +764,30 @@ M.viewer = function()
       M.clear(buf)
     end,
   })
+  -- the source Neovim is this pane's only RPC socket client; tell it the new size
+  vim.api.nvim_create_autocmd("VimResized", {
+    callback = function()
+      local win = vim.api.nvim_get_current_win()
+      local size = { vim.api.nvim_win_get_width(win), vim.api.nvim_win_get_height(win) }
+
+      for _, chan in ipairs(vim.api.nvim_list_chans()) do
+        if chan.mode == "rpc" and chan.stream == "socket" then
+          pcall(vim.rpcnotify, chan.id, "nvim_exec_lua", "require('md-view.terminal').viewer_resized(...)", size)
+        end
+      end
+    end,
+  })
 
   return buf
 end
 
 -- ── Surfaces: where the viewer lives ─────────────────────────────────────
 
-local function split_surface(on_close)
+local function split_surface(on_close, on_resize)
   local source_win = vim.api.nvim_get_current_win()
   local buf = vim.api.nvim_create_buf(false, true)
+  local group = vim.api.nvim_create_augroup("md_view_terminal_viewer", { clear = true })
+  local resize_events = { "VimResized" }
   local win
 
   vim.cmd("botright vsplit")
@@ -787,7 +801,22 @@ local function split_surface(on_close)
     once = true,
     callback = function()
       M.clear(buf)
+      pcall(vim.api.nvim_del_augroup_by_name, "md_view_terminal_viewer")
       vim.schedule(on_close)
+    end,
+  })
+
+  -- WinResized (0.9+) catches the split alone being resized; VimResized the whole terminal
+  if vim.fn.exists("##WinResized") == 1 then
+    table.insert(resize_events, "WinResized")
+  end
+
+  vim.api.nvim_create_autocmd(resize_events, {
+    group = group,
+    callback = function()
+      if vim.api.nvim_win_is_valid(win) then
+        on_resize()
+      end
     end,
   })
 
@@ -802,6 +831,8 @@ local function split_surface(on_close)
       M[name](buf, ...)
     end,
     close = function()
+      pcall(vim.api.nvim_del_augroup_by_name, "md_view_terminal_viewer")
+
       if vim.api.nvim_win_is_valid(win) then
         vim.api.nvim_win_close(win, true)
       end
@@ -858,12 +889,15 @@ local function tmux_surface(on_ready, on_close)
       height = vim.rpcrequest(channel, "nvim_win_get_height", 0)
 
       on_ready({
-        -- ponytail: pane size read once; re-query on tmux resize if it matters
         width = function()
           return width
         end,
         height = function()
           return height
+        end,
+        -- updated from the pane's Neovim through M.viewer_resized
+        set_size = function(new_width, new_height)
+          width, height = new_width, new_height
         end,
         call = function(name, ...)
           local sent = pcall(
@@ -970,6 +1004,7 @@ local function capture(session)
   end
 
   session.capturing = true
+  session.captured = { cols = session.surface.width(), cell = cell }
 
   local function finish()
     session.capturing = false
@@ -1107,21 +1142,52 @@ local function capture_when_rendered(session)
   poll()
 end
 
----@param wait_for_render boolean poll render progress first (load/edit) instead of capturing directly (resize)
-local function schedule_capture(session, delay_ms, wait_for_render)
+local function schedule_capture(session, delay_ms)
   session.timer:stop()
   session.timer:start(
     delay_ms,
+    0,
+    vim.schedule_wrap(function()
+      if sessions[session.bufnr] == session then
+        capture_when_rendered(session)
+      end
+    end)
+  )
+end
+
+---@param captured { cols: integer, cell: { width: integer, height: integer } }|nil what the last capture used
+---@return boolean
+local function size_changed(captured, cols, cell)
+  return not captured
+    or captured.cols ~= cols
+    or captured.cell.width ~= cell.width
+    or captured.cell.height ~= cell.height
+end
+
+-- Debounced on its own timer so a resize never cancels an edit's pending capture.
+local function on_viewer_resized()
+  local session = viewer and sessions[viewer.owner]
+
+  if not session then
+    return
+  end
+
+  session.resize_timer:stop()
+  session.resize_timer:start(
+    session.resize_debounce_ms,
     0,
     vim.schedule_wrap(function()
       if sessions[session.bufnr] ~= session then
         return
       end
 
-      if wait_for_render then
-        capture_when_rendered(session)
-      else
+      -- a font zoom changes the cell size, not just the column count
+      session.cell = cell_size()
+
+      if size_changed(session.captured, session.surface.width(), session.cell) then
         capture(session)
+      else
+        sync_scroll(session)
       end
     end)
   )
@@ -1160,7 +1226,7 @@ local function attach_page(session, url)
       session.target_session = attached.sessionId
       client.listeners[attached.sessionId] = {
         ["Page.loadEventFired"] = function()
-          schedule_capture(session, 0, true)
+          schedule_capture(session, 0)
         end,
       }
 
@@ -1179,7 +1245,7 @@ local function register_source_autocmds(session, debounce_ms)
     buffer = session.bufnr,
     callback = function()
       -- md-view pushes the edit after its own debounce; then wait for the page to render it
-      schedule_capture(session, debounce_ms, true)
+      schedule_capture(session, debounce_ms)
     end,
   })
   vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
@@ -1187,12 +1253,6 @@ local function register_source_autocmds(session, debounce_ms)
     buffer = session.bufnr,
     callback = function()
       sync_scroll(session)
-    end,
-  })
-  vim.api.nvim_create_autocmd("VimResized", {
-    group = group,
-    callback = function()
-      schedule_capture(session, RESIZE_DEBOUNCE_MS, false)
     end,
   })
   vim.api.nvim_create_autocmd({ "BufWipeout", "BufDelete" }, {
@@ -1223,6 +1283,8 @@ local function close_session(bufnr, keep_surface)
   pcall(vim.api.nvim_del_augroup_by_name, "md_view_terminal_" .. bufnr)
   session.timer:stop()
   session.timer:close()
+  session.resize_timer:stop()
+  session.resize_timer:close()
 
   if session.browser and session.target_id then
     session.browser.listeners[session.target_session] = nil
@@ -1249,6 +1311,17 @@ M.close = function(bufnr)
 end
 
 M.check_requirements = check_requirements
+M.size_changed = size_changed
+
+-- Called over RPC by the tmux pane's Neovim when the pane is resized.
+---@param width integer
+---@param height integer
+M.viewer_resized = function(width, height)
+  if viewer and viewer.surface.set_size then
+    viewer.surface.set_size(width, height)
+    on_viewer_resized()
+  end
+end
 
 ---@param target "split"|"tmux"
 ---@param bufnr integer
@@ -1295,7 +1368,9 @@ M.open = function(target, bufnr, start_server)
     bufnr = bufnr,
     cell = cell_size(),
     scale = options.preview.terminal.scale,
+    resize_debounce_ms = options.preview.terminal.resize_debounce_ms,
     timer = uv.new_timer(),
+    resize_timer = uv.new_timer(),
   }
   sessions[bufnr] = session
 
@@ -1345,7 +1420,7 @@ M.open = function(target, bufnr, start_server)
   if target == "tmux" then
     tmux_surface(on_surface, on_surface_closed)
   else
-    on_surface(split_surface(on_surface_closed))
+    on_surface(split_surface(on_surface_closed, on_viewer_resized))
   end
 end
 

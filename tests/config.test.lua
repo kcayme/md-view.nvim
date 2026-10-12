@@ -162,6 +162,25 @@ describe("config", function()
       assert.are.same({}, config.options.filetypes)
     end)
 
+    it("preview.terminal.resize_debounce_ms defaults to 200", function()
+      config.setup({})
+      assert.are.equal(200, config.options.preview.terminal.resize_debounce_ms)
+    end)
+
+    it("notifies error and aborts setup when resize_debounce_ms is wrong type", function()
+      local errored = false
+      local orig = vim.notify
+      vim.notify = function(_, level)
+        if level == vim.log.levels.ERROR then
+          errored = true
+        end
+      end
+      config.setup({ preview = { terminal = { resize_debounce_ms = "fast" } } })
+      vim.notify = orig
+      assert.is_true(errored)
+      assert.is_nil(config.options)
+    end)
+
     it("auto_open.enable defaults to false", function()
       config.setup({})
       assert.is_false(config.options.auto_open.enable)
