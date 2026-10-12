@@ -47,13 +47,28 @@ local function get_live_hljs_url()
   return vendor.hljs_url(resolved.highlight_theme)
 end
 
+-- Auto-open is browser-only; the terminal preview never opens on its own.
+local function auto_open_supported()
+  return config.options.preview.target == "browser"
+end
+
+local function warn_auto_open_unsupported()
+  util.notify(
+    config.options,
+    "[md-view] auto-open is not supported with preview.target = '" .. config.options.preview.target .. "'",
+    vim.log.levels.WARN
+  )
+end
+
 local function register_auto_open_augroup()
   local group = vim.api.nvim_create_augroup("md_view_auto_open", { clear = true })
   vim.api.nvim_create_autocmd(config.options.auto_open.events, {
     group = group,
     pattern = "*",
     callback = function()
-      M.open({ verbose = false })
+      if auto_open_supported() then
+        M.open({ verbose = false })
+      end
     end,
   })
 end
@@ -115,6 +130,10 @@ M.setup = function(opts)
 
   if config.options.auto_open.enable then
     register_auto_open_augroup()
+
+    if not auto_open_supported() then
+      warn_auto_open_unsupported()
+    end
   end
 end
 
@@ -249,6 +268,10 @@ M.toggle_auto_open = function()
     util.notify(config.options, "[md-view] auto-open enabled", vim.log.levels.INFO)
 
     register_auto_open_augroup()
+
+    if not auto_open_supported() then
+      warn_auto_open_unsupported()
+    end
   else
     util.notify(config.options, "[md-view] auto-open disabled", vim.log.levels.INFO)
   end

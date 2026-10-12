@@ -120,4 +120,61 @@ describe("auto_open", function()
       assert.truthy(notify_msg.msg:find("auto%-open disabled"))
     end)
   end)
+
+  describe("terminal target", function()
+    local orig_open, orig_notify, open_calls, warnings
+
+    before_each(function()
+      local md_view = require("md-view")
+
+      orig_open = md_view.open
+      orig_notify = vim.notify
+      open_calls = 0
+      warnings = {}
+      md_view.open = function()
+        open_calls = open_calls + 1
+      end
+      vim.notify = function(msg, level)
+        if level == vim.log.levels.WARN then
+          table.insert(warnings, msg)
+        end
+      end
+    end)
+
+    after_each(function()
+      require("md-view").open = orig_open
+      vim.notify = orig_notify
+    end)
+
+    it("should not open a preview on auto-open events when the target is a terminal", function()
+      require("md-view").setup({ auto_open = { enable = true }, preview = { target = "split" } })
+      vim.api.nvim_exec_autocmds("BufWinEnter", { group = "md_view_auto_open" })
+
+      assert.are.equal(0, open_calls)
+    end)
+
+    it("should open a preview on auto-open events when the target is the browser", function()
+      require("md-view").setup({ auto_open = { enable = true }, preview = { target = "browser" } })
+      vim.api.nvim_exec_autocmds("BufWinEnter", { group = "md_view_auto_open" })
+
+      assert.are.equal(1, open_calls)
+    end)
+
+    it("should warn when auto-open is enabled with a terminal target", function()
+      require("md-view").setup({ auto_open = { enable = true }, preview = { target = "tmux" } })
+
+      assert.are.equal(1, #warnings)
+      assert.truthy(warnings[1]:find("tmux", 1, true))
+    end)
+
+    it("should warn when auto-open is toggled on with a terminal target", function()
+      local md_view = require("md-view")
+
+      md_view.setup({ auto_open = { enable = false }, preview = { target = "split" } })
+      md_view.toggle_auto_open()
+
+      assert.are.equal(1, #warnings)
+      assert.truthy(warnings[1]:find("split", 1, true))
+    end)
+  end)
 end)
