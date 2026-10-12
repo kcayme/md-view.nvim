@@ -2,7 +2,7 @@
 
 Browser-based markdown preview for Neovim with live mermaid diagram rendering.
 
-Opens a browser tab that renders your markdown buffer — including mermaid diagrams as SVG — and updates live as you type. Scroll sync keeps the browser viewport aligned with your cursor position.
+Opens a browser tab that renders your markdown buffer in real-time.
 
 ![Demo](docs/demo/demo.gif)
 ![Colorscheme Sync](docs/demo/colorscheme-sync.png)
@@ -11,8 +11,7 @@ Opens a browser tab that renders your markdown buffer — including mermaid diag
 ## Why another markdown preview plugin?
 
 I heavily use mermaid diagrams in my markdown files. The in-editor previewers I tried don't render them,
-and the browser-based ones that do (like markdown-preview.nvim) need Node.js or Deno
-installed. I wanted something that's lightweight and just works out of the box — no runtime, no setup.
+and the browser-based ones that do. I wanted something that's lightweight and just works out of the box.
 
 - **Mermaid out of the box** — most previewers can't render mermaid diagrams at all.
   The ones that can need a Node.js or Deno runtime. This one just loads mermaid.js from
@@ -271,10 +270,9 @@ Full [LuaLS / EmmyLua](https://luals.github.io/wiki/annotations/) types for the 
 
 </details>
 
-
 ### Syntax Highlighting Themes
 
-Fenced code blocks with a language tag (e.g. ` ```lua `, ` ```python `) are syntax highlighted using [highlight.js](https://highlightjs.org). Set `theme.syntax` to any theme from the [highlight.js demo](https://highlightjs.org/demo).
+Fenced code blocks with a language tag (e.g. ```` ```lua ````, ```` ```python ````) are syntax highlighted using [highlight.js](https://highlightjs.org). Set `theme.syntax` to any theme from the [highlight.js demo](https://highlightjs.org/demo).
 
 Some popular dark themes:
 
@@ -430,12 +428,12 @@ md-view.nvim renders notation languages embedded in markdown code fences. All no
 
 | Notation | Fence Language | Status |
 |----------|---------------|--------|
-| Mermaid  | `mermaid`     | Built-in |
-| KaTeX    | `math` / `$...$` / `$$...$$` | Built-in |
+| Mermaid | `mermaid` | Built-in |
+| KaTeX | `math` / `$...$` / `$$...$$` | Built-in |
 | Graphviz | `dot`, `graphviz` | Built-in |
 | WaveDrom | `wavedrom` | Built-in |
-| Nomnoml  | `nomnoml` | Built-in |
-| abcjs    | `abc` | Built-in |
+| Nomnoml | `nomnoml` | Built-in |
+| abcjs | `abc` | Built-in |
 | Vega-Lite | `vega-lite` | Built-in |
 
 To disable a notation:
@@ -465,10 +463,6 @@ require("md-view").setup({
 - [Picker integration](docs/recipes/picker-integration.md) — dressing.nvim, Telescope, fzf-lua, snacks.nvim, mini.pick
 - [Single-page mode](docs/recipes/single-page-mode.md) — multiplex all previews into one browser tab
 
-## Offline Support
-
-md-view.nvim can work offline by caching vendor assets locally. This is useful when developing without internet access or for reproducible deployments.
-
 ### Auto-fetch on setup
 
 `setup()` automatically fetches vendor assets the first time it runs (i.e. when the vendor directory doesn't exist yet). You'll see a notification immediately:
@@ -495,16 +489,16 @@ To specify a custom highlight.js theme for the cached CSS:
 
 ### Commands
 
-| Command                  | Description                                      |
+| Command | Description |
 |--------------------------|--------------------------------------------------|
-| `:MdView [browser]`      | Open preview for the current buffer. Optional `browser` arg overrides the configured browser for this call (e.g. `:MdView firefox`). |
-| `:MdViewStop`            | Stop the preview                                 |
-| `:MdViewClose [all]`     | Close preview panel(s) without stopping the server |
-| `:MdViewRestart`         | Restart all active preview servers                |
-| `:MdViewToggle`          | Toggle the preview on/off                        |
-| `:MdViewList`            | Pick from all active previews                    |
-| `:MdViewAutoOpen`        | Toggle automatic preview on buffer enter on/off  |
-| `:MdViewFetchAssets`     | Re-fetch vendor assets for offline use           |
+| `:MdView [browser]` | Open preview for the current buffer. Optional `browser` arg overrides the configured browser for this call (e.g. `:MdView firefox`). |
+| `:MdViewStop` | Stop the preview |
+| `:MdViewClose [all]` | Close preview panel(s) without stopping the server |
+| `:MdViewRestart` | Restart all active preview servers |
+| `:MdViewToggle` | Toggle the preview on/off |
+| `:MdViewList` | Pick from all active previews |
+| `:MdViewAutoOpen` | Toggle automatic preview on buffer enter on/off |
+| `:MdViewFetchAssets` | Re-fetch vendor assets for offline use |
 
 ### Keymaps
 
@@ -513,23 +507,6 @@ The plugin does not set any keymaps. Bind the commands yourself:
 ```lua
 vim.keymap.set("n", "<leader>mp", "<cmd>MdViewToggle<cr>", { desc = "Toggle markdown preview" })
 ```
-
-### Example
-
-Given a markdown file with a mermaid block:
-
-````markdown
-# My Document
-
-Some text here.
-
-```mermaid
-graph LR
-  A --> B --> C
-```
-````
-
-Running `:MdView` opens a browser tab with the rendered markdown and a live SVG diagram.
 
 ## Comparison
 
