@@ -4,6 +4,10 @@ local config = require("md-view.config")
 local preview = require("md-view.preview")
 preview.create = function() end
 
+-- Stub vendor.fetch: with a cold cache, setup() would start a real download and
+-- repeated setup() calls would emit "asset fetch already in progress" warnings
+require("md-view.vendor").fetch = function() end
+
 local function augroup_exists(name)
   local ok = pcall(vim.api.nvim_get_autocmds, { group = name })
   return ok
