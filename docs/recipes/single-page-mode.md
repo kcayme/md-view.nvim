@@ -6,6 +6,8 @@ When `single_page.enable = true`, all active previews are multiplexed into one b
 
 The hub server uses the top-level `port` option (`0` = OS-assigned free port).
 
+![Single Page Mode](../demo/single-page.png)
+
 ---
 
 ## Basic setup

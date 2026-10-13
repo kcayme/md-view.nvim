@@ -10,6 +10,8 @@ This plugin involves two distinct picker concepts:
    `vim.ui.select` takes over that UI. See
    [Choosing a backend for `:MdViewList`](#choosing-a-backend-for-mdviewlist).
 
+![Picker](../demo/picker.png)
+
 ---
 
 ## Preview a file picked from a file picker

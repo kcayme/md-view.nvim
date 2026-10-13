@@ -29,6 +29,8 @@ jobs:
           test -f docs/recipes/auto-open.md
           test -f docs/recipes/filetypes.md
           test -f docs/recipes/single-page-mode.md
+          test -f docs/recipes/theming.md
+          test -f docs/recipes/notations.md
           test -f docs/options.md
 
           # Strip the H1 plugin-name line from README — panvimdoc uses the plugin
@@ -54,6 +56,10 @@ jobs:
           cat docs/recipes/filetypes.md >> .doc-source.md
           printf "\n\n" >> .doc-source.md
           cat docs/recipes/single-page-mode.md >> .doc-source.md
+          printf "\n\n" >> .doc-source.md
+          cat docs/recipes/theming.md >> .doc-source.md
+          printf "\n\n" >> .doc-source.md
+          cat docs/recipes/notations.md >> .doc-source.md
 
       - name: Check for duplicate headings
         run: |

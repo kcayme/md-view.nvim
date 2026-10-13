@@ -48,6 +48,10 @@ vimdoc-check:
 	cat docs/recipes/filetypes.md >> .doc-source.md; \
 	printf "\n\n" >> .doc-source.md; \
 	cat docs/recipes/single-page-mode.md >> .doc-source.md; \
+	printf "\n\n" >> .doc-source.md; \
+	cat docs/recipes/theming.md >> .doc-source.md; \
+	printf "\n\n" >> .doc-source.md; \
+	cat docs/recipes/notations.md >> .doc-source.md; \
 	dupes=$$(grep -i '^# [^#]' .doc-source.md | tr '[:upper:]' '[:lower:]' | sort | uniq -d); \
 	if [ -n "$$dupes" ]; then \
 		echo "ERROR: duplicate H1 headings found:"; \
