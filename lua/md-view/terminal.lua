@@ -2,6 +2,7 @@
 local M = {}
 
 local uv = vim.uv or vim.loop
+local util = require("md-view.util")
 
 -- Diacritic N encodes row/column N-1 of a placeholder cell (kitty gen/rowcolumn-diacritics.txt).
 local DIACRITIC_CODEPOINTS = {
@@ -1142,6 +1143,21 @@ local function size_changed(captured, cols, cell)
   return not vim.deep_equal(captured, { cols = cols, cell = cell })
 end
 
+local function rerender_after_resize(session)
+  if sessions[session.bufnr] ~= session then
+    return
+  end
+
+  -- a font zoom changes the cell size, not just the column count
+  session.cell = cell_size()
+
+  if size_changed(session.captured, session.surface.width(), session.cell) then
+    capture(session)
+  else
+    sync_scroll(session)
+  end
+end
+
 -- Debounced on its own timer so a resize never cancels an edit's pending capture.
 local function on_viewer_resized()
   local session = viewer and sessions[viewer.owner]
@@ -1150,25 +1166,7 @@ local function on_viewer_resized()
     return
   end
 
-  session.resize_timer:stop()
-  session.resize_timer:start(
-    session.resize_debounce_ms,
-    0,
-    vim.schedule_wrap(function()
-      if sessions[session.bufnr] ~= session then
-        return
-      end
-
-      -- a font zoom changes the cell size, not just the column count
-      session.cell = cell_size()
-
-      if size_changed(session.captured, session.surface.width(), session.cell) then
-        capture(session)
-      else
-        sync_scroll(session)
-      end
-    end)
-  )
+  session.resize_debounced()
 end
 
 local function acquire_browser(binary)
@@ -1248,8 +1246,7 @@ local function close_session(bufnr, keep_surface)
   pcall(vim.api.nvim_del_augroup_by_name, "md_view_terminal_" .. bufnr)
   session.timer:stop()
   session.timer:close()
-  session.resize_timer:stop()
-  session.resize_timer:close()
+  session.resize_debounced.stop()
 
   if session.browser and session.target_id then
     session.browser.listeners[session.target_session] = nil
@@ -1296,7 +1293,7 @@ M.open = function(target, bufnr, start_server)
   local binary, preview, url, session
 
   if sessions[bufnr] then
-    require("md-view.util").notify(options, "[md-view] Terminal preview already open")
+    util.notify(options, "[md-view] Terminal preview already open")
 
     return
   end
@@ -1327,10 +1324,11 @@ M.open = function(target, bufnr, start_server)
     bufnr = bufnr,
     cell = cell_size(),
     scale = options.preview.terminal.scale,
-    resize_debounce_ms = options.preview.terminal.resize_debounce_ms,
     timer = uv.new_timer(),
-    resize_timer = uv.new_timer(),
   }
+  session.resize_debounced = util.debounce(function()
+    rerender_after_resize(session)
+  end, options.preview.terminal.resize_debounce_ms)
   sessions[bufnr] = session
 
   local function on_surface(surface)
