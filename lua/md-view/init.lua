@@ -77,15 +77,13 @@ local function register_auto_open_augroup()
   end
 end
 
-local function is_valid_filetype(bufnr, verbose)
+local function is_supported_filetype(bufnr, verbose)
   local ft = vim.bo[bufnr].filetype
   local filetypes = config.options.filetypes
 
   if filetypes and #filetypes > 0 then
-    for _, v in ipairs(filetypes) do
-      if string.lower(v) == ft then
-        return true
-      end
+    if vim.tbl_contains(filetypes, ft) then
+      return true
     end
 
     util.notify(
@@ -141,19 +139,16 @@ end
 M.open = function(opts)
   opts = opts or {}
 
-  if not config.options then
-    config.setup({})
-  end
-
   local bufnr = opts.path and resolve_buf_from_path(opts.path) or vim.api.nvim_get_current_buf()
-  local existing_preview = preview.get_by_buffer(bufnr)
-  local preview_opts = config.options
   local verbose = opts.verbose == nil and config.options.verbose or opts.verbose
-  local target = opts.target or config.options.preview.target
 
-  if not is_valid_filetype(bufnr, verbose) then
+  if not is_supported_filetype(bufnr, verbose) then
     return
   end
+
+  local existing_preview = preview.get_by_buffer(bufnr)
+  local preview_opts = config.options
+  local target = opts.target or config.options.preview.target
 
   if current_live_theme then
     preview_opts = vim.tbl_extend("force", preview_opts, {
@@ -254,10 +249,6 @@ end
 
 ---@return nil
 M.toggle_auto_open = function()
-  if not config.options then
-    config.setup({})
-  end
-
   local enabled = not config.options.auto_open.enable
 
   config.options.auto_open.enable = enabled
@@ -275,15 +266,6 @@ end
 
 ---@param mode MdViewThemeMode|nil
 M.set_theme = function(mode)
-  -- Validate explicit arg first (before checking active previews)
-  if mode and mode ~= "" then
-    if not vim.tbl_contains(VALID_THEME_MODES, mode) then
-      util.notify(config.options, "[md-view] invalid theme mode: '" .. mode .. "'", vim.log.levels.WARN)
-
-      return
-    end
-  end
-
   local active_previews = preview.get_active_previews()
 
   -- Early exit if no active previews (no state mutation)
@@ -292,6 +274,11 @@ M.set_theme = function(mode)
   end
 
   if mode and mode ~= "" then
+    if not vim.tbl_contains(VALID_THEME_MODES, mode) then
+      util.notify(config.options, "[md-view] invalid theme mode: '" .. mode .. "'", vim.log.levels.WARN)
+
+      return
+    end
     -- Explicit arg path
     current_live_theme = mode
   else

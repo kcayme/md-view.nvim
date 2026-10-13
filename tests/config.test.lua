@@ -162,6 +162,11 @@ describe("config", function()
       assert.are.same({}, config.options.filetypes)
     end)
 
+    it("should lowercase filetypes when given mixed case", function()
+      config.setup({ filetypes = { "Markdown", "VIMWIKI" } })
+      assert.are.same({ "markdown", "vimwiki" }, config.options.filetypes)
+    end)
+
     it("preview.terminal.resize_debounce_ms defaults to 200", function()
       config.setup({})
       assert.are.equal(200, config.options.preview.terminal.resize_debounce_ms)

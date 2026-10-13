@@ -309,8 +309,11 @@ describe("md-view init", function()
     M = require("md-view")
     M.setup({ filetypes = { "markdown" } })
 
-    local path = vim.fn.fnamemodify("lua/md-view/init.lua", ":p")
+    -- temp file: a repo file may be open in an editor, and its swap file triggers E325 on bufload
+    local path = vim.fn.tempname() .. ".lua"
+    vim.fn.writefile({ "return {}" }, path)
     M.open({ path = path, verbose = false })
+    vim.fn.delete(path)
 
     assert.is_false(create_called)
   end)

@@ -159,7 +159,7 @@ M.defaults = {
 }
 
 ---@type MdViewOptions|nil
-M.options = nil
+M.options = vim.deepcopy(M.defaults)
 
 -- Options the terminal preview always overrides; applied in init.lua and the hub's /view route.
 M.terminal_overrides = {
@@ -333,7 +333,7 @@ M.setup = function(opts)
   M.options = vim.tbl_deep_extend("force", {}, M.defaults, opts or {})
   -- filetypes is an array; deep-extend cannot clear it with {}, so override directly
   if opts and opts.filetypes ~= nil then
-    M.options.filetypes = opts.filetypes
+    M.options.filetypes = vim.tbl_map(string.lower, opts.filetypes)
   end
 
   -- auto_open.events is an array; deep-extend cannot clear it with {}, so override directly
