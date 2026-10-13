@@ -26,6 +26,7 @@ M.new = function()
     last_hub_hljs_theme = nil, -- hub-level hljs theme URL replayed on connect
     last_hub_theme = nil, -- hub-level theme CSS replayed on connect (clears static sync overrides)
     on_client_added = nil, -- set by preview.lua to push initial content on connect
+    view_clients = setmetatable({}, { __mode = "k" }), -- clients of /view pages (terminal preview), not hub tabs
     server = nil,
     port = nil,
   }, M)
@@ -54,12 +55,29 @@ end
 ---@param bufnr integer
 ---@param path string
 ---@param tab_label_cfg MdViewTabLabel|(fun(ctx: MdViewTabLabelCtx): string)|nil
-function M:register(bufnr, path, tab_label_cfg)
+-- hidden: terminal-only preview; the hub page gets no tab for it until show() is called.
+function M:register(bufnr, path, tab_label_cfg, hidden)
   local filename = vim.fn.fnamemodify(path, ":t")
   local ctx = { bufnr = bufnr, filename = filename, path = path }
   local label = self:resolve_label(ctx, tab_label_cfg)
 
-  self.registry[bufnr] = { title = filename, label = label }
+  self.registry[bufnr] = { title = filename, label = label, hidden = hidden or nil }
+end
+
+-- Give a hidden (terminal-only) preview its hub tab. Returns true if it was hidden.
+---@param bufnr integer
+---@return boolean
+function M:show(bufnr)
+  local entry = self.registry[bufnr]
+
+  if not (entry and entry.hidden) then
+    return false
+  end
+
+  entry.hidden = nil
+  self:push("preview_added", { id = bufnr, title = entry.title, label = entry.label })
+
+  return true
 end
 
 -- Unregister a preview. Evicts per-preview replay state.
@@ -211,6 +229,19 @@ function M:push(event_type, data)
   end
 end
 
+-- Number of connected hub pages (browser tabs), excluding /view pages used by the terminal preview.
+function M:page_client_count()
+  local count = 0
+
+  for _, client in ipairs(self.clients) do
+    if not self.view_clients[client] then
+      count = count + 1
+    end
+  end
+
+  return count
+end
+
 -- Close all SSE clients. Called only on full hub shutdown.
 function M:close_all()
   for _, client in ipairs(self.clients) do
@@ -224,8 +255,8 @@ end
 
 -- ── Route handlers ──────────────────────────────────────────────────────
 
-M.serve_root = function(_req, res, _ctx)
-  local template = require("md-view.server.template")
+-- Render options shared by the hub page and the single-preview view page.
+local function hub_render_opts(overrides)
   local config = require("md-view.config")
   local theme_mod = require("md-view.theme")
   local resolved = theme_mod.resolve(config.options)
@@ -233,18 +264,65 @@ M.serve_root = function(_req, res, _ctx)
       and config.options.theme.mode == "sync"
       and theme_mod.css(config.options.theme.highlights or {})
     or ""
-  local render_opts = vim.tbl_extend("force", config.options, {
+
+  return vim.tbl_extend("force", config.options, {
     palette_css = theme_mod.palette_css(resolved.theme),
     theme_css = theme_css,
     highlight_theme = resolved.highlight_theme,
     mermaid = { theme = resolved.mermaid_theme },
-  })
-
-  res.send("200 OK", "text/html", template.render_mux(render_opts))
+  }, overrides or {})
 end
 
-M.serve_sse = function(_req, res, ctx)
-  res.sse_upgrade(ctx.hub)
+M.serve_root = function(_req, res, _ctx)
+  local template = require("md-view.server.template")
+
+  res.send("200 OK", "text/html", template.render_mux(hub_render_opts()))
+end
+
+-- One preview on its own page, fed by the hub's SSE stream, for the terminal preview to screenshot.
+M.serve_view = function(req, res, ctx)
+  local template = require("md-view.server.template")
+  local bufnr = req.query.id and tonumber(req.query.id)
+  local filename
+
+  if not bufnr or not ctx.hub.registry[bufnr] then
+    res.send("400 Bad Request", "text/plain", "Bad Request")
+    return
+  end
+
+  filename = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t")
+
+  res.send(
+    "200 OK",
+    "text/html",
+    template.render(
+      require("md-view.config").with_terminal_overrides(hub_render_opts({
+        preview_id = bufnr,
+        events_url = "/sse?view=1",
+      })),
+      filename
+    )
+  )
+end
+
+M.serve_sse = function(req, res, ctx)
+  local hub = ctx.hub
+
+  if not (req.query and req.query.view) then
+    res.sse_upgrade(hub)
+    return
+  end
+
+  -- tag /view page connections so they don't count as hub tabs (router calls both methods)
+  res.sse_upgrade({
+    add_client = function(_, client)
+      hub.view_clients[client] = true
+      hub:add_client(client)
+    end,
+    remove_client = function(_, client)
+      hub:remove_client(client)
+    end,
+  })
 end
 
 M.serve_content = function(req, res, ctx)
@@ -299,6 +377,7 @@ end
 
 M.routes = {
   { method = "GET", path = "/", handler = M.serve_root },
+  { method = "GET", path = "/view", handler = M.serve_view },
   { method = "GET", path = "/sse", handler = M.serve_sse },
   { method = "GET", path = "/content", handler = M.serve_content },
   { method = "GET", path = "/vendor/:file", handler = M.serve_vendor },

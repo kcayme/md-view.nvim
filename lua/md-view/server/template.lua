@@ -326,6 +326,12 @@ M.render = function(opts, filename)
     :gsub("{{TOAST_POSITION}}", function()
       return toast_position
     end)
+    :gsub("{{PREVIEW_ID}}", function()
+      return opts.preview_id and tostring(opts.preview_id) or ""
+    end)
+    :gsub("{{EVENTS_URL}}", function()
+      return html_escape(opts.events_url or "/events")
+    end)
 
   return html
 end

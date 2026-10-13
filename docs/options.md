@@ -41,6 +41,10 @@ Full reference for all options accepted by `require("md-view").setup()`. All opt
 | `toast.debounce_ms` | `integer` | `500` | Quiet period before the pill appears. Every update resets the timer, so a burst of edits produces one pill once typing settles rather than one per keystroke. |
 | `toast.duration_ms` | `integer` | `3000` | How long the pill stays visible before fading out. |
 | `toast.position` | `"bottom-left"\|"bottom-right"\|"top-left"\|"top-right"` | `"top-right"` | Corner the pill appears in. Avoid `"bottom-right"` (the notation-error button sits there) and, when `table_of_contents.position = "right"`, `"top-right"` (the sidebar sits there). |
+| `preview.target` | `"browser"\|"split"\|"tmux"` | `"browser"` | Where `:MdView` shows the preview. `"split"` / `"tmux"` render it inside the terminal via the kitty graphics protocol (kitty, Ghostty, WezTerm) in a right-hand Neovim split or tmux pane. Override per call with `:MdView browser\|split\|tmux`. Auto-open only works with `"browser"`. |
+| `preview.terminal.browser` | `string\|nil` | `nil` | Chromium-based executable used to render the terminal preview headlessly. `nil` auto-detects `chrome-headless-shell`, `chromium`, `google-chrome`, `brave-browser`, then Playwright's cached headless shell. |
+| `preview.terminal.scale` | `number` | `1` | Device scale factor for the terminal preview's rendered page. |
+| `preview.terminal.resize_debounce_ms` | `integer` | `200` | Quiet time after the terminal preview's split or pane is resized (or the font is zoomed) before it re-renders at the new size. |
 
 ---
 

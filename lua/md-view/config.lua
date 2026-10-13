@@ -65,6 +65,17 @@ local M = {}
 ---@field duration_ms integer
 ---@field position MdViewToastPosition
 
+---@alias MdViewPreviewTarget "browser"|"split"|"tmux"
+
+---@class MdViewTerminalOptions
+---@field browser string|nil Chromium-based executable for headless rendering; auto-detected when nil
+---@field scale number device scale factor for the rendered page
+---@field resize_debounce_ms integer quiet time after the viewer is resized before it re-renders
+
+---@class MdViewPreviewOptions
+---@field target MdViewPreviewTarget where :MdView shows the preview; "split"/"tmux" are the terminal preview
+---@field terminal MdViewTerminalOptions
+
 ---@class MdViewOptions
 ---@field port integer
 ---@field host string
@@ -84,6 +95,7 @@ local M = {}
 ---@field single_page MdViewSinglePageOptions
 ---@field table_of_contents MdViewTableOfContentsOptions
 ---@field toast MdViewToastOptions
+---@field preview MdViewPreviewOptions
 
 M.defaults = {
   port = 0,
@@ -136,10 +148,31 @@ M.defaults = {
     duration_ms = 3000,
     position = "top-right",
   },
+  preview = {
+    target = "browser",
+    terminal = {
+      browser = nil,
+      scale = 1,
+      resize_debounce_ms = 200,
+    },
+  },
 }
 
 ---@type MdViewOptions|nil
-M.options = nil
+M.options = vim.deepcopy(M.defaults)
+
+-- Options the terminal preview always overrides; applied in init.lua and the hub's /view route.
+M.terminal_overrides = {
+  single_page = { enable = true },
+  table_of_contents = { enable = false },
+  toast = { enable = false },
+}
+
+---@param opts MdViewOptions
+---@return MdViewOptions
+M.with_terminal_overrides = function(opts)
+  return vim.tbl_deep_extend("force", opts, M.terminal_overrides)
+end
 
 local LOOPBACK = {
   ["127.0.0.1"] = true,
@@ -224,6 +257,18 @@ local SCHEMA = {
         },
       },
     },
+    preview = {
+      fields = {
+        target = { type = "string", enum = { "browser", "split", "tmux" } },
+        terminal = {
+          fields = {
+            browser = { type = "string" },
+            scale = { type = "number" },
+            resize_debounce_ms = { type = "number" },
+          },
+        },
+      },
+    },
   },
 }
 
@@ -288,7 +333,7 @@ M.setup = function(opts)
   M.options = vim.tbl_deep_extend("force", {}, M.defaults, opts or {})
   -- filetypes is an array; deep-extend cannot clear it with {}, so override directly
   if opts and opts.filetypes ~= nil then
-    M.options.filetypes = opts.filetypes
+    M.options.filetypes = vim.tbl_map(string.lower, opts.filetypes)
   end
 
   -- auto_open.events is an array; deep-extend cannot clear it with {}, so override directly

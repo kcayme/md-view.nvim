@@ -16,7 +16,7 @@ local current_live_theme = "dark"
 
 local function get_live_css()
   if current_live_theme == "sync" then
-    local highlights = (config.options and config.options.theme and config.options.theme.highlights) or {}
+    local highlights = (config.options.theme and config.options.theme.highlights) or {}
 
     return theme.css(highlights)
   elseif current_live_theme == "auto" then
@@ -35,7 +35,7 @@ local function get_live_hljs_url()
     return nil
   end
 
-  local copts = config.options or {}
+  local copts = config.options
   local theme_tbl = copts.theme or {}
   local resolved_mode = current_live_theme == "auto" and (vim.o.background == "light" and "light" or "dark")
     or current_live_theme
@@ -47,26 +47,43 @@ local function get_live_hljs_url()
   return vendor.hljs_url(resolved.highlight_theme)
 end
 
+-- Auto-open is browser-only; the terminal preview never opens on its own.
+local function auto_open_supported()
+  return config.options.preview.target == "browser"
+end
+
+local function warn_auto_open_unsupported()
+  util.notify(
+    config.options,
+    "[md-view] auto-open is not supported with preview.target = '" .. config.options.preview.target .. "'",
+    vim.log.levels.WARN
+  )
+end
+
 local function register_auto_open_augroup()
   local group = vim.api.nvim_create_augroup("md_view_auto_open", { clear = true })
   vim.api.nvim_create_autocmd(config.options.auto_open.events, {
     group = group,
     pattern = "*",
     callback = function()
-      M.open({ verbose = false })
+      if auto_open_supported() then
+        M.open({ verbose = false })
+      end
     end,
   })
+
+  if not auto_open_supported() then
+    warn_auto_open_unsupported()
+  end
 end
 
-local function is_valid_filetype(bufnr, verbose)
+local function is_supported_filetype(bufnr, verbose)
   local ft = vim.bo[bufnr].filetype
   local filetypes = config.options.filetypes
 
   if filetypes and #filetypes > 0 then
-    for _, v in ipairs(filetypes) do
-      if string.lower(v) == ft then
-        return true
-      end
+    if vim.tbl_contains(filetypes, ft) then
+      return true
     end
 
     util.notify(
@@ -118,22 +135,20 @@ M.setup = function(opts)
   end
 end
 
----@param opts { verbose?: boolean, follow_focus?: boolean, browser?: string, path?: string }|nil
+---@param opts { verbose?: boolean, follow_focus?: boolean, browser?: string, path?: string, target?: MdViewPreviewTarget }|nil
 M.open = function(opts)
   opts = opts or {}
 
-  if not config.options then
-    config.setup({})
-  end
-
   local bufnr = opts.path and resolve_buf_from_path(opts.path) or vim.api.nvim_get_current_buf()
-  local existing_preview = preview.get_by_buffer(bufnr)
-  local preview_opts = config.options
   local verbose = opts.verbose == nil and config.options.verbose or opts.verbose
 
-  if not is_valid_filetype(bufnr, verbose) then
+  if not is_supported_filetype(bufnr, verbose) then
     return
   end
+
+  local existing_preview = preview.get_by_buffer(bufnr)
+  local preview_opts = config.options
+  local target = opts.target or config.options.preview.target
 
   if current_live_theme then
     preview_opts = vim.tbl_extend("force", preview_opts, {
@@ -146,9 +161,23 @@ M.open = function(opts)
     follow_focus = (opts.follow_focus ~= nil and existing_preview and opts.follow_focus),
     browser = (opts.browser ~= nil and opts.browser),
     bufnr = bufnr,
+    target = target,
   }
 
-  preview.create(vim.tbl_extend("force", preview_opts, call_opts))
+  local merged_opts = vim.tbl_extend("force", preview_opts, call_opts)
+
+  if target ~= "browser" then
+    merged_opts = config.with_terminal_overrides(merged_opts)
+
+    -- terminal.open runs its preflight checks first and starts the server only if they pass
+    require("md-view.terminal").open(target, bufnr, function()
+      preview.create(merged_opts)
+    end)
+
+    return
+  end
+
+  preview.create(merged_opts)
 
   if current_live_theme and existing_preview and existing_preview.sse then
     existing_preview.sse:push("palette", { css = get_live_css() })
@@ -220,10 +249,6 @@ end
 
 ---@return nil
 M.toggle_auto_open = function()
-  if not config.options then
-    config.setup({})
-  end
-
   local enabled = not config.options.auto_open.enable
 
   config.options.auto_open.enable = enabled
@@ -241,15 +266,6 @@ end
 
 ---@param mode MdViewThemeMode|nil
 M.set_theme = function(mode)
-  -- Validate explicit arg first (before checking active previews)
-  if mode and mode ~= "" then
-    if not vim.tbl_contains(VALID_THEME_MODES, mode) then
-      util.notify(config.options, "[md-view] invalid theme mode: '" .. mode .. "'", vim.log.levels.WARN)
-
-      return
-    end
-  end
-
   local active_previews = preview.get_active_previews()
 
   -- Early exit if no active previews (no state mutation)
@@ -258,6 +274,11 @@ M.set_theme = function(mode)
   end
 
   if mode and mode ~= "" then
+    if not vim.tbl_contains(VALID_THEME_MODES, mode) then
+      util.notify(config.options, "[md-view] invalid theme mode: '" .. mode .. "'", vim.log.levels.WARN)
+
+      return
+    end
     -- Explicit arg path
     current_live_theme = mode
   else

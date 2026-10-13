@@ -324,11 +324,10 @@ describe("theme_switch", function()
       assert.are.equal("[md-view] theme: light", notify_calls[#notify_calls].msg)
     end)
 
-    it("should warn even when no active previews for invalid arg", function()
+    it("should not warn when no active previews for invalid arg", function()
       active_previews = {}
       M.set_theme("invalid")
-      assert.are.equal(1, #notify_calls)
-      assert.are.equal(vim.log.levels.WARN, notify_calls[1].level)
+      assert.are.equal(0, #notify_calls)
     end)
   end)
 

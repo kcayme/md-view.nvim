@@ -1,14 +1,28 @@
 local util = require("md-view.util")
 
+local PREVIEW_TARGETS = { "browser", "split", "tmux" }
+
 vim.api.nvim_create_user_command("MdView", function(cmd_opts)
   util.safe_call("MdView", function()
     local opts = { follow_focus = true }
-    if cmd_opts.args ~= "" then
+
+    if vim.tbl_contains(PREVIEW_TARGETS, cmd_opts.args) then
+      opts.target = cmd_opts.args
+    elseif cmd_opts.args ~= "" then
+      -- any other argument is a browser command, which implies the browser preview
+      opts.target = "browser"
       opts.browser = cmd_opts.args
     end
+
     require("md-view").open(opts)
   end)
-end, { desc = "Open markdown preview in browser", nargs = "?" })
+end, {
+  desc = "Open markdown preview (browser, or split/tmux for the terminal preview)",
+  nargs = "?",
+  complete = function()
+    return PREVIEW_TARGETS
+  end,
+})
 
 vim.api.nvim_create_user_command("MdViewStop", function()
   util.safe_call("MdViewStop", function()
@@ -68,7 +82,7 @@ vim.api.nvim_create_user_command("MdViewFetchAssets", function(cmd_opts)
       -- Auto-resolve both light and dark themes from config
       local config = require("md-view.config")
       local theme_mod = require("md-view.theme")
-      local copts = config.options or {}
+      local copts = config.options
       local theme_tbl = copts.theme or {}
       local light_theme = theme_mod.resolve(
         vim.tbl_extend("force", copts, { theme = vim.tbl_extend("force", theme_tbl, { mode = "light" }) })

@@ -32,6 +32,12 @@ describe("preview hub integration", function()
       end,
       close_all = function() end,
       add_client = function() end,
+      page_client_count = function(self)
+        return #self.clients
+      end,
+      show = function()
+        return false
+      end,
     }
     package.loaded["md-view.server.handlers.hub"] = {
       new = function()

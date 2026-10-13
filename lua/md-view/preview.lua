@@ -146,13 +146,23 @@ local function init_hub(opts)
 end
 
 -- Handle an open() call when a preview already exists for bufnr.
-local function handle_preview(bufnr, opts, sp)
+local function handle_preview(bufnr, opts)
   local preview = active_previews[bufnr]
 
-  if sp and sp.enable and _mux and _mux.server then
+  -- per-entry: hub entries have no server of their own (terminal previews join the hub regardless)
+  if not preview.server and _mux and _mux.server then
     local url = "http://" .. opts.host .. ":" .. _mux.port
+    -- a terminal-only preview asked for in the browser: give it its hub tab now
+    local revealed = _mux:show(bufnr)
 
-    if #_mux.clients > 0 then
+    if revealed and _mux:page_client_count() > 0 then
+      _mux:push("focus", { id = bufnr })
+      util.notify(opts, "[md-view] Preview added to hub at " .. url)
+
+      return
+    end
+
+    if _mux:page_client_count() > 0 then
       if opts.follow_focus then
         local entry = _mux.registry[bufnr]
 
@@ -269,11 +279,17 @@ local function register_with_hub(bufnr, opts, resolved)
   local hub_pal_css = opts.theme.mode == "sync" and theme.css(opts.theme.highlights)
     or theme.palette_css(resolved.theme)
 
-  hub:register(bufnr, bufname, opts.single_page.tab_label)
+  -- terminal-only previews use the hub's server but get no tab on the hub page
+  local hidden = opts.target ~= nil and opts.target ~= "browser"
+
+  hub:register(bufnr, bufname, opts.single_page.tab_label, hidden)
 
   local entry = hub.registry[bufnr]
 
-  hub:push("preview_added", { id = bufnr, title = entry.title, label = entry.label })
+  if not hidden then
+    hub:push("preview_added", { id = bufnr, title = entry.title, label = entry.label })
+  end
+
   hub:push("hub_palette", { css = hub_pal_css })
 
   -- on_client_added only fires for new SSE connections; if the hub already has
@@ -292,7 +308,7 @@ local function open_browser_for_preview(opts, port)
   if opts.single_page and opts.single_page.enable and _mux and _mux.server then
     url = "http://" .. opts.host .. ":" .. _mux.port
 
-    if #_mux.clients > 0 then
+    if _mux:page_client_count() > 0 then
       util.notify(opts, "[md-view] Preview added to hub at " .. url)
       return
     end
@@ -385,7 +401,7 @@ M.create = function(opts)
   local sse_instance = nil
 
   if active_previews[bufnr] then
-    handle_preview(bufnr, opts, sp)
+    handle_preview(bufnr, opts)
 
     return
   end
@@ -426,7 +442,12 @@ M.create = function(opts)
   end
 
   active_previews[bufnr] = preview_ctx
-  open_browser_for_preview(opts, port)
+
+  -- no target (restart, direct calls) means the browser preview
+  if (opts.target or "browser") == "browser" then
+    open_browser_for_preview(opts, port)
+  end
+
   register_autocmds(bufnr, opts, sse_instance)
   register_global_autocmds()
 end
@@ -435,10 +456,14 @@ end
 M.destroy = function(buffer_id)
   buffer_id = buffer_id or vim.api.nvim_get_current_buf()
 
+  -- a terminal preview can't outlive the page it screenshots
+  require("md-view.terminal").close(buffer_id)
+
   local preview = active_previews[buffer_id]
   local config = require("md-view.config")
-  local sp = config.options and config.options.single_page
-  local hub_active = sp and sp.enable and _mux and _mux.server
+  local sp = config.options.single_page
+  -- per-entry: hub entries have no server of their own, whatever single_page says
+  local hub_active = _mux and _mux.server and preview and not preview.server
 
   if not preview then
     return
@@ -450,8 +475,8 @@ M.destroy = function(buffer_id)
     _mux:push("preview_removed", { id = buffer_id })
     _mux:unregister(buffer_id)
 
-    if util.table_len(active_previews) == 0 then
-      if sp.close_by == "page" or (sp.close_by == nil and config.options and config.options.auto_close == true) then
+    if util.table_len(_mux.registry) == 0 then
+      if sp.close_by == "page" or (sp.close_by == nil and config.options.auto_close == true) then
         _mux:push("close", {})
       end
 
@@ -461,7 +486,7 @@ M.destroy = function(buffer_id)
       _mux:close_all()
       _mux = nil
     end
-  elseif config.options and config.options.auto_close then
+  elseif config.options.auto_close then
     if preview.sse then
       preview.sse:push("close", {})
     end
@@ -472,10 +497,7 @@ M.destroy = function(buffer_id)
   end
 
   preview.watcher.stop()
-
-  if preview.server then
-    server.stop(preview.server)
-  end
+  server.stop(preview.server)
 
   pcall(vim.api.nvim_del_augroup_by_name, "md_view_cleanup_" .. buffer_id)
 end
@@ -484,10 +506,12 @@ end
 M.close = function(buffer_id)
   buffer_id = buffer_id or vim.api.nvim_get_current_buf()
 
+  -- a terminal preview can't outlive the page it screenshots
+  require("md-view.terminal").close(buffer_id)
+
   local preview = active_previews[buffer_id]
-  local config = require("md-view.config")
-  local sp = config.options and config.options.single_page
-  local hub_active = sp and sp.enable and _mux and _mux.server
+  -- per-entry: hub entries have no server of their own, whatever single_page says
+  local hub_active = _mux and _mux.server and preview and not preview.server
 
   if not preview then
     return
