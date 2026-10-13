@@ -16,7 +16,7 @@ local current_live_theme = "dark"
 
 local function get_live_css()
   if current_live_theme == "sync" then
-    local highlights = (config.options and config.options.theme and config.options.theme.highlights) or {}
+    local highlights = (config.options.theme and config.options.theme.highlights) or {}
 
     return theme.css(highlights)
   elseif current_live_theme == "auto" then
@@ -35,7 +35,7 @@ local function get_live_hljs_url()
     return nil
   end
 
-  local copts = config.options or {}
+  local copts = config.options
   local theme_tbl = copts.theme or {}
   local resolved_mode = current_live_theme == "auto" and (vim.o.background == "light" and "light" or "dark")
     or current_live_theme

@@ -461,7 +461,7 @@ M.destroy = function(buffer_id)
 
   local preview = active_previews[buffer_id]
   local config = require("md-view.config")
-  local sp = config.options and config.options.single_page
+  local sp = config.options.single_page
   -- per-entry: hub entries have no server of their own, whatever single_page says
   local hub_active = _mux and _mux.server and preview and not preview.server
 
@@ -476,7 +476,7 @@ M.destroy = function(buffer_id)
     _mux:unregister(buffer_id)
 
     if util.table_len(_mux.registry) == 0 then
-      if sp.close_by == "page" or (sp.close_by == nil and config.options and config.options.auto_close == true) then
+      if sp.close_by == "page" or (sp.close_by == nil and config.options.auto_close == true) then
         _mux:push("close", {})
       end
 
@@ -486,7 +486,7 @@ M.destroy = function(buffer_id)
       _mux:close_all()
       _mux = nil
     end
-  elseif config.options and config.options.auto_close then
+  elseif config.options.auto_close then
     if preview.sse then
       preview.sse:push("close", {})
     end
@@ -497,10 +497,7 @@ M.destroy = function(buffer_id)
   end
 
   preview.watcher.stop()
-
-  if preview.server then
-    server.stop(preview.server)
-  end
+  server.stop(preview.server)
 
   pcall(vim.api.nvim_del_augroup_by_name, "md_view_cleanup_" .. buffer_id)
 end

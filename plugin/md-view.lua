@@ -82,7 +82,7 @@ vim.api.nvim_create_user_command("MdViewFetchAssets", function(cmd_opts)
       -- Auto-resolve both light and dark themes from config
       local config = require("md-view.config")
       local theme_mod = require("md-view.theme")
-      local copts = config.options or {}
+      local copts = config.options
       local theme_tbl = copts.theme or {}
       local light_theme = theme_mod.resolve(
         vim.tbl_extend("force", copts, { theme = vim.tbl_extend("force", theme_tbl, { mode = "light" }) })
