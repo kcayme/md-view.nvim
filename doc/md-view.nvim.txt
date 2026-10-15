@@ -1,4 +1,4 @@
-*md-view.nvim.txt*         For NVIM v0.8.0        Last change: 2026 October 13
+*md-view.nvim.txt*         For NVIM v0.8.0        Last change: 2026 October 15
 
 ==============================================================================
 Table of Contents                             *md-view.nvim-table-of-contents*
@@ -77,15 +77,106 @@ PACKER.NVIM ~
 
 CONFIGURATION                                     *md-view.nvim-configuration*
 
-`setup()` is optional — every option has a default. See docs/options.md
+`setup()` is optional since every option has a default. See docs/options.md
 <docs/options.md> for the full reference. Adding `---@type MdViewOptions`
 enables LSP completion and hover docs:
 
 >lua
     ---@type MdViewOptions
     require("md-view").setup({
-      theme = { mode = "sync" },
-      single_page = { enable = true },
+      -- Port for the local preview server. 0 = auto-assign a free port.
+      port = 0,
+      -- Bind address. Must be a loopback address (127.0.0.1, ::1, localhost).
+      host = "127.0.0.1",
+      -- Browser executable. nil = auto-detect (open/xdg-open/cmd /c start).
+      browser = nil,
+      -- Milliseconds to debounce buffer updates before pushing to the browser.
+      debounce_ms = 300,
+      -- Custom CSS string injected into the preview page.
+      css = nil,
+      -- Auto-close the browser tab when the preview is stopped.
+      auto_close = true,
+      -- Show [md-view] notifications on open/stop.
+      verbose = true,
+      -- Open a new browser tab when entering a buffer that already has a preview.
+      follow_focus = false,
+      -- Scroll sync: "percentage" (proportional offset) or "cursor" (nearest source line).
+      scroll = {
+        method = "cursor", -- "percentage" | "cursor"
+      },
+      -- Color theme for the preview page.
+      theme = {
+        -- "auto" (follows 'background') | "dark" | "light" | "sync" (mirrors colorscheme live).
+        mode = "auto",
+        -- highlight.js theme for code blocks. nil = "vs2015" (dark) / "github" (light).
+        syntax = nil,
+        -- Highlight group overrides for CSS variable extraction (only used when mode = "sync").
+        highlights = {},
+      },
+      notations = {
+        -- Set enable = false on a notation to skip loading its library.
+        mermaid = {
+          enable = true,
+          theme = nil, -- nil = auto-chosen per theme
+          security_level = "strict", -- "strict" | "antiscript" | "loose" | "sandbox"
+        },
+        katex = { enable = true }, -- math fences and $...$ / $$...$$ inline math
+        graphviz = { enable = true }, -- dot / graphviz fences
+        wavedrom = { enable = true }, -- wavedrom fences
+        nomnoml = { enable = true }, -- nomnoml fences
+        abc = { enable = true }, -- abc music notation fences
+        vegalite = { enable = true }, -- vega-lite fences
+      },
+      -- Filetypes :MdView will preview. {} = any filetype.
+      filetypes = { "markdown" },
+      -- Auto-open (or re-focus) a preview when entering a qualifying buffer.
+      auto_open = {
+        enable = false,
+        -- Neovim events that trigger the auto-open check.
+        events = { "BufWinEnter" },
+      },
+      -- :MdViewList picker; works with any vim.ui.select replacement.
+      picker = {
+        -- Title/prompt shown at the top of the picker.
+        prompt = "Markdown Previews",
+        -- function(item) -> string; item = { bufnr, port, name }. nil = "name  http://host:port".
+        format_item = nil,
+        -- Passed as opts.kind to vim.ui.select.
+        kind = nil,
+      },
+      -- Single-page mode: all previews share one browser tab (uses top-level `port`).
+      single_page = {
+        enable = false,
+        -- "filename" | "relative" | "parent" | function(ctx) -> string; ctx = { bufnr, filename, path }.
+        tab_label = "parent",
+        -- nil (inherit `auto_close`) | "page" (close window after last preview) | "tab" | false (= "tab").
+        close_by = nil,
+      },
+      -- Table of contents sidebar shown alongside the preview.
+      table_of_contents = {
+        enable = false,
+        position = "left", -- "left" | "right"
+        max_depth = 6, -- 1–6; headings deeper than this are omitted
+      },
+      -- Brief "Updated" pill shown in the preview after live changes land.
+      toast = {
+        enable = true,
+        debounce_ms = 500, -- quiet period before the pill appears
+        duration_ms = 3000, -- how long it stays visible
+        position = "top-right", -- "bottom-left" | "bottom-right" | "top-left" | "top-right"
+      },
+      preview = {
+        -- "browser" | "split" | "tmux" (split/tmux render in-terminal via kitty graphics).
+        target = "browser",
+        terminal = {
+          -- Chromium-based executable for headless rendering. nil = auto-detect.
+          browser = nil,
+          -- Device scale factor for the rendered page.
+          scale = 1,
+          -- Quiet time (ms) after the viewer is resized before it re-renders.
+          resize_debounce_ms = 200,
+        },
+      },
     })
 <
 
