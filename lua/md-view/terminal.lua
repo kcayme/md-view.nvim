@@ -1027,6 +1027,13 @@ local function capture(session)
     if rows <= 0 then
       session.surface.call("show", tiles)
       sync_scroll(session)
+
+      -- stands in for the page's "Updated" toast, which a snapshot can't show
+      if session.edited and session.notify_updated then
+        session.notify_updated()
+      end
+
+      session.edited = false
       finish()
 
       return
@@ -1221,6 +1228,7 @@ local function register_source_autocmds(session, debounce_ms)
     buffer = session.bufnr,
     callback = function()
       -- md-view pushes the edit after its own debounce; then wait for the page to render it
+      session.edited = true
       schedule_capture(session, debounce_ms)
     end,
   })
@@ -1247,6 +1255,10 @@ local function close_session(bufnr, keep_surface)
   session.timer:stop()
   session.timer:close()
   session.resize_debounced.stop()
+
+  if session.notify_updated then
+    session.notify_updated.stop()
+  end
 
   if session.browser and session.target_id then
     session.browser.listeners[session.target_session] = nil
@@ -1326,6 +1338,19 @@ M.open = function(target, bufnr, start_server)
     scale = options.preview.terminal.scale,
     timer = uv.new_timer(),
   }
+
+  -- the user's toast setting; terminal_overrides only turns off the in-page pill
+  if options.toast.enable then
+    session.notify_updated = util.debounce(function()
+      if sessions[bufnr] == session then
+        vim.notify(
+          "[md-view] " .. vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t") .. ": updated",
+          vim.log.levels.INFO
+        )
+      end
+    end, options.toast.debounce_ms)
+  end
+
   session.resize_debounced = util.debounce(function()
     rerender_after_resize(session)
   end, options.preview.terminal.resize_debounce_ms)
