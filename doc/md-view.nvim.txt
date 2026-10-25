@@ -1,4 +1,4 @@
-*md-view.nvim.txt*         For NVIM v0.8.0        Last change: 2026 October 15
+*md-view.nvim.txt*         For NVIM v0.8.0        Last change: 2026 October 25
 
 ==============================================================================
 Table of Contents                             *md-view.nvim-table-of-contents*
@@ -440,7 +440,11 @@ options are optional — omitted keys fall back to the defaults shown below.
   toast.enable                          boolean                                                  true                  When true, the preview shows a brief
                                                                                                                        “Updated” pill after live changes land,
                                                                                                                        so you can tell the page caught up with
-                                                                                                                       the buffer.
+                                                                                                                       the buffer. The terminal preview
+                                                                                                                       (split/tmux) can’t show the pill, so it
+                                                                                                                       reports updates through vim.notify
+                                                                                                                       instead (debounced by
+                                                                                                                       toast.debounce_ms).
 
   toast.debounce_ms                     integer                                                  500                   Quiet period before the pill appears.
                                                                                                                        Every update resets the timer, so a
