@@ -185,32 +185,37 @@ enables LSP completion and hover docs:
 
 USAGE                                                     *md-view.nvim-usage*
 
-  -----------------------------------------------------------------------
-  Command                       Description
-  ----------------------------- -----------------------------------------
-  :MdView [target]              Open a preview for the current buffer.
-                                target is browser, split or tmux; any
-                                other value is used as the browser
-                                command (e.g. :MdView firefox).
+  ---------------------------------------------------------------------------
+  Command                           Description
+  --------------------------------- -----------------------------------------
+  :MdView [target]                  Open a preview for the current buffer.
+                                    target is browser, split or tmux; any
+                                    other value is used as the browser
+                                    command (e.g. :MdView firefox).
 
-  :MdViewStop                   Stop the preview
+  :MdViewStop                       Stop the preview
 
-  :MdViewClose [all]            Close preview panel(s) without stopping
-                                the server
+  :MdViewClose [all]                Close preview panel(s) without stopping
+                                    the server
 
-  :MdViewRestart                Restart all active preview servers
+  :MdViewRestart                    Restart all active preview servers
 
-  :MdViewToggle                 Toggle the preview on/off
+  :MdViewToggle                     Toggle the preview on/off
 
-  :MdViewList                   Pick from all active previews
+  :MdViewList                       Pick from all active previews
 
-  :MdViewAutoOpen               Toggle automatic preview on buffer enter
+  :MdViewAutoOpen                   Toggle automatic preview on buffer enter
 
-  :MdViewTheme [mode]           Switch the live theme (dark, light, auto,
-                                sync); no argument cycles
+  :MdViewTheme [mode]               Switch the live theme (dark, light, auto,
+                                    sync); no argument cycles
 
-  :MdViewFetchAssets            Re-fetch vendor assets for offline use
-  -----------------------------------------------------------------------
+  :MdViewZoom {in\|out\|reset\|N}   Zoom the terminal preview (+ / - / = in
+                                    its viewer); lasts until Neovim exits.
+                                    Browser previews use the browser’s own
+                                    zoom
+
+  :MdViewFetchAssets                Re-fetch vendor assets for offline use
+  ---------------------------------------------------------------------------
 The plugin sets no keymaps. Bind the commands yourself:
 
 >lua
@@ -493,7 +498,9 @@ options are optional — omitted keys fall back to the defaults shown below.
                                                                                                                        on macOS and 1 elsewhere; set a number
                                                                                                                        to override, e.g. 1 for a Mac on a
                                                                                                                        non-Retina monitor or 2 on a HiDPI
-                                                                                                                       Linux/Windows screen.
+                                                                                                                       Linux/Windows screen. :MdViewZoom (or +
+                                                                                                                       / - / = in the viewer) changes it on
+                                                                                                                       the fly.
 
   preview.terminal.resize_debounce_ms   integer                                                  200                   Quiet time after the terminal preview’s
                                                                                                                        split or pane is resized (or the font
