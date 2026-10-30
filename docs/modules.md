@@ -12,6 +12,7 @@ Entry point loaded by Neovim at startup. Registers all user-facing commands that
 | `:MdViewList` | Open picker of active previews |
 | `:MdViewAutoOpen` | Toggle auto-open on buffer enter |
 | `:MdViewTheme [mode]` | Switch live theme (dark/light/auto/sync); no arg cycles |
+| `:MdViewZoom {in\|out\|reset\|N}` | Zoom the terminal preview; overrides `preview.terminal.scale` until Neovim exits |
 | `:MdViewFetchAssets` | Re-fetch vendor assets for offline use |
 
 ## `init.lua`

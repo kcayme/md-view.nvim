@@ -304,3 +304,65 @@ describe("terminal.resolve_scale", function()
     assert.are.equal(1, terminal.resolve_scale(1))
   end)
 end)
+
+describe("terminal.zoom", function()
+  local config = require("md-view.config")
+  local orig_notify, orig_scale
+  local notify_calls
+
+  before_each(function()
+    orig_notify = vim.notify
+    orig_scale = config.options.preview.terminal.scale
+    notify_calls = {}
+    vim.notify = function(msg, level)
+      table.insert(notify_calls, { msg = msg, level = level })
+    end
+    config.options.preview.terminal.scale = 1
+    terminal.zoom("reset")
+  end)
+
+  after_each(function()
+    terminal.zoom("reset")
+    vim.notify = orig_notify
+    config.options.preview.terminal.scale = orig_scale
+  end)
+
+  it("should step in and out from the configured scale", function()
+    assert.are.equal(1.25, terminal.zoom("in"))
+    assert.are.equal(1.5, terminal.zoom("in"))
+    assert.are.equal(1.25, terminal.zoom("out"))
+  end)
+
+  it("should set an explicit scale and reset to the configured one", function()
+    assert.are.equal(2, terminal.zoom("2"))
+    assert.are.equal(1, terminal.zoom("reset"))
+    assert.are.equal(1.25, terminal.zoom("in"))
+  end)
+
+  it("should step by a quarter of the configured scale", function()
+    config.options.preview.terminal.scale = 2
+
+    assert.are.equal(2.5, terminal.zoom("in"))
+  end)
+
+  it("should clamp the scale", function()
+    assert.are.equal(4, terminal.zoom("10"))
+    assert.are.equal(0.25, terminal.zoom("0"))
+  end)
+
+  it("should report the zoom relative to the configured scale", function()
+    config.options.preview.terminal.scale = 2
+
+    terminal.zoom("3")
+
+    assert.truthy(notify_calls[#notify_calls].msg:find("150%", 1, true))
+  end)
+
+  it("should reject an invalid argument without changing the zoom", function()
+    terminal.zoom("2")
+
+    assert.is_nil(terminal.zoom("bigger"))
+    assert.are.equal(vim.log.levels.ERROR, notify_calls[#notify_calls].level)
+    assert.are.equal(2.25, terminal.zoom("in"))
+  end)
+end)

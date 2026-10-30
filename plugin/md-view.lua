@@ -70,6 +70,18 @@ vim.api.nvim_create_user_command("MdViewTheme", function(cmd_opts)
   end)
 end, { desc = "Switch live preview theme (dark/light/auto/sync); no arg cycles", nargs = "?" })
 
+vim.api.nvim_create_user_command("MdViewZoom", function(cmd_opts)
+  util.safe_call("MdViewZoom", function()
+    require("md-view.terminal").zoom(cmd_opts.args)
+  end)
+end, {
+  desc = "Zoom the terminal preview (in/out/reset or a scale); browser previews use the browser's own zoom",
+  nargs = 1,
+  complete = function()
+    return { "in", "out", "reset" }
+  end,
+})
+
 vim.api.nvim_create_user_command("MdViewFetchAssets", function(cmd_opts)
   util.safe_call("MdViewFetchAssets", function()
     local opts = {}

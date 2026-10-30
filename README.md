@@ -154,6 +154,7 @@ require("md-view").setup({
 | `:MdViewList` | Pick from all active previews |
 | `:MdViewAutoOpen` | Toggle automatic preview on buffer enter |
 | `:MdViewTheme [mode]` | Switch the live theme (`dark`, `light`, `auto`, `sync`); no argument cycles |
+| `:MdViewZoom {in\|out\|reset\|N}` | Zoom the terminal preview (`+` / `-` / `=` in its viewer); lasts until Neovim exits. Browser previews use the browser's own zoom |
 | `:MdViewFetchAssets` | Re-fetch vendor assets for offline use |
 
 The plugin sets no keymaps. Bind the commands yourself:

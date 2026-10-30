@@ -385,6 +385,13 @@ local shared_browser = nil
 -- The viewer (split or tmux pane) is shared too: previewing another buffer moves it to that buffer.
 ---@type { surface: table, target: string, owner: integer }|nil
 local viewer = nil
+-- :MdViewZoom's scale; overrides preview.terminal.scale for every terminal preview until Neovim exits
+---@type number|nil
+local zoom_scale = nil
+-- fractions of the configured scale, so steps and limits read the same whatever the display density
+local ZOOM_STEP = 0.25
+local ZOOM_MIN = 0.25
+local ZOOM_MAX = 4
 ---@type table<integer, integer[]> viewer bufnr -> kitty image ids on screen
 local viewer_images = {}
 
@@ -799,6 +806,15 @@ M.scroll = function(buf, topline)
   end)
 end
 
+-- Browser-style zoom keys in the viewer; zoom runs in the source Neovim, so the tmux pane passes it over RPC.
+local function set_zoom_keymaps(buf, zoom)
+  for key, arg in pairs({ ["+"] = "in", ["-"] = "out", ["="] = "reset" }) do
+    vim.keymap.set("n", key, function()
+      zoom(arg)
+    end, { buffer = buf, desc = "md-view: zoom " .. arg })
+  end
+end
+
 -- Entry point for the tmux pane's Neovim: turn the current window into a viewer.
 ---@return { [1]: integer, [2]: integer, [3]: integer } viewer bufnr, width, height
 M.viewer = function()
@@ -810,23 +826,28 @@ M.viewer = function()
   vim.o.ruler = false
   vim.o.showmode = false
   vim.o.showcmd = false
+  -- the source Neovim is this pane's only RPC socket client
+  local function call_source(name, args)
+    for _, chan in ipairs(vim.api.nvim_list_chans()) do
+      if chan.mode == "rpc" and chan.stream == "socket" then
+        pcall(vim.rpcnotify, chan.id, "nvim_exec_lua", "require('md-view.terminal')." .. name .. "(...)", args)
+      end
+    end
+  end
+
   setup_viewer_window(vim.api.nvim_get_current_win(), buf)
   vim.keymap.set("n", "q", "<cmd>qa!<cr>", { buffer = buf })
+  set_zoom_keymaps(buf, function(arg)
+    call_source("zoom", { arg })
+  end)
   vim.api.nvim_create_autocmd("VimLeavePre", {
     callback = function()
       M.clear(buf)
     end,
   })
-  -- the source Neovim is this pane's only RPC socket client; tell it the new size
   vim.api.nvim_create_autocmd("VimResized", {
     callback = function()
-      local size = { vim.api.nvim_win_get_width(win), vim.api.nvim_win_get_height(win) }
-
-      for _, chan in ipairs(vim.api.nvim_list_chans()) do
-        if chan.mode == "rpc" and chan.stream == "socket" then
-          pcall(vim.rpcnotify, chan.id, "nvim_exec_lua", "require('md-view.terminal').viewer_resized(...)", size)
-        end
-      end
+      call_source("viewer_resized", { vim.api.nvim_win_get_width(win), vim.api.nvim_win_get_height(win) })
     end,
   })
 
@@ -847,6 +868,7 @@ local function split_surface(on_close, on_resize)
   vim.api.nvim_win_set_buf(win, buf)
   setup_viewer_window(win, buf)
   vim.keymap.set("n", "q", "<cmd>close<cr>", { buffer = buf })
+  set_zoom_keymaps(buf, M.zoom)
   vim.api.nvim_set_current_win(source_win)
   vim.api.nvim_create_autocmd("BufWipeout", {
     buffer = buf,
@@ -1340,6 +1362,46 @@ M.check_requirements = check_requirements
 M.size_changed = size_changed
 M.resolve_scale = resolve_scale
 
+-- :MdViewZoom: "in"/"out" step by 25% of the configured scale, "reset" returns to preview.terminal.scale, a number sets it.
+---@param arg string
+---@return number|nil scale the new scale, nil when arg is invalid
+M.zoom = function(arg)
+  local base = resolve_scale(require("md-view.config").options.preview.terminal.scale)
+  local current = zoom_scale or base
+  local scale = ({ ["in"] = current + ZOOM_STEP * base, out = current - ZOOM_STEP * base, reset = base })[arg] or tonumber(arg)
+  local session
+
+  if not scale then
+    vim.notify("[md-view] invalid zoom '" .. tostring(arg) .. "' (use in, out, reset or a number)", vim.log.levels.ERROR)
+
+    return nil
+  end
+
+  scale = math.min(math.max(scale, ZOOM_MIN * base), ZOOM_MAX * base)
+  zoom_scale = arg ~= "reset" and scale or nil
+
+  for _, s in pairs(sessions) do
+    s.scale = scale
+  end
+
+  session = viewer and sessions[viewer.owner]
+
+  if session then
+    capture(session)
+  end
+
+  vim.notify(
+    string.format(
+      "[md-view] terminal preview zoom %d%%%s",
+      math.floor(scale / base * 100 + 0.5),
+      session and "" or " (applies to the next terminal preview)"
+    ),
+    vim.log.levels.INFO
+  )
+
+  return scale
+end
+
 -- Called over RPC by the tmux pane's Neovim when the pane is resized.
 ---@param width integer
 ---@param height integer
@@ -1388,7 +1450,7 @@ M.open = function(target, bufnr, start_server)
   session = {
     bufnr = bufnr,
     cell = cell_size(),
-    scale = resolve_scale(options.preview.terminal.scale),
+    scale = zoom_scale or resolve_scale(options.preview.terminal.scale),
     timer = uv.new_timer(),
   }
 
