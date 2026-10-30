@@ -1,7 +1,7 @@
 local terminal = require("md-view.terminal")
 
 describe("terminal.check_requirements", function()
-  local orig_notify, orig_executable, orig_system
+  local orig_notify, orig_executable, orig_system, orig_glob
   local orig_env = {}
   local env_keys = { "TMUX", "TERM", "TERM_PROGRAM", "KITTY_WINDOW_ID", "GHOSTTY_RESOURCES_DIR", "WEZTERM_PANE" }
   local notify_calls
@@ -27,6 +27,7 @@ describe("terminal.check_requirements", function()
     orig_notify = vim.notify
     orig_executable = vim.fn.executable
     orig_system = vim.fn.system
+    orig_glob = vim.fn.glob
     notify_calls = {}
     tmux_replies = { termname = "xterm-ghostty", passthrough = "on" }
 
@@ -41,6 +42,9 @@ describe("terminal.check_requirements", function()
     vim.fn.executable = function(name)
       return name == "fake-chromium" and 1 or 0
     end
+    vim.fn.glob = function()
+      return {}
+    end
     vim.fn.system = function(cmd)
       if cmd[2] == "display" then
         return tmux_replies.termname .. "\n"
@@ -54,6 +58,7 @@ describe("terminal.check_requirements", function()
     vim.notify = orig_notify
     vim.fn.executable = orig_executable
     vim.fn.system = orig_system
+    vim.fn.glob = orig_glob
 
     for _, key in ipairs(env_keys) do
       vim.env[key] = orig_env[key]
@@ -78,6 +83,7 @@ describe("terminal.check_requirements", function()
     assert.is_nil(binary)
     assert.are.equal(1, #messages(vim.log.levels.ERROR))
     assert.truthy(messages(vim.log.levels.ERROR)[1]:find("headless", 1, true))
+    assert.truthy(messages(vim.log.levels.ERROR)[1]:find("preview.terminal.browser", 1, true))
   end)
 
   it("should error and stop when the target is invalid", function()
@@ -123,6 +129,58 @@ describe("terminal.check_requirements", function()
 
     assert.are.equal(1, #messages(vim.log.levels.WARN))
     assert.truthy(messages(vim.log.levels.WARN)[1]:find("allow-passthrough", 1, true))
+  end)
+
+  it("should find Playwright's headless shell in the macOS cache", function()
+    local shell = "/Users/me/Library/Caches/ms-playwright/chromium_headless_shell-1234/mac/chrome-headless-shell"
+
+    vim.env.TERM = "xterm-ghostty"
+    vim.fn.glob = function(pattern)
+      return pattern:find("~/Library/Caches/ms-playwright", 1, true) and { shell } or {}
+    end
+
+    local binary = terminal.check_requirements(options(nil), "split")
+
+    assert.are.equal(shell, binary)
+  end)
+
+  it("should fall back to the macOS Chrome app when nothing else is installed", function()
+    local chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+
+    vim.env.TERM = "xterm-ghostty"
+    vim.fn.executable = function(name)
+      return name == chrome and 1 or 0
+    end
+
+    local binary = terminal.check_requirements(options(nil), "split")
+
+    assert.are.equal(chrome, binary)
+  end)
+
+  it("should find Puppeteer's headless shell", function()
+    local shell = "/Users/me/.cache/puppeteer/chrome-headless-shell/mac_arm-148.0/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+
+    vim.env.TERM = "xterm-ghostty"
+    vim.fn.glob = function(pattern)
+      return pattern:find("~/.cache/puppeteer", 1, true) and { shell } or {}
+    end
+
+    local binary = terminal.check_requirements(options(nil), "split")
+
+    assert.are.equal(shell, binary)
+  end)
+
+  it("should find Edge installed in the user's Applications folder", function()
+    local edge = vim.fn.expand("~/Applications") .. "/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
+
+    vim.env.TERM = "xterm-ghostty"
+    vim.fn.executable = function(name)
+      return name == edge and 1 or 0
+    end
+
+    local binary = terminal.check_requirements(options(nil), "split")
+
+    assert.are.equal(edge, binary)
   end)
 end)
 

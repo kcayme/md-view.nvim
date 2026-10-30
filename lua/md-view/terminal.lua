@@ -322,6 +322,20 @@ local BROWSER_CANDIDATES = {
   "google-chrome",
   "brave-browser",
 }
+-- Cached headless shells from Playwright (macOS keeps its cache under ~/Library/Caches) and Puppeteer
+local HEADLESS_SHELL_GLOBS = {
+  "~/.cache/ms-playwright/chromium_headless_shell-*/*/chrome-headless-shell",
+  "~/Library/Caches/ms-playwright/chromium_headless_shell-*/*/chrome-headless-shell",
+  "~/.cache/puppeteer/chrome-headless-shell/*/*/chrome-headless-shell",
+}
+local MACOS_APP_DIRS = { "/Applications", "~/Applications" }
+-- macOS installs these inside their .app bundles, off PATH
+local MACOS_APPS = {
+  "Google Chrome.app/Contents/MacOS/Google Chrome",
+  "Chromium.app/Contents/MacOS/Chromium",
+  "Brave Browser.app/Contents/MacOS/Brave Browser",
+  "Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+}
 -- Hides screenshot-unfriendly UI, then reports page height, source-line offsets and notation errors.
 local METRICS_JS = [[
 (() => {
@@ -460,10 +474,24 @@ local function find_browser(configured)
     end
   end
 
-  -- Playwright's cached headless shell (`npx playwright install chromium-headless-shell`)
-  local cached = vim.fn.glob("~/.cache/ms-playwright/chromium_headless_shell-*/*/chrome-headless-shell", false, true)
+  -- `npx playwright install chromium-headless-shell` or `npx @puppeteer/browsers install chrome-headless-shell`
+  for _, pattern in ipairs(HEADLESS_SHELL_GLOBS) do
+    local cached = vim.fn.glob(pattern, false, true)
 
-  return cached[#cached]
+    if #cached > 0 then
+      return cached[#cached]
+    end
+  end
+
+  for _, dir in ipairs(MACOS_APP_DIRS) do
+    for _, app in ipairs(MACOS_APPS) do
+      local path = vim.fn.expand(dir) .. "/" .. app
+
+      if vim.fn.executable(path) == 1 then
+        return path
+      end
+    end
+  end
 end
 
 -- Kitty graphics query replies never reach Lua through tmux, so identify the outer terminal by name.
@@ -507,7 +535,7 @@ local function check_requirements(options, target)
 
   if not binary then
     vim.notify(
-      "[md-view] no headless Chromium-based browser found; install chromium or set preview.terminal.browser",
+      "[md-view] no headless Chromium-based browser found (auto-detection is best-effort); set preview.terminal.browser to its full path",
       vim.log.levels.ERROR
     )
 

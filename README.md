@@ -129,7 +129,8 @@ require("md-view").setup({
     -- "browser" | "split" | "tmux" (split/tmux render in-terminal via kitty graphics).
     target = "browser",
     terminal = {
-      -- Chromium-based executable for headless rendering. nil = auto-detect.
+      -- Chromium-based executable for headless rendering. nil = best-effort auto-detect
+      -- (PATH, Playwright/Puppeteer caches, macOS app bundles); set a full path if it isn't found.
       browser = nil,
       -- Device scale factor for the rendered page.
       scale = 1,

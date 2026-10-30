@@ -68,7 +68,7 @@ local M = {}
 ---@alias MdViewPreviewTarget "browser"|"split"|"tmux"
 
 ---@class MdViewTerminalOptions
----@field browser string|nil Chromium-based executable for headless rendering; auto-detected when nil
+---@field browser string|nil Chromium-based executable for headless rendering; best-effort auto-detected when nil
 ---@field scale number device scale factor for the rendered page
 ---@field resize_debounce_ms integer quiet time after the viewer is resized before it re-renders
 
