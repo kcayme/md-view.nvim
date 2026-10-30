@@ -69,7 +69,7 @@ local M = {}
 
 ---@class MdViewTerminalOptions
 ---@field browser string|nil Chromium-based executable for headless rendering; best-effort auto-detected when nil
----@field scale number device scale factor for the rendered page
+---@field scale number|"auto" device scale factor for the rendered page; "auto" is 2 on macOS (Retina), else 1
 ---@field resize_debounce_ms integer quiet time after the viewer is resized before it re-renders
 
 ---@class MdViewPreviewOptions
@@ -152,7 +152,7 @@ M.defaults = {
     target = "browser",
     terminal = {
       browser = nil,
-      scale = 1,
+      scale = "auto",
       resize_debounce_ms = 200,
     },
   },
@@ -263,7 +263,7 @@ local SCHEMA = {
         terminal = {
           fields = {
             browser = { type = "string" },
-            scale = { type = "number" },
+            scale = { type = { "number", "string" }, enum = { "auto" } },
             resize_debounce_ms = { type = "number" },
           },
         },

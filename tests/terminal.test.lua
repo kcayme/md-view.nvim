@@ -268,3 +268,39 @@ describe("terminal.size_changed", function()
     assert.is_false(terminal.size_changed({ cols = 80, cell = cell }, 80, { width = 10, height = 21 }))
   end)
 end)
+
+describe("terminal.resolve_scale", function()
+  local orig_has
+
+  before_each(function()
+    orig_has = vim.fn.has
+  end)
+
+  after_each(function()
+    vim.fn.has = orig_has
+  end)
+
+  local function on_mac(is_mac)
+    vim.fn.has = function(feature)
+      return feature == "mac" and (is_mac and 1 or 0) or orig_has(feature)
+    end
+  end
+
+  it("should render at 2x on macOS when auto", function()
+    on_mac(true)
+
+    assert.are.equal(2, terminal.resolve_scale("auto"))
+  end)
+
+  it("should render at 1x elsewhere when auto", function()
+    on_mac(false)
+
+    assert.are.equal(1, terminal.resolve_scale("auto"))
+  end)
+
+  it("should keep an explicit scale", function()
+    on_mac(true)
+
+    assert.are.equal(1, terminal.resolve_scale(1))
+  end)
+end)

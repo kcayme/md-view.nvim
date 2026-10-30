@@ -533,6 +533,15 @@ local function supports_kitty_graphics()
   return false
 end
 
+-- Terminals report cell sizes in device pixels but never the display's scale, so "auto" assumes a Mac is Retina.
+local function resolve_scale(scale)
+  if scale == "auto" then
+    return vim.fn.has("mac") == 1 and 2 or 1
+  end
+
+  return scale
+end
+
 -- Preflight: a missing browser or bad target stops the preview; the best-guess checks only warn.
 ---@return string|nil binary, string|nil target
 local function check_requirements(options, target)
@@ -1329,6 +1338,7 @@ end
 
 M.check_requirements = check_requirements
 M.size_changed = size_changed
+M.resolve_scale = resolve_scale
 
 -- Called over RPC by the tmux pane's Neovim when the pane is resized.
 ---@param width integer
@@ -1378,7 +1388,7 @@ M.open = function(target, bufnr, start_server)
   session = {
     bufnr = bufnr,
     cell = cell_size(),
-    scale = options.preview.terminal.scale,
+    scale = resolve_scale(options.preview.terminal.scale),
     timer = uv.new_timer(),
   }
 

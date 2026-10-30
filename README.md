@@ -132,8 +132,9 @@ require("md-view").setup({
       -- Chromium-based executable for headless rendering. nil = best-effort auto-detect
       -- (PATH, Playwright/Puppeteer caches, macOS app bundles); set a full path if it isn't found.
       browser = nil,
-      -- Device scale factor for the rendered page.
-      scale = 1,
+      -- Device scale factor for the rendered page. "auto" = 2 on macOS (Retina), 1 elsewhere;
+      -- set 2 on a HiDPI Linux/Windows screen if the preview looks zoomed out.
+      scale = "auto",
       -- Quiet time (ms) after the viewer is resized before it re-renders.
       resize_debounce_ms = 200,
     },
