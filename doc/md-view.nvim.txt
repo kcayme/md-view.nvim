@@ -172,8 +172,9 @@ enables LSP completion and hover docs:
           -- Chromium-based executable for headless rendering. nil = best-effort auto-detect
           -- (PATH, Playwright/Puppeteer caches, macOS app bundles); set a full path if it isn't found.
           browser = nil,
-          -- Device scale factor for the rendered page.
-          scale = 1,
+          -- Device scale factor for the rendered page. "auto" = 2 on macOS (Retina), 1 elsewhere;
+          -- set 2 on a HiDPI Linux/Windows screen if the preview looks zoomed out.
+          scale = "auto",
           -- Quiet time (ms) after the viewer is resized before it re-renders.
           resize_debounce_ms = 200,
         },
@@ -473,13 +474,26 @@ options are optional — omitted keys fall back to the defaults shown below.
 
   preview.terminal.browser              string\|nil                                              nil                   Chromium-based executable used to
                                                                                                                        render the terminal preview headlessly.
-                                                                                                                       nil auto-detects chrome-headless-shell,
-                                                                                                                       chromium, google-chrome, brave-browser,
-                                                                                                                       then Playwright’s cached headless
-                                                                                                                       shell.
+                                                                                                                       nil is a best-effort auto-detect:
+                                                                                                                       Chrome, Chromium, Brave and Edge on
+                                                                                                                       $PATH, then a cached Playwright or
+                                                                                                                       Puppeteer headless shell (honoring
+                                                                                                                       PLAYWRIGHT_BROWSERS_PATH /
+                                                                                                                       PUPPETEER_CACHE_DIR), then the macOS
+                                                                                                                       app bundles in /Applications and
+                                                                                                                       ~/Applications. Set a full path if it
+                                                                                                                       isn’t found.
 
-  preview.terminal.scale                number                                                   1                     Device scale factor for the terminal
-                                                                                                                       preview’s rendered page.
+  preview.terminal.scale                number\|"auto"                                           "auto"                Device scale factor for the terminal
+                                                                                                                       preview’s rendered page. Terminals
+                                                                                                                       report cell sizes in device pixels, so
+                                                                                                                       on a HiDPI (Retina) screen it must
+                                                                                                                       match the display’s scale or the
+                                                                                                                       preview looks zoomed out. "auto" uses 2
+                                                                                                                       on macOS and 1 elsewhere; set a number
+                                                                                                                       to override, e.g. 1 for a Mac on a
+                                                                                                                       non-Retina monitor or 2 on a HiDPI
+                                                                                                                       Linux/Windows screen.
 
   preview.terminal.resize_debounce_ms   integer                                                  200                   Quiet time after the terminal preview’s
                                                                                                                        split or pane is resized (or the font
