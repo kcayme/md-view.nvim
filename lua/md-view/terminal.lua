@@ -321,12 +321,23 @@ local BROWSER_CANDIDATES = {
   "google-chrome-stable",
   "google-chrome",
   "brave-browser",
+  "brave-browser-stable",
+  "microsoft-edge",
+  "microsoft-edge-stable",
 }
--- Cached headless shells from Playwright (macOS keeps its cache under ~/Library/Caches) and Puppeteer
-local HEADLESS_SHELL_GLOBS = {
-  "~/.cache/ms-playwright/chromium_headless_shell-*/*/chrome-headless-shell",
-  "~/Library/Caches/ms-playwright/chromium_headless_shell-*/*/chrome-headless-shell",
-  "~/.cache/puppeteer/chrome-headless-shell/*/*/chrome-headless-shell",
+-- Cached headless shells from Playwright (macOS keeps its cache under ~/Library/Caches) and Puppeteer;
+-- each tool's env var replaces its default cache dirs
+local HEADLESS_SHELL_CACHES = {
+  {
+    env = "PLAYWRIGHT_BROWSERS_PATH",
+    dirs = { "~/.cache/ms-playwright", "~/Library/Caches/ms-playwright" },
+    shell = "chromium_headless_shell-*/*/chrome-headless-shell",
+  },
+  {
+    env = "PUPPETEER_CACHE_DIR",
+    dirs = { "~/.cache/puppeteer" },
+    shell = "chrome-headless-shell/*/*/chrome-headless-shell",
+  },
 }
 local MACOS_APP_DIRS = { "/Applications", "~/Applications" }
 -- macOS installs these inside their .app bundles, off PATH
@@ -335,6 +346,8 @@ local MACOS_APPS = {
   "Chromium.app/Contents/MacOS/Chromium",
   "Brave Browser.app/Contents/MacOS/Brave Browser",
   "Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+  "Google Chrome Beta.app/Contents/MacOS/Google Chrome Beta",
+  "Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary",
 }
 -- Hides screenshot-unfriendly UI, then reports page height, source-line offsets and notation errors.
 local METRICS_JS = [[
@@ -475,11 +488,13 @@ local function find_browser(configured)
   end
 
   -- `npx playwright install chromium-headless-shell` or `npx @puppeteer/browsers install chrome-headless-shell`
-  for _, pattern in ipairs(HEADLESS_SHELL_GLOBS) do
-    local cached = vim.fn.glob(pattern, false, true)
+  for _, cache in ipairs(HEADLESS_SHELL_CACHES) do
+    for _, dir in ipairs(vim.env[cache.env] and { vim.env[cache.env] } or cache.dirs) do
+      local cached = vim.fn.glob(dir .. "/" .. cache.shell, false, true)
 
-    if #cached > 0 then
-      return cached[#cached]
+      if #cached > 0 then
+        return cached[#cached]
+      end
     end
   end
 

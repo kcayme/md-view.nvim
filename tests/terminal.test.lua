@@ -3,7 +3,16 @@ local terminal = require("md-view.terminal")
 describe("terminal.check_requirements", function()
   local orig_notify, orig_executable, orig_system, orig_glob
   local orig_env = {}
-  local env_keys = { "TMUX", "TERM", "TERM_PROGRAM", "KITTY_WINDOW_ID", "GHOSTTY_RESOURCES_DIR", "WEZTERM_PANE" }
+  local env_keys = {
+    "TMUX",
+    "TERM",
+    "TERM_PROGRAM",
+    "KITTY_WINDOW_ID",
+    "GHOSTTY_RESOURCES_DIR",
+    "WEZTERM_PANE",
+    "PLAYWRIGHT_BROWSERS_PATH",
+    "PUPPETEER_CACHE_DIR",
+  }
   local notify_calls
   local tmux_replies
 
@@ -168,6 +177,62 @@ describe("terminal.check_requirements", function()
     local binary = terminal.check_requirements(options(nil), "split")
 
     assert.are.equal(shell, binary)
+  end)
+
+  it("should search PLAYWRIGHT_BROWSERS_PATH instead of the default Playwright caches", function()
+    local searched = {}
+
+    vim.env.TERM = "xterm-ghostty"
+    vim.env.PLAYWRIGHT_BROWSERS_PATH = "/opt/pw"
+    vim.fn.glob = function(pattern)
+      table.insert(searched, pattern)
+      return pattern:find("/opt/pw/", 1, true) and { "/opt/pw/shell" } or {}
+    end
+
+    local binary = terminal.check_requirements(options(nil), "split")
+
+    assert.are.equal("/opt/pw/shell", binary)
+    assert.are.same({ "/opt/pw/chromium_headless_shell-*/*/chrome-headless-shell" }, searched)
+  end)
+
+  it("should search PUPPETEER_CACHE_DIR instead of the default Puppeteer cache", function()
+    local searched = {}
+
+    vim.env.TERM = "xterm-ghostty"
+    vim.env.PUPPETEER_CACHE_DIR = "/opt/pptr"
+    vim.fn.glob = function(pattern)
+      table.insert(searched, pattern)
+      return {}
+    end
+
+    terminal.check_requirements(options(nil), "split")
+
+    assert.truthy(vim.tbl_contains(searched, "/opt/pptr/chrome-headless-shell/*/*/chrome-headless-shell"))
+    assert.is_false(vim.tbl_contains(searched, "~/.cache/puppeteer/chrome-headless-shell/*/*/chrome-headless-shell"))
+  end)
+
+  it("should find Edge on PATH by its Linux package name", function()
+    vim.env.TERM = "xterm-ghostty"
+    vim.fn.executable = function(name)
+      return name == "microsoft-edge-stable" and 1 or 0
+    end
+
+    local binary = terminal.check_requirements(options(nil), "split")
+
+    assert.are.equal("microsoft-edge-stable", binary)
+  end)
+
+  it("should fall back to Chrome Canary when it is the only macOS app installed", function()
+    local canary = "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary"
+
+    vim.env.TERM = "xterm-ghostty"
+    vim.fn.executable = function(name)
+      return name == canary and 1 or 0
+    end
+
+    local binary = terminal.check_requirements(options(nil), "split")
+
+    assert.are.equal(canary, binary)
   end)
 
   it("should find Edge installed in the user's Applications folder", function()
