@@ -1368,11 +1368,15 @@ M.resolve_scale = resolve_scale
 M.zoom = function(arg)
   local base = resolve_scale(require("md-view.config").options.preview.terminal.scale)
   local current = zoom_scale or base
-  local scale = ({ ["in"] = current + ZOOM_STEP * base, out = current - ZOOM_STEP * base, reset = base })[arg] or tonumber(arg)
+  local scale = ({ ["in"] = current + ZOOM_STEP * base, out = current - ZOOM_STEP * base, reset = base })[arg]
+    or tonumber(arg)
   local session
 
   if not scale then
-    vim.notify("[md-view] invalid zoom '" .. tostring(arg) .. "' (use in, out, reset or a number)", vim.log.levels.ERROR)
+    vim.notify(
+      "[md-view] invalid zoom '" .. tostring(arg) .. "' (use in, out, reset or a number)",
+      vim.log.levels.ERROR
+    )
 
     return nil
   end
